@@ -3,7 +3,7 @@
 import pywinauto
 import time
 
-user_input_address = r"C:\Users\daval\Desktop\COLLEGE\Senior_Year\Fall_Semester\Senior_Design\Smart_Tutor_Piano_Idea\Conversion_Test\Original_MP3\OdeToJoy.mp3"
+user_input_address = r"C:\Users\daval\Documents\GitHub\SKORE\conversion_test\Original_MP3\SpiritedAway.mp3"
 
 #Starting Audacity
 aud_app = pywinauto.application.Application()
@@ -27,14 +27,15 @@ w_open.type_keys("{ENTER}")
 
 #Click on file menu
 #Possible not being enabled has something to do with timing issue
-time.sleep(1)
+time.sleep(10)
 window.menu_item('&File->Export Audio ...').click()
 w_export_handle = pywinauto.findwindows.find_windows(title='Export Audio')[0]
 w_export = aud_app.window(handle=w_export_handle)
 
 w_export.type_keys("{ENTER}")
-#w_export.type_keys("{ENTER}")
+time.sleep(2)
+w_export.type_keys("{ENTER}")
 
-aud_app.kill()
+#aud_app.kill()
 
 #print(w_export)
