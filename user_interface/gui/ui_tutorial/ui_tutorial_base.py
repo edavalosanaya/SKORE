@@ -19,29 +19,10 @@ class Window(QMainWindow):
 
     def InitWindow(self):
 
-        self.statusbar = self.statusBar()
-        self.statusbar.showMessage("Message is Ready")
-
-        menubar = self.menuBar()
-        viewMenu = menubar.addMenu("View")
-
-        viewAction = QAction("View Status", self, checkable = True)
-        viewAction.setStatusTip("View Statusbar")
-        viewAction.setChecked(True)
-        viewAction.triggered.connect(self.toggleMenu)
-
-        viewMenu.addAction(viewAction)
 
         self.setWindowTitle(self.title)
         self.setGeometry(self.top, self.left, self.width, self.height)
         self.show()
-
-    def toggleMenu(self, state):
-        if state:
-            self.statusbar.show()
-        else:
-            self.statusbar.hide()
-
 
 
 
