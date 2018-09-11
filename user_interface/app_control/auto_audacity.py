@@ -4,7 +4,7 @@ import ntpath
 import os
 import pathlib
 
-from skore_function import output_address
+from skore_function import output_address, clean_temp_folder
 
 #How to print the dictionary items!!!!!
 #print(aud_app.__dict__.items())
@@ -14,6 +14,7 @@ from skore_function import output_address
 user_input_address = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\conversion_test\Original_MP3\SpiritedAway.mp3"
 destination_address = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\temp"
 [end_address, filename] = output_address(user_input_address, destination_address, '.wav')
+clean_temp_folder()
 
 ################################MAIN CODE#######################################
 aud_app = pywinauto.application.Application()
@@ -53,7 +54,7 @@ aud_app.EditMetadata.OK.click()
 window.wait('enabled', timeout = 30)
 time.sleep(0.1)
 
-############################3Closing Audacity###################################
+#############################Closing Audacity###################################
 window.menu_item('&File->&Close').click()
 time.sleep(0.1)
 aud_app.SaveChanges.No.click()
