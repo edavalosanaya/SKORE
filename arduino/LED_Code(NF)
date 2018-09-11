@@ -1,68 +1,77 @@
-   // This code is meant to take at most 10 inputs and display them in WS2812B individually addressed LEDs
-   // 9/3/2018 : Code currently takes 10 inputs and displays them at the same time and turns them off at the same time
-   // Changes needed: Keep track of what led is on and assign a duration to each one. This way others can turn on
-   //while others turn off or vice versa.
+   // This code is meant to take at most 10 inputs  (eventually 70) and display them in WS2812B individually addressed LEDs
+   // 9/9/18
+   // Code works for 20 inputs. Currently Durations are fixed.
+   // Next need to start working with maybe a csv file to store led# and its duration. 
    
-   
-   
-   
-   
-   
+
    #include <FastLED.h>
     #define LED_PIN     7
     #define NUM_LEDS    20
-    #define BRIGHTNESS 30
-    int input = 0;
-    int array[10];
-    int test = 3;
-    int i =0;   
-    CRGB leds[NUM_LEDS];
+    #define BRIGHTNESS 30       // 0-64
 
+    long previousMillis_1 = 0;
+    long previousMillis_2 = 0;
+  //  long onTime_1 = 10000; // 10 seconds
+  //  long onTime_2 = 1000;   // 1 seconds   
+    int ledStatus[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};  // Each LED is assigned to the their according element. {LED1,LED2,LED3,...}
+                                  // 0 will indicate that the LED is off. 1 will indicate that the LED is on
+                                  // the intention for this is to let each LED have their own timing.
+   
+    CRGB leds[NUM_LEDS];
+    long ledstart[NUM_LEDS];
+    long duration[NUM_LEDS]={200,1000,500,3000,2500,10000,600,90,7000,100,1000,1000,1000,1000,1000,1000,1000,1000,1000,1000};
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  /////////////////////////////////////////////////////////////////////////////////////////////////////////////
+ 
+    void setup() {
+      Serial.setTimeout(15);  
+      Serial.begin(9600);                         // Serial communication at 9600buad.
+      Serial.flush();                                         
+      FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS); 
+      FastLED.setBrightness(BRIGHTNESS);
+      FastLED.show();                              //Initializing all LEDs to off
+      }     
+     
+
+
+void checkleds()
+{
+  long now =millis();
+  for(int i=0;i<NUM_LEDS;i++)
+  {
+    if(ledStatus[i]==1 && (now-ledstart[i])>=duration[i] )
+    {
+      ledStatus[i]= 0;
+      leds[i]=CRGB::Black;
+    }
+  }
+}
+   
+    void loop() {
+   while (Serial.available() > 0)
+   {                                                         
+     
+      int input = Serial.parseInt();    // Only using integers for inputs.
+      Serial.println(input);
+
+      if (input != 0)         //Parseint will return a 0 after done reading.
+      {
+                                       
+      ledStatus[input] = 1;
+      leds[input] = CRGB::Red;// setting each number entered to its assigned LED
+      ledstart[input]=millis();
+ 
+      //checkleds();
+     
+      FastLED.show();              // turn on the led that has been entered             
+      }                              
 
    
-    
-    void setup() {
-      Serial.begin(9600);                                     // Serial communication at 9600buad. 
-      Serial.flush();                                         // cleaning serial port and setting up LED settings
-      FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);  
-      FastLED.setBrightness(BRIGHTNESS);
-      FastLED.show();                                         //Initializing all LEDs to off
-    }      
-     
-    
-    void loop() {
 
-    if (Serial.available())                                  // Taking serial input and converting it to "input' variable
-    {               
-
-
-      input = Serial.parseInt();
-      leds[input] = CRGB(255,0,0);
-      
-      }
-                                                             
-
-    if (input == 99){                                        // Will not execute untill input is set to 99.
-    FastLED.show();                                          // once set light up all leds desired and turn all off after a second
-    delay(1000);                                             // ***This will not work for the project. Each LED will have its own unique time stamp to remain on and off 
-    for( int off = 0; off < NUM_LEDS; off++)                 // I need to find a way to keep track of each LED that is on, then each LED will be assigned its own time stamp***
-    leds[off] = CRGB::Black;                                 
-    FastLED.show();                                         //*Example of how it might work*
-    }                                                       // if ((ledX == on) && currentMillis - previous millisX >= Ontime1))
-    }                                                       // { led[X] = CRGB::Black;
-                                                            // FastLED.show();
-                                                            // previousMillisX = currentMillis;
-
-
-
-
-
-
-
-    
-
-
-    
-
-    
+   
+   }
+   checkleds();
+   FastLED.show();
+                                 
+}
 
