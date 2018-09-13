@@ -1,0 +1,206 @@
+   // Code will ask user what mode of tutoring they will like and the size of the piano
+   //Piano function needs to be fixed***
+   //Once mode and size is determined code will run that mode and wait for a serial input by (python or serial monitor)
+   // Last updated: 9/12/18   
+      
+      
+      
+      
+      #include <FastLED.h>
+      #define LED_PIN     7
+      #define NUM_LEDS    75
+      #define BRIGHTNESS 15       // 0-64
+      int i = 0;
+      int LED = 0;    // Stores what LED is to be on
+      long ledarray[NUM_LEDS] = {};   // if value in array is > 0, then LED for that index will be on ex ledarray[1] = 0 ;OFF       ledarray[2] = 1000  ;ON for 1 second
+      long ledarray_beg[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                                              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}; //80 0's
+      int duration = 0;
+      int input = 0;
+      int check = 0;
+
+      //Initial inputs of what tutoring mode will be selected
+      int tutorMode = 0;
+      int pianoSize = 0;
+
+      
+
+      //Keys that are black Needs to be adjustable per each piano
+      long blackKeys[] = {3,5,7,10,12,15,17,19,22,24,27,29,31,34,36,39,41,43,46,48,51,53,55,58,60,63,65,67,70,72,75};
+   // long whiteKeys[] = {1,2,4,6,8,9,11,13,14,16,18,20,21,23,25,26,28,30,32,33,35,37,38,40,42,44,45,47,49,50,52,54,56,57,59,61,62,64,66,68,69,71,73,74,76}
+
+      CRGB leds[NUM_LEDS];
+      unsigned long ledStart[NUM_LEDS];
+
+void setup() {
+
+  
+      Serial.setTimeout(15);  
+      Serial.begin(9600);                         // Serial communication at 9600buad.
+      Serial.flush();
+      FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS); 
+      FastLED.setBrightness(BRIGHTNESS);
+      FastLED.show();                              //Initializing all LEDs to off
+
+      Serial.println("Enter tutoring Mode (1=beginner , 2 Intermediate , 3 Expert)");
+      }                                              
+////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////
+// This function is responsible for the duration of LEDs to be on, Only used in intermediate mode
+
+  void checkleds()
+  {
+    unsigned long now = millis();
+    for(i=0;i<NUM_LEDS;i++)
+    {
+      if(ledarray[i] > 0 && (now-ledStart[i])>=ledarray[i] )
+      {
+        ledarray[i] = 0;
+        leds[i]=CRGB::Black;
+      }
+    }
+  }
+
+////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////
+// Beginner Mode. LED will stay lit until the user has pressed the correct key.
+//
+
+  void tutoring_Beg(){                                //input = LED#
+    while (Serial.available() > 0)  {
+      input = Serial.parseInt();
+     
+      Serial.println(input);
+      
+      
+
+      if (ledarray_beg[input] == 0){
+        ledarray_beg[input] = 1;
+         for (i = 0; i < 31; i++){    // 31 is the length of the array of black keys!!!                                 
+            if( input == blackKeys[i] ){     // If key is black key then color will be blue
+              leds[input] = CRGB::Blue;             
+              break; 
+            }
+            else if(input != blackKeys[i]){       
+              leds[input] = CRGB::Red; 
+          }
+        } 
+      }
+      else if(ledarray_beg[input] == 1){
+       ledarray_beg[input] = 0; 
+       leds[input] = CRGB::Black;       
+    }
+      FastLED.show();
+  }
+ }   
+
+
+////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////
+// Intermediate mode will show leds for a certain duration as the same or slightly altered tempo as the song.
+// duration and tempo will be sent from the arduino
+
+  void tutoring_Int()
+  {
+    while (Serial.available() > 0)
+   {
+  
+       input = Serial.parseInt();
+     //  Serial.println(input);
+  
+  
+      if( input > 76 )                 // Here the code will check if the input is greater than 76. If it is then that number will represent the duration of a note
+       duration = input;               // if not then that number will be the LED number. // This also means that the shortest duration can only be 77ms Which is more than fine
+                                       // **** NOTE***** MAX DURATION AND MIN DURATION ARE 77ms AND ~35000ms (35SECONDS)
+      else if( input < 76 && input > 0 )
+      {
+        LED = input;
+
+        for (i = 0; i < 31; i++)    // 31 is the length of the array of black keys!!!
+          {                             
+            if( LED == blackKeys[i] )     // If key is black key then color will be blue
+            {
+             leds[LED] = CRGB::Blue;
+             break; 
+            }
+            else if(LED != blackKeys[i]){
+              leds[LED] = CRGB::Red;
+            }
+          }
+        
+     //   leds[LED] = CRGB::Red;
+        ledarray[input] = duration;
+        Serial.print("Duration:" );
+        Serial.println(duration);
+        Serial.print("LED: ");
+        Serial.println(input);
+       
+      
+    }
+
+    ledStart[LED] = millis();
+    FastLED.show();
+    
+   }
+
+   
+   checkleds();
+   FastLED.show();
+    
+  }
+
+////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////
+
+//Checking what mode is entered and how many keys the piano has
+// Once entered the loop function will infinitely run that specific tutoring mode. tutormode will change to 0 to break out of infinite loop. ???? if even necessary?????
+
+    
+  void loop() {
+    while (Serial.available() > 0 && check == 0)
+    {
+     
+    int input_1 = Serial.parseInt();
+
+      if (input_1 < 4 && input_1 != 0 ){
+        tutorMode = input_1; 
+        Serial.println(tutorMode);                                  
+        if(tutorMode == 1){
+          Serial.println("Beginner Mode Selected");
+          
+        }
+        else if (input_1 == 2){
+          Serial.println("Intermediate Mode Selected");
+          
+        }
+        else if (input_1 == 3){
+          Serial.println("Expert Mode Selected");
+          
+        }
+        Serial.println("Next enter the size of your keyboard (60 , 76 , 80)");  
+      }
+        
+      else if (input_1 == 60 || input_1 == 76 || input_1 == 80 && input_1 > 0){
+        pianoSize  = input_1;
+        Serial.println(pianoSize);
+      }
+      else{
+        Serial.println("Invalid Entry");
+      }
+  
+
+     while (tutorMode == 1 && pianoSize >59){
+      tutoring_Beg();   
+     }
+     
+     while (tutorMode == 2 && pianoSize >59){
+      tutoring_Int();
+     }
+                                                                                 
+     while (tutorMode == 3 && pianoSize >59){
+      Serial.println("expert   ");
+     
+     }
+    }
+   }
