@@ -11,14 +11,16 @@ import cv2
 
 #importing skore functions
 sys.path.append(r'C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control')
-from skore_function import click_center, output_address, clean_temp_folder, click_center_try
+from skore_function import click_center, output_address, clean_temp_folder, click_center_try, setting_grab
 
 #############################FILE LOCATIONS#####################################
-test_sample_address = r"C:\Users\daval\Desktop\COLLEGE\Senior_Year\Fall_Semester\Senior_Design\Smart_Tutor_Piano_Idea\Conversion_Test\AnthemScore\SpiritedAway.pdf"
-aud_output_file_path = r"C:\Users\daval\AppData\Roaming\AudiverisLtd\audiveris\data\output"
-destination_address = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\temp"
+#user_input_address_audi = r"C:\Users\daval\Desktop\COLLEGE\Senior_Year\Fall_Semester\Senior_Design\Smart_Tutor_Piano_Idea\Conversion_Test\AnthemScore\SpiritedAway.pdf"
+#output_file_path_audi = r"C:\Users\daval\AppData\Roaming\AudiverisLtd\audiveris\data\output"
+#destination_address = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\temp"
+user_input_address_audi = setting_grab('user_input_address_audi')
+destination_address = setting_grab('destination_address')
 
-[final_address,filename] = output_address(test_sample_address,destination_address, '.mxl')
+[final_address,filename] = output_address(user_input_address_audi,destination_address, '.mxl')
 clean_temp_folder()
 #################################MAIN###########################################
 #Opening audiveris in a separate cmd
@@ -37,7 +39,6 @@ while(True):
         time.sleep(0.5)
 
 #Once the window is available, obtain control of the application
-audi_app = pywinauto.application.Application().connect(title = 'Audiveris')
 w_handle = pywinauto.findwindows.find_windows(title='Audiveris')[0]
 window = audi_app.window(handle=w_handle) #pywinauto.application.WindowSpecification Object
 
@@ -55,7 +56,7 @@ click_center_try('input_button')
 #Inputting the .pdf file address to load into audiveris
 while(True):
     try:
-        window.type_keys(test_sample_address)
+        window.type_keys(user_input_address_audi)
         time.sleep(0.5)
         break
     except pywinauto.base_wrapper.ElementNotEnabled:
@@ -69,7 +70,7 @@ click_center_try('open_button')
 click_center_try('book_button')
 
 #Image processing to select "Export Book as..." book_button
-time.sleep(1)
+time.sleep(5)
 click_center_try('export_book_as_button')
 
 #Entering final address to export book as button

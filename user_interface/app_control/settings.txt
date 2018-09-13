@@ -1,0 +1,23 @@
+These are the settings for the SKORE application
+Please do not change any of this value, unless you know what you are doing.
+General Settings:
+destination_address=r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\temp"
+templates_address=r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\audiveris_automation\templates",r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\xenoplay_automation\templates"
+Audiveris Settings:
+user_input_address_audi=r"C:\Users\daval\Desktop\COLLEGE\Senior_Year\Fall_Semester\Senior_Design\Smart_Tutor_Piano_Idea\Conversion_Test\AnthemScore\SpiritedAway.pdf"
+audi_app_exe_path=r"C:\Users\daval\audiveris"
+AmazingMIDI Settings:
+user_input_address_amaz=r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\conversion_test\WAV_files\SpiritedAway.wav"
+amazingmidi_tone_address=r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\amazingmidi_automation\piano0.wav"
+ama_app_exe_path=r"C:\Program Files (x86)\AmazingMIDI\amazingmidi.exe"
+Audacity Settings:
+user_input_address_auda=r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\conversion_test\Original_MP3\SpiritedAway.mp3"
+aud_app_exe_path=r"c:\Program Files (x86)\Audacity\audacity.exe"
+MidiSheetMusic Settings:
+user_input_address_midi=r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\conversion_test\Red_Dot_Forever\ChrisPlaying.mid"
+midi_exe_path=r"C:\Users\daval\Desktop\MidiSheetMusic-2.6.exe"
+RedDotForever Settings:
+red_app_exe_path=r"C:\Program Files (x86)\Red Dot Forever\reddot.exe"
+Xenoplay Settings:
+user_input_address_xeno=r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\conversion_test\audiverius_samples\SpiritedAway.mxl"
+xeno_app_exe_path=r"C:\Program Files (x86)\xenoplay-0-4-src"

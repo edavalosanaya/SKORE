@@ -1,4 +1,5 @@
 import os
+import pywinauto
 import sys
 
 #Determing the address of the entire SKORE system
@@ -7,11 +8,11 @@ skore_index = complete_path.find('SKORE') + len('SKORE')
 skore_path = complete_path[0:skore_index+1]
 path_skore_function_extension = r"user_interface\app_control"
 
-#importing skore functions
-#sys.path.append(r'C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control')
 sys.path.append(skore_path + path_skore_function_extension)
-from skore_function import setting_grab
 
-#os.system(r"cd C:\Users\daval\audiveris && gradle build && gradle run")
-audi_app_exe_path = setting_grab('audi_app_exe_path')
-os.system(r'cd ' + audi_app_exe_path + ' && gradle build && gradle run')
+from skore_function import setting_grab
+xeno_app = pywinauto.application.Application()
+xeno_app_exe_path = setting_grab('xeno_app_exe_path')
+
+#os.system(r"cd C:\Program Files (x86)\xenoplay-0-4-src && xenoplay.jar")
+os.system(r"cd " + xeno_app_exe_path + " && xenoplay.jar")

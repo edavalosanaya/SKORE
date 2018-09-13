@@ -4,21 +4,25 @@ import ntpath
 import os
 import pathlib
 
-from skore_function import output_address, clean_temp_folder
+from skore_function import output_address, clean_temp_folder, setting_grab
 
 #How to print the dictionary items!!!!!
 #print(aud_app.__dict__.items())
 #print(window.__dict__.items())
 
 #############################FILE LOCATIONS#####################################
-user_input_address = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\conversion_test\Original_MP3\SpiritedAway.mp3"
-destination_address = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\temp"
-[end_address, filename] = output_address(user_input_address, destination_address, '.wav')
+#user_input_address = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\conversion_test\Original_MP3\SpiritedAway.mp3"
+#destination_address = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\temp"
+user_input_address_auda = setting_grab('user_input_address_auda')
+destination_address = setting_grab('destination_address')
+[end_address, filename] = output_address(user_input_address_auda, destination_address, '.wav')
 clean_temp_folder()
 
 ################################MAIN CODE#######################################
 aud_app = pywinauto.application.Application()
-aud_app.start(r"c:\Program Files (x86)\Audacity\audacity.exe")
+aud_app_exe_path = setting_grab('aud_app_exe_path')
+aud_app.start(aud_app_exe_path)
+#aud_app.start(r"c:\Program Files (x86)\Audacity\audacity.exe")
 
 #Creating a window variable for Audacity
 w_handle = pywinauto.findwindows.find_windows(title='Audacity')[0] #[461274]
@@ -32,7 +36,7 @@ w_open_handle = pywinauto.findwindows.find_windows(title='Select one or more aud
 w_open = aud_app.window(handle=w_open_handle)
 
 #Entering the user's input file
-w_open.type_keys(user_input_address)
+w_open.type_keys(user_input_address_auda)
 w_open.type_keys("{ENTER}")
 
 #Wait until the file has been opened
