@@ -10,9 +10,9 @@ path_skore_function_extension = r"user_interface\app_control"
 
 sys.path.append(skore_path + path_skore_function_extension)
 
-from skore_function import setting_grab
+from skore_function import setting_read
 xeno_app = pywinauto.application.Application()
-xeno_app_exe_path = setting_grab('xeno_app_exe_path')
+xeno_app_exe_path = setting_read('xeno_app_exe_path','temp')
 
 #os.system(r"cd C:\Program Files (x86)\xenoplay-0-4-src && xenoplay.jar")
 os.system(r"cd " + xeno_app_exe_path + " && xenoplay.jar")

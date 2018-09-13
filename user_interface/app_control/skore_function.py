@@ -8,6 +8,7 @@ import os
 import pywinauto
 import glob
 from pathlib import Path
+from shutil import copyfile
 
 ##############################CONSTANTS#########################################
 #templates_address =[r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\audiveris_automation\templates",
@@ -21,12 +22,24 @@ complete_path = os.path.dirname(os.path.abspath(__file__))
 skore_index = complete_path.find('SKORE') + len('SKORE')
 skore_path = complete_path[0:skore_index+1]
 path_setting_extension = r"user_interface\app_control"
+path_temp_folder_extension = r"user_interface\app_control\temp"
+path_skore_function_extension = r"user_interface\app_control"
 ##############################FUNCTIONS#########################################
-def setting_grab(setting):
+def setting_read(setting,temp):
+    #Reading the value of the setting
+
     #Opening File
     global skore_path
-    #file= open(r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\settings.txt", "r")
-    file = open(skore_path + path_setting_extension + '\\' + 'settings.txt', 'r')
+
+    #If the settings should be obtain from the temp or default setting text
+    if(temp == 'temp'):
+        file = open(skore_path + path_temp_folder_extension + '\\' + 'settings_temp.txt', 'r')
+    elif(temp == 'default'):
+        file = open(skore_path + path_setting_extension + '\\' + 'settings.txt', 'r')
+    else:
+        raise RuntimeError("Invalid type of setting, should be either temp or default")
+
+    #Reading the contents of the setting text
     contents = file.readlines()
     settings = []
 
@@ -72,6 +85,37 @@ def setting_grab(setting):
 
     except ValueError:
         raise RuntimeError("Invalid Setting Title")
+    return
+
+
+def setting_temp_write(setting, write_data):
+    #Writing the configuration settings
+
+    #Opening File
+    global skore_path
+    file_read = open(skore_path + path_setting_extension + '\\' + 'settings.txt', 'r')
+    contents_all = file_read.read()
+    contents_line = file_read.readlines()
+    file_read.close()
+
+    #Finding the setting wanted to be changed
+    setting_index = contents_all.find(setting)
+    equal_sign_index = contents_all.find('=', setting_index)
+    end_of_line_index = contents_all.find('\n', equal_sign_index)
+    current_setting_value = contents_all[equal_sign_index + 1:end_of_line_index]
+    contents_all = contents_all.replace(current_setting_value, write_data)
+
+    #Writing the value of the setting onto the file
+    file_write = open(skore_path + path_temp_folder_extension + '\\' + 'settings_temp.txt', 'w')
+    file_write.write(contents_all)
+    file_write.close()
+    return
+
+def create_setting_temp():
+    #Create the setting temp file
+
+    copyfile('settings.txt', skore_path + path_temp_folder_extension + '\\' + 'settings_temp.txt')
+    return
 
 def output_address(input_address, final_address, end_file_extension):
     #This function obtains the input_address of a file, and uses the final address
@@ -91,13 +135,14 @@ def find_image_path(button):
     #This function determines the location of the templates
 
     global templates_address
-    templates_address = setting_grab('templates_address')
+    templates_address = setting_read('templates_address','temp')
 
     for address in range(0, len(templates_address)):
         file = Path(templates_address[address] + '\\' + button + '.png')
         if(file.is_file()):
             return address
     raise RuntimeError("Desired Template was not found")
+    return
 
 def click_center(button):
     #This function utilizes screen shoots and determines the location of certain
@@ -123,6 +168,7 @@ def click_center(button):
     pywinauto.mouse.click(button="left",coords=(file_button_center_coords[0],file_button_center_coords[1]))
     os.remove('audiveris_gui_screenshot.png')
     time.sleep(0.1)
+    return
 
 def click_center_try(button):
     #This functions does the same as click_center, but allows the function to wait
@@ -135,10 +181,11 @@ def click_center_try(button):
         except AttributeError:
             print('.', end='')
             time.sleep(0.5)
+    return
 
 def clean_temp_folder():
     #This function cleans the temp file within SKORE repository
-    destination_address = setting_grab('destination_address')
+    destination_address = setting_read('destination_address','temp')
     destination_address = destination_address + '\*'
     destination_address = '%r' %destination_address
     destination_address = destination_address[1:-1]
@@ -147,3 +194,7 @@ def clean_temp_folder():
     #files = glob.glob(r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\temp\*")
     for file in files:
         os.remove(file)
+    return
+
+#################################MAIN###########################################
+create_setting_temp()

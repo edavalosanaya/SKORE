@@ -9,16 +9,23 @@ import numpy as np
 import pyautogui
 import cv2
 
+#Determing the address of the entire SKORE system
+complete_path = os.path.dirname(os.path.abspath(__file__))
+skore_index = complete_path.find('SKORE') + len('SKORE')
+skore_path = complete_path[0:skore_index+1]
+path_skore_function_extension = r"user_interface\app_control"
+
 #importing skore functions
-sys.path.append(r'C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control')
-from skore_function import click_center, output_address, clean_temp_folder, click_center_try, setting_grab
+#sys.path.append(r'C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control')
+sys.path.append(skore_path + path_skore_function_extension)
+from skore_function import click_center, output_address, clean_temp_folder, click_center_try, setting_read
 
 #############################FILE LOCATIONS#####################################
 #user_input_address_audi = r"C:\Users\daval\Desktop\COLLEGE\Senior_Year\Fall_Semester\Senior_Design\Smart_Tutor_Piano_Idea\Conversion_Test\AnthemScore\SpiritedAway.pdf"
 #output_file_path_audi = r"C:\Users\daval\AppData\Roaming\AudiverisLtd\audiveris\data\output"
 #destination_address = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\temp"
-user_input_address_audi = setting_grab('user_input_address_audi')
-destination_address = setting_grab('destination_address')
+user_input_address_audi = setting_read('user_input_address_audi','temp')
+destination_address = setting_read('destination_address','temp')
 
 [final_address,filename] = output_address(user_input_address_audi,destination_address, '.mxl')
 clean_temp_folder()

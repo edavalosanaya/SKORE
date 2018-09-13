@@ -4,21 +4,21 @@ import ntpath
 import os
 import pathlib
 
-from skore_function import output_address, clean_temp_folder, setting_grab
+from skore_function import output_address, clean_temp_folder, setting_read
 
 #This program, MidiMusicSheet, converts .mid to .pdf files
 
 #############################FILE LOCATIONS#####################################
 #user_input_address = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\conversion_test\Red_Dot_Forever\ChrisPlaying.mid"
 #destination_address = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\temp"
-user_input_address_midi = setting_grab('user_input_address_midi')
-destination_address = setting_grab('destination_address')
+user_input_address_midi = setting_read('user_input_address_midi','temp')
+destination_address = setting_read('destination_address','temp')
 [end_address, filename] = output_address(user_input_address_midi, destination_address, '.pdf')
 clean_temp_folder()
 
 ################################MAIN CODE#######################################
 midi_app = pywinauto.application.Application()
-midi_exe_path = setting_grab('midi_exe_path')
+midi_exe_path = setting_read('midi_exe_path','temp')
 #midi_app.start(r"C:\Users\daval\Desktop\MidiSheetMusic-2.6.exe")
 midi_app.start(midi_exe_path)
 print("Opening MidiSheetMusic.")

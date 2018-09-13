@@ -4,7 +4,7 @@ import ntpath
 import os
 import pathlib
 
-from skore_function import output_address, clean_temp_folder, setting_grab
+from skore_function import output_address, clean_temp_folder, setting_read
 
 #This program, MidiMusicSheet, converts .wav to .mid files
 
@@ -12,9 +12,9 @@ from skore_function import output_address, clean_temp_folder, setting_grab
 #user_input_address = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\conversion_test\WAV_files\SpiritedAway.wav"
 #destination_address = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\temp"
 #tone_address = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\amazingmidi_automation\piano0.wav"
-user_input_address_amaz = setting_grab('user_input_address_amaz')
-tone_address = setting_grab('amazingmidi_tone_address')
-destination_address = setting_grab('destination_address')
+user_input_address_amaz = setting_read('user_input_address_amaz','temp')
+tone_address = setting_read('amazingmidi_tone_address','temp')
+destination_address = setting_read('destination_address','temp')
 
 [end_address, filename] = output_address(user_input_address_amaz, destination_address, '.mid')
 clean_temp_folder()
@@ -22,7 +22,7 @@ clean_temp_folder()
 ################################MAIN CODE#######################################
 delay = 1
 ama_app = pywinauto.application.Application()
-ama_app_exe_path = setting_grab('ama_app_exe_path')
+ama_app_exe_path = setting_read('ama_app_exe_path','temp')
 #ama_app.start(r"C:\Program Files (x86)\AmazingMIDI\amazingmidi.exe")
 ama_app.start(ama_app_exe_path)
 print("Opening AmazingMIDI")

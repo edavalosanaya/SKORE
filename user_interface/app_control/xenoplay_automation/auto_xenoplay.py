@@ -13,13 +13,13 @@ path_skore_function_extension = r"user_interface\app_control"
 
 #sys.path.append(r'C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control')
 sys.path.append(skore_path + path_skore_function_extension)
-from skore_function import output_address, clean_temp_folder, click_center_try, setting_grab
+from skore_function import output_address, clean_temp_folder, click_center_try, setting_read
 
 #############################FILE LOCATIONS#####################################
 #user_input_address = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\conversion_test\audiverius_samples\SpiritedAway.mxl"
 #destination_address = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\temp"
-user_input_address_xeno = setting_grab('user_input_address_xeno')
-destination_address = setting_grab('destination_address')
+user_input_address_xeno = setting_read('user_input_address_xeno','temp')
+destination_address = setting_read('destination_address','temp')
 
 [end_address, filename] = output_address(user_input_address_xeno, destination_address, '.mid')
 clean_temp_folder()

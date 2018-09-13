@@ -4,7 +4,7 @@ import ntpath
 import os
 import pathlib
 
-from skore_function import output_address, clean_temp_folder, setting_grab
+from skore_function import output_address, clean_temp_folder, setting_read, create_setting_temp
 
 #How to print the dictionary items!!!!!
 #print(aud_app.__dict__.items())
@@ -13,14 +13,14 @@ from skore_function import output_address, clean_temp_folder, setting_grab
 #############################FILE LOCATIONS#####################################
 #user_input_address = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\conversion_test\Original_MP3\SpiritedAway.mp3"
 #destination_address = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\temp"
-user_input_address_auda = setting_grab('user_input_address_auda')
-destination_address = setting_grab('destination_address')
+user_input_address_auda = setting_read('user_input_address_auda','temp')
+destination_address = setting_read('destination_address','temp')
 [end_address, filename] = output_address(user_input_address_auda, destination_address, '.wav')
 clean_temp_folder()
-
+create_setting_temp()
 ################################MAIN CODE#######################################
 aud_app = pywinauto.application.Application()
-aud_app_exe_path = setting_grab('aud_app_exe_path')
+aud_app_exe_path = setting_read('aud_app_exe_path','temp')
 aud_app.start(aud_app_exe_path)
 #aud_app.start(r"c:\Program Files (x86)\Audacity\audacity.exe")
 

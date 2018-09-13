@@ -1,66 +1,42 @@
+from shutil import copyfile
 import os
-
-def setting_grab(setting):
-    #Opening File
-    file= open(r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\settings.txt", "r")
-    contents = file.readlines()
-    settings = []
-
-    #Spliting the lines at point with = character
-    for line in contents:
-        if(line.find('=') == -1):
-            continue
-        settings.extend(line.split("="))
-
-    #Finding setting's results
-    try:
-        elem = settings.index(setting)
-        if(settings[elem + 1] == '\n'):
-            return "None"
-
-        #Optaining the information of the setting and spliting it from the title
-        list = settings[elem + 1]
-
-        if(list.find(',') > 0):
-            #For multiple address settings
-            #Spliting the multiple addresses
-            list = list.split(',')
-
-            #Removing the \n character at the end
-            last_element = list[-1]
-            last_element_cut = last_element[0:-1]
-            list[list.index(last_element)] = last_element_cut
-
-            #Converting String to raw literal string
-            for element in list:
-                eval_element = eval(element)
-                list[list.index(element)] = eval_element
-                #"%r"%eval_element
-            return list
-
-        else:
-            #For single address settings
-            #removing \n at the end of the string
-            list = list[0:-1]
-            #Cleaning the string
-            list = eval(list)
-            return list
-
-    except ValueError:
-        raise RuntimeError("Invalid Setting Title")
-
+import sys
+#Determing the address of the entire SKORE system
 complete_path = os.path.dirname(os.path.abspath(__file__))
 skore_index = complete_path.find('SKORE') + len('SKORE')
 skore_path = complete_path[0:skore_index+1]
+path_temp_folder_extension = r"user_interface\app_control\temp"
+path_skore_function_extension = r"user_interface\app_control"
+path_setting_extension = r"user_interface\app_control"
 
-#templates_address =[r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\audiveris_automation\templates",
-#                    r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\xenoplay_automation\templates"]
+sys.path.append(skore_path + path_skore_function_extension)
+from skore_function import clean_temp_folder
 
-#print(templates_address)
+clean_temp_folder()
 
-#list = setting_grab('templates_address')
-#print(list)
+def create_setting_temp():
+    copyfile('settings.txt', skore_path + path_temp_folder_extension + '\\' + 'settings_temp.txt')
 
-#list2 = setting_grab('user_input_address_audi')
-#print(list2)
-#print(list[0])
+def setting_temp_write(setting, write_data):
+
+    #Opening File
+    global skore_path
+    file_read = open(skore_path + path_setting_extension + '\\' + 'settings.txt', 'r')
+    contents_all = file_read.read()
+    contents_line = file_read.readlines()
+    file_read.close()
+
+    #Finding the setting wanted to be changed
+    setting_index = contents_all.find(setting)
+    equal_sign_index = contents_all.find('=', setting_index)
+    end_of_line_index = contents_all.find('\n', equal_sign_index)
+    current_setting_value = contents_all[equal_sign_index + 1:end_of_line_index]
+    contents_all = contents_all.replace(current_setting_value, write_data)
+
+    #Writing the value of the setting onto the file
+    file_write = open(skore_path + path_temp_folder_extension + '\\' + 'settings_temp.txt', 'w')
+    file_write.write(contents_all)
+    file_write.close()
+
+
+setting_temp_write('destination_address', 'blah')
