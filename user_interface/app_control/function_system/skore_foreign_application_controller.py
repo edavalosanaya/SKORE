@@ -21,6 +21,7 @@ destination_address = []
 complete_path = os.path.dirname(os.path.abspath(__file__))
 skore_index = complete_path.find('SKORE') + len('SKORE')
 skore_path = complete_path[0:skore_index+1]
+
 temp_folder_extension_path = r"user_interface\app_control\function_system\temp"
 templates_folder_extension_path = r"user_interface\app_control\function_system\templates"
 conversion_test_folder_extension_path = r"user_interface\app_control\function_system\conversion_test"
@@ -111,19 +112,77 @@ def clean_temp_folder():
     return
 
 ################################################################################
+
+def setting_read(setting):
+    #Reading the value of the setting
+
+    #Opening File
+    global skore_path
+
+    file = open('settings_function_system.txt', 'r')
+    #Reading the contents of the setting text
+    contents = file.readlines()
+    settings = []
+
+    #Spliting the lines at point with = character
+    for line in contents:
+        if(line.find('=') == -1):
+            continue
+        settings.extend(line.split("="))
+
+    #Finding setting's results
+    try:
+        elem = settings.index(setting)
+        if(settings[elem + 1] == '\n'):
+            return "None"
+
+        #Optaining the information of the setting and spliting it from the title
+        list = settings[elem + 1]
+
+        if(list.find(',') > 0):
+            #For multiple address settings
+            #Spliting the multiple addresses
+            list = list.split(',')
+
+            #Removing the \n character at the end
+            last_element = list[-1]
+            last_element_cut = last_element[0:-1]
+            list[list.index(last_element)] = last_element_cut
+
+            #Converting String to raw literal string
+            for element in list:
+                eval_element = eval(element)
+                list[list.index(element)] = eval_element
+                #"%r"%eval_element
+            return list
+
+        else:
+            #For single address settings
+            #removing \n at the end of the string
+            list = list[0:-1]
+            #Cleaning the string
+            list = eval(list)
+            return list
+
+    except ValueError:
+        raise RuntimeError("Invalid Setting Title")
+    return
+
+################################################################################
 #################################AUTO FUNCTIONS#################################
 ################################################################################
 
 def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address):
     #This function does the .wav to .mid file conversions
+
     [end_address, filename] = output_address(user_input_address_amaz, destination_address, '.mid')
     clean_temp_folder()
 
     delay = 1
     ama_app = pywinauto.application.Application()
-    #ama_app_exe_path = setting_read('ama_app_exe_path','temp')
-    ama_app.start(r"C:\Program Files (x86)\AmazingMIDI\amazingmidi.exe")
-    #ama_app.start(ama_app_exe_path)
+    ama_app_exe_path = setting_read('ama_app_exe_path')
+    #ama_app.start(r"C:\Program Files (x86)\AmazingMIDI\amazingmidi.exe")
+    ama_app.start(ama_app_exe_path)
     print("Opening AmazingMIDI")
 
     #Creating a window variable for AmazingMIDI
@@ -180,12 +239,13 @@ def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address
 ###############################################################################
 
 def auto_audacity(user_input_address_auda,destination_address):
+    #This function does the automatio of the audacity application
 
     [end_address, filename] = output_address(user_input_address_auda, destination_address, '.wav')
     aud_app = pywinauto.application.Application()
-    #aud_app_exe_path = setting_read('aud_app_exe_path','temp')
-    #aud_app.start(aud_app_exe_path)
-    aud_app.start(r"c:\Program Files (x86)\Audacity\audacity.exe")
+    aud_app_exe_path = setting_read('aud_app_exe_path')
+    aud_app.start(aud_app_exe_path)
+    #aud_app.start(r"c:\Program Files (x86)\Audacity\audacity.exe")
 
     #Creating a window variable for Audacity
     w_handle = pywinauto.findwindows.find_windows(title='Audacity')[0] #[461274]
@@ -231,11 +291,13 @@ def auto_audacity(user_input_address_auda,destination_address):
 ################################################################################
 
 def auto_midi_music_sheet(user_input_address_midi,destination_address):
+    #This functions does the automation of the midi_music_sheet application.
+
     [end_address, filename] = output_address(user_input_address_midi, destination_address, '.pdf')
     midi_app = pywinauto.application.Application()
-    #idi_exe_path = setting_read('midi_exe_path','temp')
-    midi_app.start(r"C:\Users\daval\Desktop\MidiSheetMusic-2.6.exe")
-    #midi_app.start(midi_exe_path)
+    midi_exe_path = setting_read('midi_exe_path')
+    #midi_app.start(r"C:\Users\daval\Desktop\MidiSheetMusic-2.6.exe")
+    midi_app.start(midi_exe_path)
     print("Opening MidiSheetMusic.")
 
     #Creating a window variable for Midi Sheet Music
@@ -278,6 +340,8 @@ def auto_midi_music_sheet(user_input_address_midi,destination_address):
 ################################################################################
 
 def auto_audiveris(user_input_address_audi, destination_address):
+    #This function automates the program, audiveris.
+
     [final_address,filename] = output_address(user_input_address_audi,destination_address, '.mxl')
     os.system("start cmd /c start_audiveris_function_system.py")
 
@@ -348,10 +412,13 @@ def auto_audiveris(user_input_address_audi, destination_address):
 
     #Closing Audiveris
     audi_app.kill()
+    return
 
 ################################################################################
 
 def auto_xenoplay(user_input_address_xeno, destination_address):
+    #This function does the automation of the xenoplay application
+
     [end_address, filename] = output_address(user_input_address_xeno, destination_address, '.mid')
     os.system("start cmd /c start_xenoplay_function_system.py")
 
@@ -406,23 +473,27 @@ def auto_xenoplay(user_input_address_xeno, destination_address):
 ################################################################################
 
 def start_red_dot_forever():
+    #This function simply starts the red dot forever application
     red_app = pywinauto.application.Application()
-    #red_app_exe_path = setting_read('red_app_exe_path','temp')
-    red_app.start(r"C:\Program Files (x86)\Red Dot Forever\reddot.exe")
-    #red_app.start(red_app_exe_path)
+    red_app_exe_path = setting_read('red_app_exe_path')
+    #red_app.start(r"C:\Program Files (x86)\Red Dot Forever\reddot.exe")
+    red_app.start(red_app_exe_path)
     return
 
 ################################################################################
 
 def start_piano_booster():
+    #This function starts the piano booster application
     pia_app = pywinauto.application.Application()
-    pia_app.start(r"C:\Program Files (x86)\Piano Booster\pianobooster.exe")
+    pia_app_exe_path = setting_read('pia_app_exe_path')
+    #pia_app.start(r"C:\Program Files (x86)\Piano Booster\pianobooster.exe")
+    pia_app.start(pia_app_exe_path)
     return
 
 ################################################################################
 ###############################MAIN CODE########################################
 ################################################################################
-
+#clean_temp_folder()
 #Testing AmazingMIDI
 #amazing_midi_test_input = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\function_system\conversion_test\WAV_files\SpiritedAway.wav"
 #amazing_midi_test_tune = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\function_system\misc\piano0.wav"
