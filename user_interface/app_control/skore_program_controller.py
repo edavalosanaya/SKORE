@@ -8,7 +8,8 @@ import os
 import pywinauto
 import glob
 from pathlib import Path
-from shutil import copyfile
+from shutil import copyfile, move
+import shutil
 
 ################################################################################
 ##############################CONSTANTS#########################################
@@ -25,16 +26,19 @@ skore_path = complete_path[0:skore_index+1]
 temp_folder_extension_path = r"user_interface\app_control\temp"
 templates_folder_extension_path = r"user_interface\app_control\templates"
 conversion_test_folder_extension_path = r"user_interface\app_control\conversion_test"
-misc_test_folder_extension_path = r"user_interface\app_control\misc"
+misc_folder_extension_path = r"user_interface\app_control\misc"
+output_folder_extension_path = r"user_interface\app_control\output"
 
 #Determing the address of the temp and templates folders
 temp_folder_path = skore_path + temp_folder_extension_path
 templates_folder_path = skore_path + templates_folder_extension_path
 conversion_test_folder_path = skore_path + conversion_test_folder_extension_path
-misc_test_folder_path = skore_path + misc_test_folder_extension_path
+misc_folder_path = skore_path + misc_folder_extension_path
+output_folder_path = skore_path + output_folder_extension_path
 
 #Purely Testing Purposes
 default_or_temp_mode = 'default'
+amazing_midi_tune = misc_folder_path + '\\' + 'piano0.wav'
 
 ################################################################################
 ##############################FUNCTIONS#########################################
@@ -109,10 +113,42 @@ def clean_temp_folder():
     #destination_address = destination_address[1:-1]
     #files = glob.glob(destination_address)
     files = glob.glob(temp_folder_path + '\*')
+
     #files = glob.glob(r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\temp\*")
     for file in files:
         os.remove(file)
     return
+
+################################################################################
+
+#def temp_to_other_folder(new_filename,other_folder):
+def temp_to_folder(**kwargs):
+    global temp_folder_path
+    global output_folder_path
+
+    filename = kwargs.get('filename', None)
+    destination_folder = kwargs.get('folder', None)
+    print(filename)
+    print(destination_folder)
+
+    files = glob.glob(temp_folder_path + '\*')
+
+    for file in files:
+        old_file = os.path.basename(file)
+        file_type = os.path.splitext(old_file)[1]
+
+        if(filename):
+            if(destination_folder):
+                shutil.move(file, destination_folder + '\\' + filename + file_type)
+            else:
+                shutil.move(file, output_folder_path + '\\' + filename + file_type)
+        else:
+            if(destination_folder):
+                shutil.move(file, destination_folder + '\\' + old_file)
+            else:
+                shutil.move(file, output_folder_path + '\\' + old_file)
+    return
+
 
 ################################################################################
 
@@ -277,6 +313,8 @@ def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address
     window.wait('enabled', timeout = 30)
     window.menu_item(u'&File->Exit').click()
 
+    return end_address
+
 ###############################################################################
 
 def auto_audacity(user_input_address_auda,destination_address):
@@ -320,6 +358,7 @@ def auto_audacity(user_input_address_auda,destination_address):
     #Editing Metadata
     time.sleep(0.5)
     aud_app.EditMetadata.OK.click()
+    time.sleep(1)
     window.wait('enabled', timeout = 30)
     time.sleep(0.1)
 
@@ -330,11 +369,19 @@ def auto_audacity(user_input_address_auda,destination_address):
     aud_app.kill()
     time.sleep(0.1)
 
+    return end_address
+
 ################################################################################
 
 def auto_midi_music_sheet(user_input_address_midi,destination_address):
     #This functions does the automation of the midi_music_sheet application.
     global default_or_temp_mode
+
+    file_size = os.path.getsize(user_input_address_midi)
+    #print("file size: " + str(file_size))
+    file_close_delay_time = file_size/2000 + 1
+    #print("file close delay time: " + str(file_close_delay_time))
+
 
     [end_address, filename] = output_address(user_input_address_midi, destination_address, '.pdf')
     midi_app = pywinauto.application.Application()
@@ -375,17 +422,35 @@ def auto_midi_music_sheet(user_input_address_midi,destination_address):
     s_window.type_keys('{ENTER}')
 
     #Closing the application *HARD CODED*
-    time.sleep(3)
-    #window.wait('enabled', timeout = 30)
+    #time.sleep(0.5)
+    #while(True):
+    #    try:
+    #        c_handle = pywinauto.findwindows.find_windows(title='Generating PDF Document...')[0]
+    #        c_window = midi_app.window(handle=c_handle)
+    #        break
+    #    except IndexError:
+    #        print('.', end = '')
+
+    #c_window.wait('not visible', timeout = 30)
+
+    #window.wait('visible', timeout = 30)
+
+    #I cannot create a fool proof method to wait for the pdf file generation.
+    #The best I could come up with is creating a time delay using the size of
+    #the file.
+
+    time.sleep(file_close_delay_time)
     #window.menu_item(u'&File->&Exit')
     midi_app.kill()
+
+    return end_address
 
 ################################################################################
 
 def auto_audiveris(user_input_address_audi, destination_address):
     #This function automates the program, audiveris.
 
-    [final_address,filename] = output_address(user_input_address_audi,destination_address, '.mxl')
+    [end_address,filename] = output_address(user_input_address_audi,destination_address, '.mxl')
     os.system("start cmd /c start_audiveris.py")
 
     time.sleep(1)
@@ -432,7 +497,7 @@ def auto_audiveris(user_input_address_audi, destination_address):
     #Entering final address to export book as button
     while(True):
         try:
-            window.type_keys(final_address)
+            window.type_keys(end_address)
             time.sleep(0.5)
             break
         except pywinauto.base_wrapper.ElementNotEnabled:
@@ -445,7 +510,7 @@ def auto_audiveris(user_input_address_audi, destination_address):
     click_center_try('save_button')
 
     #Waiting for the completion of the transcribing of the book
-    output_file = Path(final_address)
+    output_file = Path(end_address)
     while(True):
         if(output_file.is_file()):
             time.sleep(0.1)
@@ -455,7 +520,8 @@ def auto_audiveris(user_input_address_audi, destination_address):
 
     #Closing Audiveris
     audi_app.kill()
-    return
+
+    return end_address
 
 ################################################################################
 
@@ -513,6 +579,8 @@ def auto_xenoplay(user_input_address_xeno, destination_address):
     #Closing Xenoplay
     xeno_app.kill()
 
+    return end_address
+
 ################################################################################
 
 def start_red_dot_forever():
@@ -531,6 +599,38 @@ def start_piano_booster():
     pia_app_exe_path = setting_read('pia_app_exe_path','default')
     #pia_app.start(r"C:\Program Files (x86)\Piano Booster\pianobooster.exe")
     pia_app.start(pia_app_exe_path)
+    return
+
+################################################################################
+########################MAJOR FILE CONVERSIONS FUNCTIONS########################
+################################################################################
+
+def mp3_to_mid_and_pdf(mp3_input):
+    global amazing_midi_tune
+    clean_temp_folder()
+
+    converted_wav_input = auto_audacity(mp3_input,temp_folder_path)
+    converted_mid_input = auto_amazing_midi(converted_wav_input, temp_folder_path, amazing_midi_tune)
+    converted_pdf_input = auto_midi_music_sheet(converted_mid_input, temp_folder_path)
+
+    return
+
+def mid_to_pdf(mid_input):
+
+    clean_temp_folder()
+
+    converted_mid_input = auto_midi_music_sheet(mid_input, temp_folder_path)
+
+    temp_to_other_folder()
+
+    return
+
+def pdf_to_mid(pdf_input):
+    clean_temp_folder()
+
+    converted_mxl_input = auto_audiveris(pdf_input, temp_folder_path)
+    converted_mp3_input = auto_xenoplay(converted_mxl_input, temp_folder_path)
+
     return
 
 ################################################################################

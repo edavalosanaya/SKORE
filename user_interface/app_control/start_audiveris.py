@@ -6,5 +6,5 @@ from skore_program_controller import setting_read
 #program to run the application in a different command line.
 
 #os.system(r"cd C:\Users\daval\audiveris && gradle build && gradle run")
-audi_app_exe_path = setting_read('audi_app_exe_path')
+audi_app_exe_path = setting_read('audi_app_exe_path','default')
 os.system(r'cd ' + audi_app_exe_path + ' && gradle build && gradle run')
