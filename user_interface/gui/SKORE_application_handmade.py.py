@@ -20,6 +20,7 @@ class SKORE_MainWindow(QMainWindow):
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
 
+
         #Main Menu
         mainMenu = self.menuBar()
         fileMenu = mainMenu.addMenu('File')
@@ -32,6 +33,7 @@ class SKORE_MainWindow(QMainWindow):
         configureExecPathButton.setStatusTip("Edit the executable paths of each program")
         configureExecPathButton.triggered.connect(self.callExecPathConfigurationWindow)
         settingsMenu.addAction(configureExecPathButton)
+
 
         self.show()
 

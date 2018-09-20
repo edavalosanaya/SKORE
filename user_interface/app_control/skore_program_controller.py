@@ -23,6 +23,7 @@ complete_path = os.path.dirname(os.path.abspath(__file__))
 skore_index = complete_path.find('SKORE') + len('SKORE')
 skore_path = complete_path[0:skore_index+1]
 
+skore_program_controller_extension_path = r"user_interface\app_control"
 temp_folder_extension_path = r"user_interface\app_control\temp"
 templates_folder_extension_path = r"user_interface\app_control\templates"
 conversion_test_folder_extension_path = r"user_interface\app_control\conversion_test"
@@ -35,6 +36,7 @@ templates_folder_path = skore_path + templates_folder_extension_path
 conversion_test_folder_path = skore_path + conversion_test_folder_extension_path
 misc_folder_path = skore_path + misc_folder_extension_path
 output_folder_path = skore_path + output_folder_extension_path
+skore_program_controller_path = skore_path + skore_program_controller_extension_path
 
 #Purely Testing Purposes
 default_or_temp_mode = 'default'
@@ -63,7 +65,8 @@ def output_address(input_address, final_address, end_file_extension):
 def click_center(button):
     #This function utilizes screen shoots and determines the location of certain
     #buttons within the screenshot.
-    global templates_folder_path
+
+    #global templates_folder_path
 
     image = pyautogui.screenshot()
     image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
@@ -98,38 +101,38 @@ def click_center_try(button):
             click_center(button)
             break
         except AttributeError:
-            print('.', end='')
+            #print('.', end='')
             time.sleep(0.5)
     return
 
 ################################################################################
 
 def clean_temp_folder():
-    global temp_folder_path
     #This function cleans the temp file within SKORE repository
-    #destination_address = temp_folder_extension_path
-    #destination_address = destination_address + '\*'
-    #destination_address = '%r' %destination_address
-    #destination_address = destination_address[1:-1]
-    #files = glob.glob(destination_address)
-    files = glob.glob(temp_folder_path + '\*')
 
+    #global temp_folder_path
+
+    files = glob.glob(temp_folder_path + '\*')
     #files = glob.glob(r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\temp\*")
+
     for file in files:
         os.remove(file)
     return
 
 ################################################################################
 
-#def temp_to_other_folder(new_filename,other_folder):
 def temp_to_folder(**kwargs):
-    global temp_folder_path
-    global output_folder_path
+    #This functions transfer all the files found within temp folder into
+    #"destination_folder" with the "filename" given.
+
+    #global temp_folder_path
+    #global output_folder_path
 
     filename = kwargs.get('filename', None)
-    destination_folder = kwargs.get('folder', None)
-    print(filename)
-    print(destination_folder)
+    destination_folder = kwargs.get('destination_folder', None)
+    print("Transfering files with name: " + filename + "\t To directory: " + destination_folder)
+    #print(filename)
+    #print(destination_folder)
 
     files = glob.glob(temp_folder_path + '\*')
 
@@ -154,14 +157,19 @@ def temp_to_folder(**kwargs):
 
 def setting_read(setting, default_or_temp):
     #Reading the value of the setting
-
+    import sys
     #Opening File
-    global skore_path
+    #global skore_path
+    #global skore_program_controller_extension_path
+
+    #Adding the folder where settings.txt to the path
+    #skore_program_controller_extension = r'\user_interface\app_control'
+    #sys.path.append(skore_path + skore_program_controller_extension_path + '\\*')
 
     if(default_or_temp == 'default'):
-        file = open('settings_default.txt', 'r')
+        file = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings_default.txt', 'r')
     elif(default_or_temp == 'temp'):
-        file = open('settings_temp.txt', 'r')
+        file = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings_temp.txt', 'r')
     else:
         raise RuntimeError('Invalid setting file selection')
     #Reading the contents of the setting text
@@ -215,10 +223,11 @@ def setting_read(setting, default_or_temp):
 ################################################################################
 
 def setting_write(setting, write_data, temp_mode):
-    #Writing the configuration settings
+    #Writing the configuration settings of the settings_temp.txt file
+
+    #global skore_path
 
     #Opening File
-    global skore_path
     if(temp_mode == 'w'):
         #overwrite complete settings_temp.txt
         file_read = open('settings_default.txt', 'r')
@@ -243,7 +252,41 @@ def setting_write(setting, write_data, temp_mode):
     file_write = open('settings_temp.txt', 'w')
     file_write.write(contents_all)
     file_write.close()
+    print("Settings have been modified")
     return
+
+def is_mid(file_path):
+    #Test if the input file is .mid
+
+    file_name = os.path.basename(file_path)
+    file_type = os.path.splitext(file_name)[1]
+
+    if(file_type == '.mid'):
+        return True
+
+    return False
+
+def is_mp3(file_path):
+    #Test if the input file is .mp3
+
+    file_name = os.path.basename(file_path)
+    file_type = os.path.splitext(file_name)[1]
+
+    if(file_type == '.mp3'):
+        return True
+
+    return False
+
+def is_pdf(file_path):
+    #Test if the input file is .pdf
+
+    file_name = os.path.basename(file_path)
+    file_type = os.path.splitext(file_name)[1]
+
+    if(file_type == '.pdf'):
+        return True
+
+    return False
 
 ################################################################################
 #################################AUTO FUNCTIONS#################################
@@ -251,7 +294,7 @@ def setting_write(setting, write_data, temp_mode):
 
 def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address):
     #This function does the .wav to .mid file conversions
-    global default_or_temp_mode
+    #global default_or_temp_mode
 
     [end_address, filename] = output_address(user_input_address_amaz, destination_address, '.mid')
 
@@ -260,17 +303,17 @@ def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address
     ama_app_exe_path = setting_read('ama_app_exe_path', default_or_temp_mode)
     #ama_app.start(r"C:\Program Files (x86)\AmazingMIDI\amazingmidi.exe")
     ama_app.start(ama_app_exe_path)
-    print("Opening AmazingMIDI")
+    print("Initialized AmazingMIDI")
 
     #Creating a window variable for AmazingMIDI
     while(True):
         try:
             w_handle = pywinauto.findwindows.find_windows(title='AmazingMIDI ')[0]
             window = ama_app.window(handle=w_handle) #pywinauto.application.WindowSpecification Object
-            print()
+            #print()
             break
         except IndexError:
-            print('.', end = '')
+            #print('.', end = '')
             time.sleep(0.1)
 
     #Clicking on file menu, selecting tone file
@@ -313,13 +356,14 @@ def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address
     window.wait('enabled', timeout = 30)
     window.menu_item(u'&File->Exit').click()
 
+    print(".wav -> .mid complete")
     return end_address
 
 ###############################################################################
 
 def auto_audacity(user_input_address_auda,destination_address):
-    #This function does the automatio of the audacity application
-    global default_or_temp_mode
+    #This function does the automation of the audacity application
+    #global default_or_temp_mode
 
     [end_address, filename] = output_address(user_input_address_auda, destination_address, '.wav')
     aud_app = pywinauto.application.Application()
@@ -369,13 +413,14 @@ def auto_audacity(user_input_address_auda,destination_address):
     aud_app.kill()
     time.sleep(0.1)
 
+    print(".mp3 -> .wav complete")
     return end_address
 
 ################################################################################
 
 def auto_midi_music_sheet(user_input_address_midi,destination_address):
     #This functions does the automation of the midi_music_sheet application.
-    global default_or_temp_mode
+    #global default_or_temp_mode
 
     file_size = os.path.getsize(user_input_address_midi)
     #print("file size: " + str(file_size))
@@ -388,17 +433,17 @@ def auto_midi_music_sheet(user_input_address_midi,destination_address):
     midi_exe_path = setting_read('midi_exe_path', default_or_temp_mode)
     #midi_app.start(r"C:\Users\daval\Desktop\MidiSheetMusic-2.6.exe")
     midi_app.start(midi_exe_path)
-    print("Opening MidiSheetMusic.")
+    print("Initialized MidiSheetMusic")
 
     #Creating a window variable for Midi Sheet Music
     while(True):
         try:
             w_handle = pywinauto.findwindows.find_windows(title='Midi Sheet Music')[0]
             window = midi_app.window(handle=w_handle) #pywinauto.application.WindowSpecification Object
-            print()
+            #print()
             break
         except IndexError:
-            print('.', end = '')
+            #print('.', end = '')
             time.sleep(0.2)
 
     #Clicking on file menu
@@ -443,18 +488,20 @@ def auto_midi_music_sheet(user_input_address_midi,destination_address):
     #window.menu_item(u'&File->&Exit')
     midi_app.kill()
 
+    print(".mid -> .pdf complete")
     return end_address
 
 ################################################################################
 
 def auto_audiveris(user_input_address_audi, destination_address):
-    #This function automates the program, audiveris.
+    #This function automates the program audiveris.
 
     [end_address,filename] = output_address(user_input_address_audi,destination_address, '.mxl')
-    os.system("start cmd /c start_audiveris.py")
+    #os.system("start cmd /c start_audiveris.py")
+    os.system("start \"\" cmd /c \"cd " + skore_program_controller_path +" & start_audiveris.py \"")
 
     time.sleep(1)
-    print('Audiveris is loading please wait.', end = '')
+    print('Initialized Audiveris.', end = '')
 
     #Trying to handle Audiveris, waiting until the window is available
     while(True):
@@ -520,7 +567,7 @@ def auto_audiveris(user_input_address_audi, destination_address):
 
     #Closing Audiveris
     audi_app.kill()
-
+    print(".pdf -> .mxl complete")
     return end_address
 
 ################################################################################
@@ -529,16 +576,17 @@ def auto_xenoplay(user_input_address_xeno, destination_address):
     #This function does the automation of the xenoplay application
 
     [end_address, filename] = output_address(user_input_address_xeno, destination_address, '.mid')
-    os.system("start cmd /c start_xenoplay.py")
+    #os.system("start cmd /c start_xenoplay.py")
+    os.system("start \"\" cmd /c \"cd " + skore_program_controller_path +" & start_xenoplay.py \"")
 
     #Trying to handle Xenoage Player, waiting until the window is available
     while(True):
         try:
             xeno_app = pywinauto.application.Application().connect(title = 'Xenoage Player 0.4')
-            print()
+            #print()
             break
         except pywinauto.findwindows.ElementNotFoundError:
-            print('.', end = '')
+            #print('.', end = '')
             time.sleep(0.1)
 
     #Once the window is available, obtain control of the application
@@ -578,7 +626,7 @@ def auto_xenoplay(user_input_address_xeno, destination_address):
 
     #Closing Xenoplay
     xeno_app.kill()
-
+    print(".mxl -> .mid complete")
     return end_address
 
 ################################################################################
@@ -589,6 +637,7 @@ def start_red_dot_forever():
     red_app_exe_path = setting_read('red_app_exe_path','default')
     #red_app.start(r"C:\Program Files (x86)\Red Dot Forever\reddot.exe")
     red_app.start(red_app_exe_path)
+    print("Initialized Red Dot Forever")
     return
 
 ################################################################################
@@ -599,13 +648,14 @@ def start_piano_booster():
     pia_app_exe_path = setting_read('pia_app_exe_path','default')
     #pia_app.start(r"C:\Program Files (x86)\Piano Booster\pianobooster.exe")
     pia_app.start(pia_app_exe_path)
+    print("Initialized PianoBooser")
     return
 
 ################################################################################
 ########################MAJOR FILE CONVERSIONS FUNCTIONS########################
 ################################################################################
 
-def mp3_to_mid_and_pdf(mp3_input):
+def mp3_to_pdf(mp3_input):
     global amazing_midi_tune
     clean_temp_folder()
 
@@ -613,16 +663,24 @@ def mp3_to_mid_and_pdf(mp3_input):
     converted_mid_input = auto_amazing_midi(converted_wav_input, temp_folder_path, amazing_midi_tune)
     converted_pdf_input = auto_midi_music_sheet(converted_mid_input, temp_folder_path)
 
+    print(".mp3 -> .pdf complete")
+    return
+
+def mp3_to_mid(mp3_input):
+    global amazing_midi_tune
+
+    converted_wav_input = auto_audacity(mp3_input, temp_folder_path)
+    converted_mid_input = auto_amazing_midi(converted_wav_input, temp_folder_path, amazing_midi_tune)
+
+    print(".mp3 -> .mid complete")
     return
 
 def mid_to_pdf(mid_input):
-
     clean_temp_folder()
 
     converted_mid_input = auto_midi_music_sheet(mid_input, temp_folder_path)
 
-    temp_to_other_folder()
-
+    print(".mid -> .pdf complete")
     return
 
 def pdf_to_mid(pdf_input):
@@ -630,6 +688,27 @@ def pdf_to_mid(pdf_input):
 
     converted_mxl_input = auto_audiveris(pdf_input, temp_folder_path)
     converted_mp3_input = auto_xenoplay(converted_mxl_input, temp_folder_path)
+
+    print(".pdf -> .mid complete")
+    return
+
+def input_to_pdf(input):
+    if(is_mid(input)):
+        mid_to_pdf(input)
+    elif(is_mp3(input)):
+        mp3_to_pdf(input)
+    else:
+        raise RuntimeError("Input file type is invalid")
+
+    return
+
+def input_to_mid(input):
+    if(is_pdf(input)):
+        pdf_to_mid(input)
+    elif(is_mp3(input)):
+        mp3_to_mid(input)
+    else:
+        raise RuntimeError("Input file type is invalid")
 
     return
 
