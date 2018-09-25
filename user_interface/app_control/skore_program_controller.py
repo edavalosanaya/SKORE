@@ -39,7 +39,7 @@ output_folder_path = skore_path + output_folder_extension_path
 skore_program_controller_path = skore_path + skore_program_controller_extension_path
 
 #Purely Testing Purposes
-default_or_temp_mode = 'default'
+default_or_temp_mode = 'temp'
 amazing_midi_tune = misc_folder_path + '\\' + 'piano0.wav'
 
 ################################################################################
@@ -113,7 +113,6 @@ def clean_temp_folder():
     #global temp_folder_path
 
     files = glob.glob(temp_folder_path + '\*')
-    #files = glob.glob(r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\temp\*")
 
     for file in files:
         os.remove(file)
@@ -124,9 +123,6 @@ def clean_temp_folder():
 def temp_to_folder(**kwargs):
     #This functions transfer all the files found within temp folder into
     #"destination_folder" with the "filename" given.
-
-    #global temp_folder_path
-    #global output_folder_path
 
     filename = kwargs.get('filename', None)
     destination_folder = kwargs.get('destination_folder', None)
@@ -159,12 +155,6 @@ def setting_read(setting, default_or_temp):
     #Reading the value of the setting
     import sys
     #Opening File
-    #global skore_path
-    #global skore_program_controller_extension_path
-
-    #Adding the folder where settings.txt to the path
-    #skore_program_controller_extension = r'\user_interface\app_control'
-    #sys.path.append(skore_path + skore_program_controller_extension_path + '\\*')
 
     if(default_or_temp == 'default'):
         file = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings_default.txt', 'r')
@@ -225,15 +215,13 @@ def setting_read(setting, default_or_temp):
 def setting_write(setting, write_data, temp_mode):
     #Writing the configuration settings of the settings_temp.txt file
 
-    #global skore_path
-
     #Opening File
-    if(temp_mode == 'w'):
+    if(temp_mode == 'write'):
         #overwrite complete settings_temp.txt
-        file_read = open('settings_default.txt', 'r')
-    elif(temp_mode == 'a'):
+        file_read = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings_default.txt', 'r')
+    elif(temp_mode == 'append'):
         #only edit sections of settings_temp.txt
-        file_read = open('settings_temp.txt', 'r')
+        file_read = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings_temp.txt', 'r')
     else:
         raise RuntimeError('Invalid overwriting/appending mode')
 
@@ -246,13 +234,19 @@ def setting_write(setting, write_data, temp_mode):
     equal_sign_index = contents_all.find('=', setting_index)
     end_of_line_index = contents_all.find('\n', equal_sign_index)
     current_setting_value = contents_all[equal_sign_index + 1:end_of_line_index]
-    contents_all = contents_all.replace(current_setting_value, write_data)
+    write_data = 'r"' + write_data + '"'
+
+    #contents_all = contents_all.replace(current_setting_value, write_data, 1)
+    before_equal_string = contents_all[0:equal_sign_index]
+    after_equal_string = contents_all[equal_sign_index:-1]
+    modified_after_equal_string = after_equal_string.replace(current_setting_value, write_data, 1)
+    contents_all = before_equal_string + modified_after_equal_string + '\n'
 
     #Writing the value of the setting onto the file
-    file_write = open('settings_temp.txt', 'w')
+    file_write = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings_temp.txt', 'w')
     file_write.write(contents_all)
     file_write.close()
-    print("Settings have been modified")
+    print("Settings for " + setting + " have been modified to " + write_data)
     return
 
 def is_mid(file_path):
@@ -344,6 +338,8 @@ def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address
     o_window.type_keys('{ENTER}')
 
     #Clicking on Transcribe menu, selecting Transcribe
+    time.sleep(1)
+    window.wait('enabled',timeout = 30)
     window.menu_item(u'&Transcribe->&Transcribe...').click()
 
     #Entering Transcribe Options
@@ -422,17 +418,11 @@ def auto_midi_music_sheet(user_input_address_midi,destination_address):
     #This functions does the automation of the midi_music_sheet application.
     #global default_or_temp_mode
 
-    file_size = os.path.getsize(user_input_address_midi)
-    #print("file size: " + str(file_size))
-    file_close_delay_time = file_size/2000 + 1
-    #print("file close delay time: " + str(file_close_delay_time))
-
-
     [end_address, filename] = output_address(user_input_address_midi, destination_address, '.pdf')
     midi_app = pywinauto.application.Application()
-    midi_exe_path = setting_read('midi_exe_path', default_or_temp_mode)
+    midi_app_exe_path = setting_read('midi_app_exe_path', default_or_temp_mode)
     #midi_app.start(r"C:\Users\daval\Desktop\MidiSheetMusic-2.6.exe")
-    midi_app.start(midi_exe_path)
+    midi_app.start(midi_app_exe_path)
     print("Initialized MidiSheetMusic")
 
     #Creating a window variable for Midi Sheet Music
@@ -484,7 +474,10 @@ def auto_midi_music_sheet(user_input_address_midi,destination_address):
     #The best I could come up with is creating a time delay using the size of
     #the file.
 
-    time.sleep(file_close_delay_time)
+    #Creating file_size_dependent_delay_time
+    file_size = os.path.getsize(user_input_address_midi)
+    file_size_dependent_delay_time = file_size/2000 + 1
+    time.sleep(file_size_dependent_delay_time)
     #window.menu_item(u'&File->&Exit')
     midi_app.kill()
 
@@ -538,7 +531,14 @@ def auto_audiveris(user_input_address_audi, destination_address):
     #Entering the export menu
     click_center_try('open_button')
     click_center_try('book_button')
-    time.sleep(5)
+    #time.sleep(5) HARD CODED
+
+    #Creating file_size_dependent_delay_time
+    file_size = os.path.getsize(user_input_address_audi)
+    file_size_dependent_delay_time = file_size/7000 + 1
+    print(file_size_dependent_delay_time)
+    time.sleep(file_size_dependent_delay_time)
+
     click_center_try('export_book_as_button')
 
     #Entering final address to export book as button
@@ -570,10 +570,13 @@ def auto_audiveris(user_input_address_audi, destination_address):
     print(".pdf -> .mxl complete")
     return end_address
 
+
 ################################################################################
 
 def auto_xenoplay(user_input_address_xeno, destination_address):
     #This function does the automation of the xenoplay application
+
+    #This is the highest-possibility of failure function. THIS WORK
 
     [end_address, filename] = output_address(user_input_address_xeno, destination_address, '.mid')
     #os.system("start cmd /c start_xenoplay.py")
@@ -634,7 +637,7 @@ def auto_xenoplay(user_input_address_xeno, destination_address):
 def start_red_dot_forever():
     #This function simply starts the red dot forever application
     red_app = pywinauto.application.Application()
-    red_app_exe_path = setting_read('red_app_exe_path','default')
+    red_app_exe_path = setting_read('red_app_exe_path', default_or_temp_mode)
     #red_app.start(r"C:\Program Files (x86)\Red Dot Forever\reddot.exe")
     red_app.start(red_app_exe_path)
     print("Initialized Red Dot Forever")
@@ -645,7 +648,7 @@ def start_red_dot_forever():
 def start_piano_booster():
     #This function starts the piano booster application
     pia_app = pywinauto.application.Application()
-    pia_app_exe_path = setting_read('pia_app_exe_path','default')
+    pia_app_exe_path = setting_read('pia_app_exe_path', default_or_temp_mode)
     #pia_app.start(r"C:\Program Files (x86)\Piano Booster\pianobooster.exe")
     pia_app.start(pia_app_exe_path)
     print("Initialized PianoBooser")
@@ -656,6 +659,7 @@ def start_piano_booster():
 ################################################################################
 
 def mp3_to_pdf(mp3_input):
+    #This function converts a .mp3 to .pdf
     global amazing_midi_tune
     clean_temp_folder()
 
@@ -663,36 +667,40 @@ def mp3_to_pdf(mp3_input):
     converted_mid_input = auto_amazing_midi(converted_wav_input, temp_folder_path, amazing_midi_tune)
     converted_pdf_input = auto_midi_music_sheet(converted_mid_input, temp_folder_path)
 
-    print(".mp3 -> .pdf complete")
+    print("Overall .mp3 -> .pdf complete")
     return
 
 def mp3_to_mid(mp3_input):
+    #This function converts a .mp3 to .mid
     global amazing_midi_tune
 
     converted_wav_input = auto_audacity(mp3_input, temp_folder_path)
     converted_mid_input = auto_amazing_midi(converted_wav_input, temp_folder_path, amazing_midi_tune)
 
-    print(".mp3 -> .mid complete")
+    print("Overall .mp3 -> .mid complete")
     return
 
 def mid_to_pdf(mid_input):
+    #This function converts a .mid to .pdf
     clean_temp_folder()
 
     converted_mid_input = auto_midi_music_sheet(mid_input, temp_folder_path)
 
-    print(".mid -> .pdf complete")
+    print("Overall .mid -> .pdf complete")
     return
 
 def pdf_to_mid(pdf_input):
+    #This function converts a .pdf to .mid
     clean_temp_folder()
 
     converted_mxl_input = auto_audiveris(pdf_input, temp_folder_path)
     converted_mp3_input = auto_xenoplay(converted_mxl_input, temp_folder_path)
 
-    print(".pdf -> .mid complete")
+    print("Overall .pdf -> .mid complete")
     return
 
 def input_to_pdf(input):
+    #This function converts any file into a .pdf
     if(is_mid(input)):
         mid_to_pdf(input)
     elif(is_mp3(input)):
@@ -703,6 +711,7 @@ def input_to_pdf(input):
     return
 
 def input_to_mid(input):
+    #This function converts any file into a .mid
     if(is_pdf(input)):
         pdf_to_mid(input)
     elif(is_mp3(input)):
@@ -711,34 +720,3 @@ def input_to_mid(input):
         raise RuntimeError("Input file type is invalid")
 
     return
-
-################################################################################
-###############################MAIN CODE########################################
-################################################################################
-#clean_temp_folder()
-#Testing AmazingMIDI
-#amazing_midi_test_input = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\function_system\conversion_test\WAV_files\SpiritedAway.wav"
-#amazing_midi_test_tune = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\function_system\misc\piano0.wav"
-#auto_amazing_midi(amazing_midi_test_input, temp_folder_path,amazing_midi_test_input)
-
-#Testing Audacity
-#audacity_test_input = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\function_system\conversion_test\Original_MP3\SpiritedAway.mp3"
-#auto_audacity(audacity_test_input,temp_folder_path)
-
-#Testing MidiMusicSheet
-#midi_music_sheet_input = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\function_system\conversion_test\Red_Dot_Forever\ChrisPlaying.mid"
-#auto_midi_music_sheet(midi_music_sheet_input,temp_folder_path)
-
-#Testing Red Dot Forever
-#start_red_dot_forever()
-
-#Testing Audiveris
-#audi_test_input = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\function_system\conversion_test\AnthemScore\SpiritedAway.pdf"
-#auto_audiveris(audi_test_input,temp_folder_path)
-
-#Testing Xenoplay
-#xeno_test_input = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\function_system\conversion_test\audiverius_samples\SpiritedAway.mxl"
-#auto_xenoplay(xeno_test_input, temp_folder_path)
-
-#Testing PianoBooster
-#start_piano_booster()

@@ -6,7 +6,7 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot
 
 #Importing the Settings Dialog
-from settings_dialog import *
+from settings_dialog2 import *
 
 #This is to prevent an error caused when importing skore_program_controller
 import warnings
@@ -41,6 +41,8 @@ class Ui_MainWindow(object):
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
 
+###############################Main Buttons#####################################
+
         #Upload Button
         self.uploadAudioFile_toolButton = QtWidgets.QToolButton(self.centralwidget)
         self.uploadAudioFile_toolButton.setGeometry(QtCore.QRect(20, 20, 421, 171))
@@ -58,6 +60,8 @@ class Ui_MainWindow(object):
         self.settings_toolButton.setGeometry(QtCore.QRect(20, 260, 871, 41))
         self.settings_toolButton.setObjectName("settings_toolButton")
         self.settings_toolButton.clicked.connect(self.settingsDialog)
+
+#############################Tutoring Buttons###################################
 
         #Tutor Group Box
         self.tutor_groupBox = QtWidgets.QGroupBox(self.centralwidget)
@@ -79,6 +83,16 @@ class Ui_MainWindow(object):
         self.expert_pushButton.setGeometry(QtCore.QRect(20, 140, 381, 51))
         self.expert_pushButton.setObjectName("expert_pushButton")
 
+        self.tutoring_buttonGroup = QButtonGroup()
+        self.tutoring_buttonGroup.setExclusive(True)
+        self.tutoring_buttonGroup.addButton(self.beginner_pushButton)
+        self.tutoring_buttonGroup.addButton(self.intermediate_pushButton)
+        self.tutoring_buttonGroup.addButton(self.expert_pushButton)
+        self.tutoring_buttonGroup.buttonClicked.connect(self.open_pianobooster)
+
+
+##########################Conversion Buttons####################################
+
         #Generate Music Sheet Button
         self.generateMusicSheet_pushButton = QtWidgets.QPushButton(self.centralwidget)
         self.generateMusicSheet_pushButton.setGeometry(QtCore.QRect(470, 330, 421, 51))
@@ -96,6 +110,8 @@ class Ui_MainWindow(object):
         self.saveGeneratedFiles_pushButton.setGeometry(QtCore.QRect(470, 450, 421, 51))
         self.saveGeneratedFiles_pushButton.setObjectName("saveGeneratedFiles_pushButton")
         self.saveGeneratedFiles_pushButton.clicked.connect(self.saveGeneratedFiles)
+
+############################Misc Buttons and Objects############################
 
         #Text Browser
         self.textBrowser = QtWidgets.QTextBrowser(self.centralwidget)
@@ -139,6 +155,16 @@ class Ui_MainWindow(object):
         self.saveGeneratedFiles_pushButton.setText(_translate("MainWindow", "Save Generated Files"))
 
 ################################################################################
+    def open_red_dot_forever(self):
+        #This function start red dot forever
+
+        start_red_dot_forever()
+        return
+
+    def open_pianobooster(self, button):
+
+        start_piano_booster()
+
     def upload_file(self):
         #This function allows the user to upload a file for file conversion.
 
@@ -150,13 +176,8 @@ class Ui_MainWindow(object):
         upload_file_name = os.path.splitext(os.path.basename(upload_file_path))[0]
         upload_file_type = os.path.splitext(os.path.basename(upload_file_path))[1]
 
-        self.retranslateUi(MainWindow)
-        return
-
-    def open_red_dot_forever(self):
-        #This function start red dot forever
-
-        start_red_dot_forever()
+        if(upload_file_path != ''):
+            self.retranslateUi(MainWindow)
         return
 
     def generateMusicSheet(self):
@@ -197,6 +218,7 @@ class Ui_MainWindow(object):
         #it relocates all the files found temp to the user's choice of directory
 
         global save_folder_path
+        global file_conversion_event
 
         if(file_conversion_event):
             user_given_filename, okPressed = QInputDialog.getText(MainWindow, "Save Files","Files Group Name:", QLineEdit.Normal, upload_file_name)
@@ -204,6 +226,7 @@ class Ui_MainWindow(object):
                 save_folder_path = self.openDirectoryDialog_UserInput()
                 print(save_folder_path)
                 temp_to_folder(destination_folder = save_folder_path, filename = user_given_filename)
+                file_conversion_event = 0
 
         else:
             QMessageBox.about(MainWindow, "No Conversion Present", "Please upload and convert a file before saving it.")

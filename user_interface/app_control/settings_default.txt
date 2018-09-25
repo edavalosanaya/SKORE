@@ -7,10 +7,12 @@ ama_app_exe_path=r"C:\Program Files (x86)\AmazingMIDI\amazingmidi.exe"
 Audacity Settings:
 aud_app_exe_path=r"C:\Program Files (x86)\Audacity\audacity.exe"
 MidiSheetMusic Settings:
-midi_exe_path=r"C:\Users\daval\Desktop\MidiSheetMusic-2.6.exe"
+midi_app_exe_path=r"C:\Users\daval\Desktop\MidiSheetMusic-2.6.exe"
 RedDotForever Settings:
 red_app_exe_path=r"C:\Program Files (x86)\Red Dot Forever\reddot.exe"
 Xenoplay Settings:
 xeno_app_exe_path=r"C:\Program Files (x86)\xenoplay-0-4-src"
 PianoBooster Settings:
 pia_app_exe_path=r"C:\Program Files (x86)\Piano Booster\pianobooster.exe"
+AnthemScore Settings:
+ant_app_exe_path=r"None"
