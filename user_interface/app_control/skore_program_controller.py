@@ -652,6 +652,7 @@ def start_piano_booster():
     #pia_app.start(r"C:\Program Files (x86)\Piano Booster\pianobooster.exe")
     pia_app.start(pia_app_exe_path)
     print("Initialized PianoBooser")
+
     return
 
 ################################################################################
