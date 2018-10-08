@@ -1,25 +1,25 @@
-      #include <FastLED.h>
+#include <FastLED.h>
       #define LED_PIN     7
       #define NUM_LEDS    88
       #define BRIGHTNESS 15       // 0-64
       int i = 0;      // used for indexing
       int j = 0;
+      unsigned int x = 64;
       int LED = 0;    // Stores what LED is to be on
       long ledarray[NUM_LEDS] = {};   // if value in array is > 0, then LED for that index will be on ex ledarray[1] = 0 ;OFF       ledarray[2] = 1000  ;ON for 1 second
-      //long testarray[] = {1,2,3,4,5};
       long ledarray_beg[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
                                         0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
                                               0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}; //88 0's
       
-      char tutorMode = 0; // will either be Beginner (B) or Other O, since intermediate and expert behave the same in arduino
-      int tutorModeInt = 0;
+ //     char tutorMode = 0; // 
+ //     int tutorModeInt = 0;
       char input = 0;      // serial input variable 
-      int duration = 0;    // duration led is on
+ //     int duration = 0;    // duration led is on
       int settingFlag = 0; // once set to 1 tutor mode will be on. 0 will go back to setting mode
       int setPianoFlag = 0; // when set to 0, Piano setting will be available.
       int setLED1Flag = 0;   // when set to 0 and setPianoFlag = 1, LED setting will be available
       int setLED2Flag = 0;   // 
-      int resetFlag = 0;
+//      int resetFlag = 0;
       
       byte input_L = 0;   
       int ledColor = 0;
@@ -200,27 +200,36 @@ void led2Settings(){                      // COLOR FOR SHARP NOTES
             Serial.print("blue sharp is ");
             Serial.println(blueS);
                                         
-         //   setLED2Flag = 1;                               
+            //setLED2Flag = 1;                               
           }
           else{ 
             blueS = ledColor;
             Serial.print(" blue value is  ");
             Serial.println(blueS);
-            ledColor = 0;    
-          }
-      //      i = 0;
-      //      do {leds[i] = CRGB(redF,greenF,blueF); i++; delay(10); FastLED.show();}while(i<88);
-      //      delay(1000);
-      //      do {leds[i] = CRGB(redS,greenS,blueS); i--; delay(10); FastLED.show();}while(i>=0);
-      //      delay(1000);
-      //      for (i=0; i<88; i++){
-      //        leds[i] =CRGB::Black;
-      //        FastLED.show();
-          
+            ledColor = 0;
+           //
+            //   
+          }          
          }
-         setLED2Flag = 1;     
+         
+         if ( blueS < 256 ){
+          for (i=0; i<=32;i++){
+            j = x - i;
+              leds[i] = CRGB(redF,greenF,blueF);
+              leds[j] = CRGB(redS,greenS,blueS);
+              delay(10);
+              FastLED.show(); 
+            }
+            delay(5000);
+            for(i=0; i<88; i++){
+              leds[i] = CRGB::Black;
+              delay(10);
+              FastLED.show();
+         }
+         setLED2Flag = 1;    
         } 
        }
+      }
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -242,9 +251,9 @@ void tutoring(){                                //input = LED#
         if (ledarray_beg[input_L] == 0){
             
           ledarray_beg[input_L] = 1;
-           for (j = 0; j < totalKeys; j++){    // 31 is the length of the array of black keys!!!                                 
+           for (j = 0; j < totalKeys; j++){    // totalKeys is the length of the array of black keys!!!                                 
               if( input_L == keyboardSize[keySize][j] ){     // If key is black key then color will be redS,blueS,greenS
-                leds[input_L] = CRGB(redS,greenS,blueS);             
+                leds[input_L] = CRGB(redS,greenS,blueS);     // if not then Flat colors.        
                 break; 
               }
               else if(input_L != keyboardSize[keySize][j]){       
@@ -257,7 +266,6 @@ void tutoring(){                                //input = LED#
          
          leds[input_L] = CRGB::Black;       
     }
-   
       FastLED.show();
   }
  }
