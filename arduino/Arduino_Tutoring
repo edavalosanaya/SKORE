@@ -1,0 +1,315 @@
+      #include <FastLED.h>
+      #define LED_PIN     7
+      #define NUM_LEDS    88
+      #define BRIGHTNESS 15       // 0-64
+      int i = 0;      // used for indexing
+      int j = 0;
+      int LED = 0;    // Stores what LED is to be on
+      long ledarray[NUM_LEDS] = {};   // if value in array is > 0, then LED for that index will be on ex ledarray[1] = 0 ;OFF       ledarray[2] = 1000  ;ON for 1 second
+      //long testarray[] = {1,2,3,4,5};
+      long ledarray_beg[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                                              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}; //88 0's
+      
+      char tutorMode = 0; // will either be Beginner (B) or Other O, since intermediate and expert behave the same in arduino
+      int tutorModeInt = 0;
+      char input = 0;      // serial input variable 
+      int duration = 0;    // duration led is on
+      int settingFlag = 0; // once set to 1 tutor mode will be on. 0 will go back to setting mode
+      int setPianoFlag = 0; // when set to 0, Piano setting will be available.
+      int setLED1Flag = 0;   // when set to 0 and setPianoFlag = 1, LED setting will be available
+      int setLED2Flag = 0;   // 
+      int resetFlag = 0;
+      
+      byte input_L = 0;   
+      int ledColor = 0;
+      int redF = 256;  // Adjustable colors based on user desire. FLAT notes
+      int blueF = 256; // range for RGB 0-255
+      int greenF =256;
+
+      int redS = 256;    // Sharp key colors
+      int blueS = 256;
+      int greenS = 256;
+
+      //Keys that are black Needs to be adjustable per each piano
+      int totalKeys = 0;
+      int keySize = 0;
+      int keyFlag = 0;
+      long blackKeys[] = {}; //40
+
+      byte keyboardSize[3][88] = {{2,4,7,9,11,14,16,19,21,23,26,28,31,33,35,38,40,43,45,47,50,52,55,57,59},
+                         {3,5,7,10,12,15,17,19,22,24,27,29,31,34,36,39,41,43,46,48,51,53,55,58,60,63,65,67,70,72,75},
+                           {2,5,7,10,12,14,17,19,22,26,29,31,34,36,38,41,43,46,48,50,53,55,58,60,62,65,67,70,72,74,77,79,82,84,86}};
+
+      CRGB leds[NUM_LEDS];
+      unsigned long ledStart[NUM_LEDS];
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+  void setup() {
+  
+        Serial.setTimeout(15);  
+        Serial.begin(9600);                         // Serial communication at 9600buad.
+        Serial.flush();
+        FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS); 
+        FastLED.setBrightness(BRIGHTNESS);
+        FastLED.show();                              //Initializing all LEDs to off
+        Serial.println("Size of Piano (S , M , or L) ?");
+  }
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void pianoSettings(){  
+  input = Serial.read();
+  
+  if (input == 'S'){
+    keySize = 0;
+    totalKeys = 25;
+    for (i=0; i<25; i++){
+      Serial.println(keyboardSize[keySize][i]);
+    }
+    setPianoFlag = 1;
+  }
+  
+  else if (input == 'M'){
+    keySize = 1;
+    totalKeys = 31;
+    for (i=0; i<31; i++){
+      Serial.println(keyboardSize[keySize][i]);
+    }
+    setPianoFlag = 1;
+  }
+  else if (input == 'L'){
+    keySize = 2;
+    totalKeys = 35;
+    for (i=0; i<35; i++){
+      Serial.println(keyboardSize[keySize][i]);
+     }
+     setPianoFlag = 1;
+    }
+  }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+  void led1Settings(){
+                                                                                      // COLOR FOR FLAT NOTES
+
+     while (Serial.available() > 0){
+    ledColor = Serial.parseInt();
+    Serial.println(ledColor);
+  
+  
+      if ( ledColor <= 255 && ledColor != 0 && redF == 256 ){                                  // first integer entered will set red to input, 2nd to blue, 3rd to green
+      
+        if (ledColor == -1){
+          redF = 0;
+          Serial.print("Red value ");
+          Serial.println(redF);
+        }
+        else{
+        redF = ledColor;
+        Serial.print("Red value ");
+        Serial.println(redF);
+        ledColor = 0;
+        }
+      }
+   
+  
+        else if ( ledColor <= 255 && ledColor != 0 && redF < 256 && greenF == 256){
+          if (ledColor == -1){
+          greenF = 0;
+          Serial.print("Green is ");
+          Serial.println(greenF);
+           ledColor = 0;   
+        }
+        else{
+        greenF = ledColor;
+        Serial.print("green value is  ");
+        Serial.println(greenF);
+        ledColor = 0;
+        }
+       }
+
+        else if ( ledColor <= 255 && greenF < 256 && ledColor != 0 && blueF == 256){
+                  
+          if (ledColor == -1){
+             blueF = 0;
+            Serial.print("blue value is  ");
+           Serial.println(blueF);;
+            
+             setLED1Flag = 1;
+             
+           }
+           else{ 
+           blueF = ledColor;
+           Serial.print("blue value is ");
+           Serial.println(blueF);
+           ledColor = 0;
+          
+           setLED1Flag = 1;
+       }  
+      }
+     }
+    }
+    
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+void led2Settings(){                      // COLOR FOR SHARP NOTES
+  
+
+     while (Serial.available() > 0){
+    ledColor = Serial.parseInt();
+    Serial.println(ledColor);
+
+      if ( ledColor <= 255 && ledColor != 0 && redS == 256 ){                                  // first integer entered will set red to input, 2nd to blue, 3rd to green
+      
+        if (ledColor == -1){
+          redS = 0;
+          Serial.print("Red sharp is ");
+          Serial.println(redS);
+        }
+        else{
+        redS = ledColor;
+        Serial.print("Redsharp value  ");
+        Serial.println(redS);
+        ledColor = 0;
+        }
+      }
+  
+  
+        else if ( ledColor <= 255 && ledColor != 0 && redS < 256 && greenS == 256){
+          if (ledColor == -1){
+          greenS = 0;
+          Serial.print("green sharp is ");
+          Serial.println(greenS); 
+           ledColor=0;
+          
+        }
+        else{
+        greenS = ledColor;
+        Serial.print(" green value is  ");
+        Serial.println(greenS);
+        ledColor = 0;
+         }
+        }
+        
+        else if ( ledColor <= 255 && greenS < 256 && ledColor != 0 && blueS == 256){
+          
+          if (ledColor == -1){
+            blueS = 0;
+            Serial.print("blue sharp is ");
+            Serial.println(blueS);
+                                        
+         //   setLED2Flag = 1;                               
+          }
+          else{ 
+            blueS = ledColor;
+            Serial.print(" blue value is  ");
+            Serial.println(blueS);
+            ledColor = 0;    
+          }
+      //      i = 0;
+      //      do {leds[i] = CRGB(redF,greenF,blueF); i++; delay(10); FastLED.show();}while(i<88);
+      //      delay(1000);
+      //      do {leds[i] = CRGB(redS,greenS,blueS); i--; delay(10); FastLED.show();}while(i>=0);
+      //      delay(1000);
+      //      for (i=0; i<88; i++){
+      //        leds[i] =CRGB::Black;
+      //        FastLED.show();
+          
+         }
+         setLED2Flag = 1;     
+        } 
+       }
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+void tutoring(){                                //input = LED#
+    while (Serial.available() > 0)  {
+    
+     input_L = Serial.parseInt();
+    
+      Serial.println(input_L);
+      if (input_L == 0){
+        Serial.print("zero recieved");
+        resetFlags();
+      }
+      else if(input_L > 0){
+
+        if (ledarray_beg[input_L] == 0){
+            
+          ledarray_beg[input_L] = 1;
+           for (j = 0; j < totalKeys; j++){    // 31 is the length of the array of black keys!!!                                 
+              if( input_L == keyboardSize[keySize][j] ){     // If key is black key then color will be redS,blueS,greenS
+                leds[input_L] = CRGB(redS,greenS,blueS);             
+                break; 
+              }
+              else if(input_L != keyboardSize[keySize][j]){       
+                leds[input_L] = CRGB(redF,greenF,blueF); 
+            }
+          } 
+        }
+        else if(ledarray_beg[input_L] == 1){
+         ledarray_beg[input_L] = 0;
+         
+         leds[input_L] = CRGB::Black;       
+    }
+   
+      FastLED.show();
+  }
+ }
+}   
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void resetFlags(){
+  settingFlag = 0; // once set to 1 tutor mode will be on. 0 will go back to setting mode
+  setPianoFlag = 0; // when set to 0, Piano setting will be available.
+  setLED1Flag = 0;   // when set to 0 and setPianoFlag = 1, LED setting will be available
+  setLED2Flag = 0;   // 
+  resetFlag = 0;
+  redS = 256;
+  blueS = 256;
+  greenS = 256;
+  redF = 256;
+  blueF = 256;
+  greenF = 256;
+  for (i=0;i<88;i++){
+    leds[i] = CRGB::Black;
+  }
+  FastLED.show();
+  Serial.println("Done resetting!");
+}
+ 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////     
+
+
+  void loop() {
+    
+        while(setPianoFlag == 0 && setLED1Flag == 0 && setLED2Flag == 0){
+        pianoSettings();
+        }
+        
+        while(setPianoFlag == 1 && setLED1Flag == 0 && setLED2Flag == 0){
+        //  Serial.println("flatt key colors settings 0 = -1   0 to 255");
+          led1Settings();
+        }
+
+        while( setPianoFlag == 1 && setLED1Flag == 1 && setLED2Flag == 0){
+         // Serial.println("Sharp key colors settings 0 = -1  0 to 255");
+          led2Settings();
+        }
+
+        while(setPianoFlag == 1 && setLED1Flag == 1 && setLED2Flag == 1){
+         tutoring();
+        }
+       }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////
