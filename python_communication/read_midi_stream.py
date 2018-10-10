@@ -3,6 +3,8 @@ import rtmidi
 from midi_processing import *
 import os
 import glob
+import serial
+
 
 midi_in = []
 keys_pressed = []
@@ -12,6 +14,8 @@ chord_timing_tolerance = 10
 sequence = []
 time_per_tick = 0.0001
 setup_time_delay = 2
+arduino_keyboard = []
+arduino = []
 
 #Determining where SKORE application is located.
 complete_path = os.path.dirname(os.path.abspath(__file__))
@@ -24,6 +28,89 @@ sys.path.append(skore_path + skore_program_controller_extension_path)
 from skore_program_controller import is_mid
 
 ################################################################################
+def arduino_setup():
+    global arduino
+
+    arduino = serial.Serial("COM3", 9600)
+    print("Arduino Connected")
+
+    time.sleep(5)
+    arduino.write(b'S')
+    time.sleep(1)
+    arduino.write(b'255,-1,-1')
+    time.sleep(1)
+    arduino.write(b'-1,255,-1')
+    time.sleep(10)
+    print("Arduino Setup Complete")
+
+    return
+
+def arduino_comm(notes):
+    notes_to_add = []
+    notes_to_remove = []
+
+    #print("notes: " + str(notes))
+    #print("arduino_keyboard 1: " + str(arduino_keyboard))
+
+    time.sleep(0.001)
+
+    for note in notes:
+        if note not in arduino_keyboard:
+            #print(note)
+            notes_to_add.append(note)
+            arduino_keyboard.append(note)
+
+    #print("arduino_keyboard 2: " + str(arduino_keyboard))
+
+    if notes == []:
+        temp_keyboard = []
+
+        #print("Notes is Null")
+        for note in arduino_keyboard:
+            notes_to_remove.append(note)
+            temp_keyboard.append(note)
+
+        for note in temp_keyboard:
+            arduino_keyboard.remove(note)
+    else:
+        for note in arduino_keyboard:
+            #print("note 1: " + str(note))
+            if note not in notes:
+                #print("note 2: " + str(note))
+                notes_to_remove.append(note)
+                arduino_keyboard.remove(note)
+
+    #print("arduino_keyboard 3: " + str(arduino_keyboard))
+    #print("notes_to_add: " + str(notes_to_add))
+    #print("notes_to_remove: " + str(notes_to_remove))
+    #print()
+
+    # Change this section to be more efficient
+    between_note_delay = 0.02
+    transmitted_string = ''
+    notes_to_send = notes_to_add + notes_to_remove
+
+    for note in notes_to_send:
+        transmitted_string += str(note) + ','
+
+    transmitted_string = transmitted_string[:-1]
+    print(transmitted_string)
+
+    arduino.write(bytes(str(transmitted_string), 'utf-8'))
+    time.sleep(between_note_delay)
+
+    """
+    for note in notes_to_add:
+        arduino.write(bytes(str(note), 'utf-8'))
+        time.sleep(between_note_delay)
+
+    for note in notes_to_remove:
+        arduino.write(bytes(str(note), 'utf-8'))
+        time.sleep(between_note_delay)
+    """
+
+    return
+
 
 def keyboard_equal(list1,list2):
     # Checks if all the elements in list1 are at least found in list2
@@ -145,7 +232,7 @@ def piano_port_setup():
 
     try:
         midi_in.open_port(0)
-        time.sleep(setup_time_delay)
+        #time.sleep(setup_time_delay)
         return 1
 
     except RuntimeError:
@@ -224,7 +311,7 @@ def note_tracking():
             final_delay_location = chord_detection(event_counter)
 
             if final_delay_location != event_counter:
-                print("Chord Detected")
+                #print("Chord Detected")
                 notes, note_delay = get_chord_notes(event_counter, final_delay_location)
 
                 for note in notes:
@@ -239,12 +326,14 @@ def note_tracking():
             print("Need " + str(keys_need_to_be_pressed))
             #print("Actual " + str(keys_pressed))
 
-            # Here would go Bosker's code for Arduino Light Up
+            arduino_comm(keys_need_to_be_pressed)
 
             while(counter < note_delay):
                 if piano_get_message(keyboard = keys_need_to_be_pressed):
                     counter += 1
                     time.sleep(time_per_tick)
+
+        arduino_comm([])
 
 
 ################################################################################
@@ -265,6 +354,7 @@ sequence = note_event_info
 
 #Setting up piano
 piano_port_setup()
+arduino_setup()
 
 #Creating delay sequence
 #delay_sequence = sequence2delay_sequence(sequence)
