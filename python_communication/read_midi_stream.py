@@ -9,6 +9,9 @@ keys_pressed = []
 keys_need_to_be_pressed = []
 delay_sequence = []
 chord_timing_tolerance = 10
+sequence = []
+time_per_tick = 0.0001
+setup_time_delay = 2
 
 #Determining where SKORE application is located.
 complete_path = os.path.dirname(os.path.abspath(__file__))
@@ -36,75 +39,100 @@ def keyboard_equal(list1,list2):
             return 0
     return 1
 
-def sequence2delay_sequence(sequence):
-    # Creates a sequence purely made out of delay values
+def safe_change_keys_need_to_be_pressed(pitch, state):
+    # This function safely removes or adds the pitch to the
+    # keys_need_to_be_pressed variable
 
-    delay_sequence = []
+    if state == 1:
+        if pitch in keys_need_to_be_pressed:
+            return
+        keys_need_to_be_pressed.append(pitch)
 
-    for event in sequence:
+    elif state == 0:
+        if pitch not in keys_need_to_be_pressed:
+            return
+        keys_need_to_be_pressed.remove(pitch)
 
-        if event[0] == 'D': # If event is Delay, the append value to delay sequence
-            delay_sequence.append(int(event[2:]))
+    return
 
-    return delay_sequence
+def safe_change_keys_pressed(pitch, state):
+    # This function safely removes or adds the pitch to the
+    # keys_pressed variable
 
-def chord_detection(delay_location):
-    # Determines if a chord is present and returns the value "chord_note_counter"
-    # this value is corresponding to the number of notes in a chord - 1.
+    if state == 1:
+        if pitch in keys_pressed:
+            return
+        keys_pressed.append(pitch)
 
-    chord_note_counter = 0
+    elif state == 0:
+        if pitch not in keys_pressed:
+            return
+        keys_pressed.remove(pitch)
 
-    # Shifting the delay location value to work with the delay sequence list
-    delay_location = int((delay_location - 1)/2)
-    after_event_delay_sequence = delay_sequence[delay_location:]
-    #print(after_event_delay_sequence)
+    return
 
-    # If the first delay of a note is smaller than a chord timing tolerance, chord has been detected
-    try:
-        if after_event_delay_sequence[0] <= chord_timing_tolerance:
-            print("Chord Beginning or End")
-    except IndexError:
-        #print("End of Song")
-        return 0
 
-        # For loop checks for addtional notes in the chord with the same chord timing tolerance
-        for event in after_event_delay_sequence:
-            if event <= chord_timing_tolerance:
-                chord_note_counter += 1
+def chord_detection(inital_delay_location):
+    # This function returns the final delay location, meaning the next delay that
+    # does not include the chord. If the function returns inital_delay_location,
+    # it means that the inital delay is not a chord.
+
+    #print(inital_delay_location)
+    final_delay_location = inital_delay_location
+    for_counter = 0
+
+
+    if int(sequence[inital_delay_location][2:]) <= chord_timing_tolerance:
+
+        for event in sequence[inital_delay_location: ]:
+
+            if event[0] == 'D':
+                #print("Delay Detected")
+
+                if int(event[2:]) >= chord_timing_tolerance:
+                    #print("End of Chord Detected")
+                    break
+
+                else:
+                    for_counter += 1
+                    continue
             else:
-                break
-        print("Additional Notes in Chord: " + str(chord_note_counter))
+                for_counter += 1
+                continue
+    else:
+        #print("Not a chord")
+        return inital_delay_location
 
-    # returning the quantity of notes in the chord - 1
-    return chord_note_counter
+    #print("for_counter: " + str(for_counter))
+    final_delay_location += for_counter
+    #final_delay_location_data = sequence[final_delay_location]
+    #print("final_delay_location_data: " + str(final_delay_location_data))
 
-def get_chord_notes(event_counter,chord_note_counter,sequence):
-    # This function returns the notes and duration of the chord.
+    return final_delay_location
+
+
+def get_chord_notes(inital_delay_location,final_delay_location):
+    # This functions obtains the notes within the inital and final delay locations
+    # Additionally, the function obtains the duration of the chord.
 
     notes = []
-    print(sequence[event_counter])
 
-    # Appending the state, ['1' or '0'], and pitch of a notes in the chord to a
-    # list called notes.
-    for i in range(0, chord_note_counter):
-        notes.append(sequence[event_counter + 2*i + 1])
+    for event in sequence[inital_delay_location:final_delay_location]:
+        if event[0] != 'D':
+            notes.append(event)
 
-    # Try statement is here just incase the last notes are a chord.
-    #
     try:
-        chord_delay = int(sequence[event_counter + 2*chord_note_counter][2:])
+        chord_delay = int(sequence[final_delay_location][2:])
     except IndexError:
-        print("End of Song Chord")
         chord_delay = 50
 
-    print(notes)
-    print(chord_delay)
+    #print(notes)
+    #print(chord_delay)
     return notes, chord_delay
-
 
 def piano_port_setup():
     # This function sets up the communication between Python and the MIDI device
-    # It will select the first listed device.
+    # For now it will select the first listed device.
     # THIS NEEDS TO BE AJUSTABLE FROM THE GUI SETTINGS LATER
 
     global midi_in
@@ -117,6 +145,7 @@ def piano_port_setup():
 
     try:
         midi_in.open_port(0)
+        time.sleep(setup_time_delay)
         return 1
 
     except RuntimeError:
@@ -128,7 +157,7 @@ def piano_port_setup():
 def piano_get_message(keyboard):
     # This functions obtains the message send from the piano and appends the
     # note played to a list of currently played notes. It also removes if the
-    # note is registered as off, from the playlist.
+    # note is registered as off, from the list.
 
     if midi_in == []:
         print("Piano Setup is Required")
@@ -148,28 +177,21 @@ def piano_get_message(keyboard):
 
                 if note_properties[0] == 144:
 
-                    if note_properties[1] in keys_pressed:
-                        continue
-
-                    keys_pressed.append(note_properties[1])
+                    safe_change_keys_pressed(note_properties[1],1)
 
                 if note_properties[0] != 144:
 
-                    if note_properties[1] not in keys_pressed:
-                        continue
-
-                    keys_pressed.remove(note_properties[1])
+                    safe_change_keys_pressed(note_properties[1], 0)
 
     except AttributeError:
         print("Piano Setup is Required")
         return 0
 
-def note_tracking(sequence):
+def note_tracking():
     # This is practically the tutoring code for Beginner Mode
 
-    time_per_tick = 0.001
     event_counter = -1
-    chord_note_counter = 0
+    final_delay_location = 0
     chord_event_skip = 0
 
     for event in sequence:
@@ -178,45 +200,40 @@ def note_tracking(sequence):
         #print(event)
 
         if chord_event_skip != 0:
-            #print(chord_event_skip)
+            # This ensures that the sequence is taken all the way to the sustain
+            # of the chord rather than duplicating the chords' data processing.
+
             chord_event_skip -= 1
             #print(chord_event_skip)
-
-            #delay_location = int((event_counter - 1)/2)
-            #after_event_delay_sequence = delay_sequence[delay_location:]
-            #print(after_event_delay_sequence)
+            #print(sequence[event_counter:])
+            #print()
 
             continue
+
 
         if event[0] == '1':
+            safe_change_keys_need_to_be_pressed(int(event[2:]), 1)
 
-            if int(event[2:]) not in keys_need_to_be_pressed:
-                keys_need_to_be_pressed.append(int(event[2:]))
-            continue
+        if event[0] == '0':
+            safe_change_keys_need_to_be_pressed(int(event[2:]), 0)
 
-        elif event[0] == '0':
-
-            if int(event[2:]) in keys_need_to_be_pressed:
-                keys_need_to_be_pressed.remove(int(event[2:]))
-            continue
-
-        elif event[0] == 'D':
+        if event[0] == 'D':
 
             note_delay = int(event[2:])
 
-            chord_note_counter = chord_detection(event_counter)
+            final_delay_location = chord_detection(event_counter)
 
-            if chord_note_counter:
+            if final_delay_location != event_counter:
                 print("Chord Detected")
-                notes, note_delay = get_chord_notes(event_counter,chord_note_counter,sequence)
+                notes, note_delay = get_chord_notes(event_counter, final_delay_location)
 
                 for note in notes:
                     if note[0] == '1':
-                        keys_need_to_be_pressed.append(int(note[2:]))
+                        safe_change_keys_need_to_be_pressed(int(note[2:]),1)
                     else:
-                        keys_need_to_be_pressed.remove(int(note[2:]))
+                        safe_change_keys_need_to_be_pressed(int(note[2:]),0)
 
-                chord_event_skip = chord_note_counter * 2
+                chord_event_skip = final_delay_location - event_counter
 
 
             print("Need " + str(keys_need_to_be_pressed))
@@ -250,8 +267,8 @@ sequence = note_event_info
 piano_port_setup()
 
 #Creating delay sequence
-delay_sequence = sequence2delay_sequence(sequence)
-print(delay_sequence)
+#delay_sequence = sequence2delay_sequence(sequence)
+#print(delay_sequence)
 
 #Beginning tutoring
-note_tracking(sequence)
+note_tracking()
