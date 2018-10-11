@@ -12,7 +12,7 @@ from time import sleep
 
 app_running_stop_event = Event()
 all_qwidgets = []
-default_or_temp_mode = 'temp'
+#default_or_temp_mode = 'temp'
 
 ################################################################################
 def track_mouse_clicks():
@@ -115,7 +115,8 @@ def retrieve_name(var):
 
 #Initilizing the PianoBooster Application
 pia_app = pywinauto.application.Application()
-pia_app_exe_path = setting_read('pia_app_exe_path', default_or_temp_mode)
+#pia_app_exe_path = setting_read('pia_app_exe_path', default_or_temp_mode)
+pia_app_exe_path = setting_read('pia_app_exe_path')
 pia_app.start(pia_app_exe_path)
 print("Initialized PianoBooser")
 

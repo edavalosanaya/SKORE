@@ -18,7 +18,7 @@ skore_path = complete_path[0:skore_index+1]
 skore_program_controller_extension_path = r'user_interface\app_control'
 sys.path.append(skore_path + skore_program_controller_extension_path)
 from skore_program_controller import setting_read, setting_write
-default_or_temp_mode = 'temp'
+#default_or_temp_mode = 'temp'
 
 #Variable Array for Executiable path
 app_exe_path = ['','','','','','','','']
@@ -220,7 +220,8 @@ class Ui_Dialog(object):
     def settings_path_read(self):
 
         for i in range(len(possible_app)):
-            app_exe_path[i] = setting_read(app_exe_setting_label[i], default_or_temp_mode)
+            #app_exe_path[i] = setting_read(app_exe_setting_label[i], default_or_temp_mode)
+            app_exe_path[i] = setting_read(app_exe_setting_label[i])
 
         return
 

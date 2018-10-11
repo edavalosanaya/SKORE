@@ -8,6 +8,7 @@ import os
 import pywinauto
 import glob
 from pathlib import Path
+#from shutil import move
 from shutil import copyfile, move
 import shutil
 
@@ -151,17 +152,21 @@ def temp_to_folder(**kwargs):
 
 ################################################################################
 
-def setting_read(setting, default_or_temp):
+def setting_read(setting):
     #Reading the value of the setting
     import sys
     #Opening File
 
+    """
     if(default_or_temp == 'default'):
         file = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings_default.txt', 'r')
     elif(default_or_temp == 'temp'):
         file = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings_temp.txt', 'r')
     else:
         raise RuntimeError('Invalid setting file selection')
+    """
+
+    file = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings.txt', 'r')
     #Reading the contents of the setting text
     contents = file.readlines()
     settings = []
@@ -216,6 +221,7 @@ def setting_write(setting, write_data, temp_mode):
     #Writing the configuration settings of the settings_temp.txt file
 
     #Opening File
+    """
     if(temp_mode == 'write'):
         #overwrite complete settings_temp.txt
         file_read = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings_default.txt', 'r')
@@ -224,7 +230,9 @@ def setting_write(setting, write_data, temp_mode):
         file_read = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings_temp.txt', 'r')
     else:
         raise RuntimeError('Invalid overwriting/appending mode')
+    """
 
+    file_read = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings.txt', 'r')
     contents_all = file_read.read()
     contents_line = file_read.readlines()
     file_read.close()
@@ -243,7 +251,7 @@ def setting_write(setting, write_data, temp_mode):
     contents_all = before_equal_string + modified_after_equal_string + '\n'
 
     #Writing the value of the setting onto the file
-    file_write = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings_temp.txt', 'w')
+    file_write = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings.txt', 'w')
     file_write.write(contents_all)
     file_write.close()
     print("Settings for " + setting + " have been modified to " + write_data)
@@ -294,7 +302,8 @@ def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address
 
     delay = 1
     ama_app = pywinauto.application.Application()
-    ama_app_exe_path = setting_read('ama_app_exe_path', default_or_temp_mode)
+    #ama_app_exe_path = setting_read('ama_app_exe_path', default_or_temp_mode)
+    ama_app_exe_path = setting_read('ama_app_exe_path')
     #ama_app.start(r"C:\Program Files (x86)\AmazingMIDI\amazingmidi.exe")
     ama_app.start(ama_app_exe_path)
     print("Initialized AmazingMIDI")
@@ -363,7 +372,8 @@ def auto_audacity(user_input_address_auda,destination_address):
 
     [end_address, filename] = output_address(user_input_address_auda, destination_address, '.wav')
     aud_app = pywinauto.application.Application()
-    aud_app_exe_path = setting_read('aud_app_exe_path', default_or_temp_mode)
+    #aud_app_exe_path = setting_read('aud_app_exe_path', default_or_temp_mode)
+    aud_app_exe_path = setting_read('aud_app_exe_path')
     aud_app.start(aud_app_exe_path)
     #aud_app.start(r"c:\Program Files (x86)\Audacity\audacity.exe")
 
@@ -420,7 +430,8 @@ def auto_midi_music_sheet(user_input_address_midi,destination_address):
 
     [end_address, filename] = output_address(user_input_address_midi, destination_address, '.pdf')
     midi_app = pywinauto.application.Application()
-    midi_app_exe_path = setting_read('midi_app_exe_path', default_or_temp_mode)
+    #midi_app_exe_path = setting_read('midi_app_exe_path', default_or_temp_mode)
+    midi_app_exe_path = setting_read('midi_app_exe_path')
     #midi_app.start(r"C:\Users\daval\Desktop\MidiSheetMusic-2.6.exe")
     midi_app.start(midi_app_exe_path)
     print("Initialized MidiSheetMusic")
@@ -637,7 +648,8 @@ def auto_xenoplay(user_input_address_xeno, destination_address):
 def start_red_dot_forever():
     #This function simply starts the red dot forever application
     red_app = pywinauto.application.Application()
-    red_app_exe_path = setting_read('red_app_exe_path', default_or_temp_mode)
+    #red_app_exe_path = setting_read('red_app_exe_path', default_or_temp_mode)
+    red_app_exe_path = setting_read('red_app_exe_path')
     #red_app.start(r"C:\Program Files (x86)\Red Dot Forever\reddot.exe")
     red_app.start(red_app_exe_path)
     print("Initialized Red Dot Forever")
@@ -648,8 +660,9 @@ def start_red_dot_forever():
 def start_piano_booster():
     #This function starts the piano booster application
     pia_app = pywinauto.application.Application()
-    pia_app_exe_path = setting_read('pia_app_exe_path', default_or_temp_mode)
+    #pia_app_exe_path = setting_read('pia_app_exe_path', default_or_temp_mode)
     #pia_app.start(r"C:\Program Files (x86)\Piano Booster\pianobooster.exe")
+    pia_app_exe_path = setting_read('pia_app_exe_path')
     pia_app.start(pia_app_exe_path)
     print("Initialized PianoBooser")
 
