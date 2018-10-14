@@ -6,6 +6,7 @@ import glob
 import serial
 import serial.tools.list_ports
 from shutil import copyfile
+from threading import Thread, Event
 
 #Determining where SKORE application is located.
 complete_path = os.path.dirname(os.path.abspath(__file__))
@@ -31,11 +32,12 @@ piano_size = []
 current_keyboard_state = []
 target_keyboard_state = []
 sequence = []
+end_of_tutoring_event = Event()
 
 #chord_timing_tolerance = 10
 #time_per_tick = 0.00001
-chord_timing_tolerance = setting_read('chord_timing_tolerance')
-time_per_tick = setting_read('time_per_tick')
+chord_timing_tolerance = float(setting_read('chord_timing_tolerance'))
+time_per_tick = float(setting_read('time_per_tick'))
 
 between_note_delay = 0.02
 
@@ -71,15 +73,14 @@ def avaliable_piano_port():
 def arduino_setup():
     # This functions sets up the communication between Python and the Arduino.
     # For now the Arduino is assumed to be connected to COM3.
-    # THIS NEEDS TO BE AJUSTABLE FROM THE GUI SETTINGS LATER
 
     global arduino
     global piano_size
 
     whitekey = []
     blackkey = []
-    whitekey_transmitted_string = []
-    blackkey_transmitted_string = []
+    whitekey_transmitted_string = ''
+    blackkey_transmitted_string = ''
     piano_size = setting_read('piano_size')
 
     # Closing, if applicable, the arduino port
@@ -111,7 +112,8 @@ def arduino_setup():
             blackkey_transmitted_string += str(data) + ','
 
 
-        time.sleep(5)
+        #time.sleep(5)
+        time.sleep(1)
         arduino.write(piano_size.encode('utf-8'))
         time.sleep(1)
         whitekey_message = whitekey_transmitted_string.encode('utf-8')
@@ -119,7 +121,8 @@ def arduino_setup():
         time.sleep(1)
         blackkey_message = blackkey_transmitted_string.encode('utf-8')
         arduino.write(blackkey_message)
-        time.sleep(10)
+        #time.sleep(10)
+        time.sleep(1)
         print("Arduino Setup Complete")
         return 1
 
@@ -130,7 +133,6 @@ def arduino_setup():
 def piano_port_setup():
     # This function sets up the communication between Python and the MIDI device
     # For now Python will connect the first listed device.
-    # THIS NEEDS TO BE AJUSTABLE FROM THE GUI SETTINGS LATER
 
     global midi_in
 
@@ -140,14 +142,7 @@ def piano_port_setup():
         midi_in = []
 
     midi_in = rtmidi.MidiIn()
-
-    """
     avaliable_ports = midi_in.get_ports()
-    print("Avaliable Ports:")
-
-    for port_name in avaliable_ports:
-        print(port_name)
-    """
 
     #selected_port = setting_read("piano_port",default_or_temp)
     selected_port = setting_read("piano_port")
@@ -269,37 +264,31 @@ def safe_change_current_keyboard_state(pitch, state):
 
 ################################################################################
 
-def piano_comm(keyboard):
+def piano_comm():
     # This functions obtains the message send from the piano and appends the
     # note played to a list of currently played notes. It also removes if the
     # note is registered as off, from the list.
 
-    if midi_in == []:
-        print("Piano Setup is Required")
-        return 0
-
     try:
         while(True):
-            message = midi_in.get_message()
 
-            if keyboard_equal(target_keyboard_state,current_keyboard_state):
-                #print("Keyboard Match")
-                return 1
+            if end_of_tutoring_event.is_set():
+                break
+
+            message = midi_in.get_message()
 
             if message:
                 note_properties = message[0]
-                delay = message[1]
+                #delay = message[1]
 
                 if note_properties[0] == 144:
-
-                    safe_change_current_keyboard_state(note_properties[1],1)
+                    safe_change_current_keyboard_state(note_properties[1], 1)
 
                 if note_properties[0] != 144:
-
                     safe_change_current_keyboard_state(note_properties[1], 0)
 
     except AttributeError:
-        print("Piano Setup is Required")
+        print("Piano Setup is Required or Piano has been disconnected.")
         return 0
 
 def arduino_comm(notes):
@@ -332,7 +321,7 @@ def arduino_comm(notes):
                 notes_to_remove.append(note)
                 arduino_keyboard.remove(note)
 
-    # Change this section to be more efficient
+    # All transmitted notes are contain within the same string
     transmitted_string = ''
     notes_to_send = notes_to_add + notes_to_remove
 
@@ -399,10 +388,8 @@ def get_chord_notes(inital_delay_location,final_delay_location):
     try:
         chord_delay = int(sequence[final_delay_location][2:])
     except IndexError:
-        chord_delay = setting_read("manual_final_chord_sustain_timing")
+        chord_delay = float(setting_read("manual_final_chord_sustain_timing"))
 
-    #print(notes)
-    #print(chord_delay)
     return notes, chord_delay
 
 ################################################################################
@@ -449,15 +436,15 @@ def tutor_beginner():
 
                 chord_event_skip = final_delay_location - event_counter
 
-            print("Need " + str(target_keyboard_state))
+            print("Target " + str(target_keyboard_state))
             arduino_comm(target_keyboard_state)
 
             while(counter < note_delay):
-                if piano_comm(keyboard = target_keyboard_state):
+                if keyboard_equal(target_keyboard_state,current_keyboard_state):
                     counter += 1
                     time.sleep(time_per_tick)
 
-    # Turn off all notes once done with song
+    # Turn off all notes when song is over
     arduino_comm([])
 
 ################################################################################
@@ -465,14 +452,21 @@ def tutor_beginner():
 #file = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\conversion_test\10_note_sample.mid"
 #copy_midi_file(file,tutor_path)
 
-#Obtaining the MIDI sequence
-#midi_status = midi2sequence()
+# Obtaining the MIDI sequence
+midi_status = midi2sequence()
 
-#Setting up piano
-#piano_status = piano_port_setup()
-#arduino_status = arduino_setup()
+# Setting up piano
+piano_status = piano_port_setup()
+arduino_status = arduino_setup()
 
-#if arduino_status == 1 and piano_status == 1 and midi_status == 1:
+if arduino_status == 1 and piano_status == 1 and midi_status == 1:
 
-    #Beginning tutoring
-    #tutor_beginner()
+    # This begins the piano_comm keyboard tracking
+    piano_comm_thread = Thread(target=piano_comm)
+    piano_comm_thread.start()
+
+    # Beginning tutoring
+    tutor_beginner()
+
+    # Closes the piano_comm keyboard tracking after tutoring is complete
+    end_of_tutoring_event.set()
