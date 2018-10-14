@@ -6,7 +6,8 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot
 
 #Importing the Settings Dialog
-from settings_dialog import *
+#from settings_dialog import *
+from settings_dialog2 import *
 
 #This is to prevent an error caused when importing skore_program_controller
 import warnings

@@ -4,6 +4,7 @@ from midi_processing import *
 import os
 import glob
 import serial
+import serial.tools.list_ports
 from shutil import copyfile
 
 #Determining where SKORE application is located.
@@ -16,30 +17,75 @@ skore_program_controller_extension_path = r'user_interface\app_control'
 sys.path.append(skore_path + skore_program_controller_extension_path)
 from skore_program_controller import is_mid,setting_read,output_address
 
+#Obtaining tutor.py's working directory.
+tutor_extension_path = r'python_communication'
+tutor_path = skore_path + tutor_extension_path
+
 ###############################VARIABLES########################################
 
 #Piano Variables (For Setup)
 midi_in = []
-setup_time_delay = 2
+piano_size = []
 
 #Tutoring Variables
 current_keyboard_state = []
 target_keyboard_state = []
-chord_timing_tolerance = 10
 sequence = []
-time_per_tick = 0.00001
+
+#chord_timing_tolerance = 10
+#time_per_tick = 0.00001
+chord_timing_tolerance = setting_read('chord_timing_tolerance')
+time_per_tick = setting_read('time_per_tick')
+
+between_note_delay = 0.02
 
 #Arduino Variables
 arduino_keyboard = []
 arduino = []
 
 ################################################################################
+def avaliable_arduino_com():
+    # This fuction returns all the available COM ports in a list of strings.
+    ports = serial.tools.list_ports.comports(include_links=False)
+    results = []
+    for port in ports:
+        #print(port.device)
+        results.append(str(port.device))
+    return results
+
+def avaliable_piano_port():
+    # This function returns all the available MIDI ports in a list of string.
+    temp_midi_in = []
+
+    temp_midi_in = rtmidi.MidiIn()
+
+    avaliable_ports = temp_midi_in.get_ports()
+    #print("Avaliable Ports:")
+
+    results = []
+    for port_name in avaliable_ports:
+        #print(port_name)
+        results.append(str(port_name))
+    return results
+
 def arduino_setup():
     # This functions sets up the communication between Python and the Arduino.
     # For now the Arduino is assumed to be connected to COM3.
     # THIS NEEDS TO BE AJUSTABLE FROM THE GUI SETTINGS LATER
 
     global arduino
+    global piano_size
+
+    whitekey = []
+    blackkey = []
+    whitekey_transmitted_string = []
+    blackkey_transmitted_string = []
+    piano_size = setting_read('piano_size')
+
+    # Closing, if applicable, the arduino port
+    if arduino != []:
+        arduino.close()
+        arduino = []
 
     try:
         #com_port = setting_read("arduino_com_port",default_or_temp)
@@ -50,12 +96,29 @@ def arduino_setup():
         arduino = serial.Serial(com_port, 9600)
         print("Arduino Connected")
 
+        whitekey.append(int(setting_read('whitekey_r')))
+        whitekey.append(int(setting_read('whitekey_g')))
+        whitekey.append(int(setting_read('whitekey_b')))
+
+        blackkey.append(int(setting_read('blackkey_r')))
+        blackkey.append(int(setting_read('blackkey_g')))
+        blackkey.append(int(setting_read('blackkey_b')))
+
+        for data in whitekey:
+            whitekey_transmitted_string += str(data) + ','
+
+        for data in blackkey:
+            blackkey_transmitted_string += str(data) + ','
+
+
         time.sleep(5)
-        arduino.write(b'S')
+        arduino.write(piano_size.encode('utf-8'))
         time.sleep(1)
-        arduino.write(b'255,-1,-1')
+        whitekey_message = whitekey_transmitted_string.encode('utf-8')
+        arduino.write(whitekey_message)
         time.sleep(1)
-        arduino.write(b'-1,255,-1')
+        blackkey_message = blackkey_transmitted_string.encode('utf-8')
+        arduino.write(blackkey_message)
         time.sleep(10)
         print("Arduino Setup Complete")
         return 1
@@ -71,13 +134,20 @@ def piano_port_setup():
 
     global midi_in
 
+    # Closing piano port
+    if midi_in != []:
+        midi_in.close()
+        midi_in = []
+
     midi_in = rtmidi.MidiIn()
 
+    """
     avaliable_ports = midi_in.get_ports()
     print("Avaliable Ports:")
 
     for port_name in avaliable_ports:
         print(port_name)
+    """
 
     #selected_port = setting_read("piano_port",default_or_temp)
     selected_port = setting_read("piano_port")
@@ -92,7 +162,10 @@ def piano_port_setup():
         midi_in = []
         return 0
 
+################################################################################
+
 def copy_midi_file(midi_file_location, destination_folder):
+    # This function makes a copy of the MIDI file into the cwd of tutor.py
 
     new_midi_file_location, trash = output_address(midi_file_location, destination_folder, '.mid')
     copyfile(midi_file_location, new_midi_file_location)
@@ -100,6 +173,7 @@ def copy_midi_file(midi_file_location, destination_folder):
     return
 
 def delete_midi_in_cwd():
+    # This function deletes all the MIDI files within the cwd of tutor.py
 
     cwd_path = os.path.dirname(os.path.abspath(__file__))
     files = glob.glob(cwd_path + '\*')
@@ -109,6 +183,14 @@ def delete_midi_in_cwd():
             print("Deleted: " + str(file))
             os.remove(file)
 
+    return
+
+def midi_setup(midi_file_location, destination_folder):
+    # This fuction deletes pre-existing MIDI files and places the new desired MIDI
+    # file into the cwd of tutor.py
+
+    delete_midi_in_cwd()
+    copy_midi_file(midi_file_location, destination_folder)
     return
 
 def midi2sequence():
@@ -251,7 +333,6 @@ def arduino_comm(notes):
                 arduino_keyboard.remove(note)
 
     # Change this section to be more efficient
-    between_note_delay = 0.02
     transmitted_string = ''
     notes_to_send = notes_to_add + notes_to_remove
 
@@ -262,13 +343,11 @@ def arduino_comm(notes):
     #print("transmitted_string:" + transmitted_string)
 
     b = transmitted_string.encode('utf-8')
-    b2 = bytes(transmitted_string, 'utf-8')
+    #b2 = bytes(transmitted_string, 'utf-8')
     arduino.write(b)
     time.sleep(between_note_delay)
 
-
     return
-
 
 ################################################################################
 
@@ -320,7 +399,7 @@ def get_chord_notes(inital_delay_location,final_delay_location):
     try:
         chord_delay = int(sequence[final_delay_location][2:])
     except IndexError:
-        chord_delay = 50
+        chord_delay = setting_read("manual_final_chord_sustain_timing")
 
     #print(notes)
     #print(chord_delay)
@@ -383,15 +462,17 @@ def tutor_beginner():
 
 ################################################################################
 #delete_midi_in_cwd()
+#file = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\conversion_test\10_note_sample.mid"
+#copy_midi_file(file,tutor_path)
 
 #Obtaining the MIDI sequence
-midi_status = midi2sequence()
+#midi_status = midi2sequence()
 
 #Setting up piano
-piano_status = piano_port_setup()
-arduino_status = arduino_setup()
+#piano_status = piano_port_setup()
+#arduino_status = arduino_setup()
 
-if arduino_status == 1 and piano_status == 1 and midi_status == 1:
+#if arduino_status == 1 and piano_status == 1 and midi_status == 1:
 
     #Beginning tutoring
-    tutor_beginner()
+    #tutor_beginner()

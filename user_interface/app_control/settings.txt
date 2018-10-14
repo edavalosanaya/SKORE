@@ -16,6 +16,29 @@ PianoBooster Settings:
 pia_app_exe_path=r"C:\Program Files (x86)\Piano Booster\pianobooster.exe"
 AnthemScore Settings:
 ant_app_exe_path=r"None"
-Tutoring Settings:
+MP3_to_MIDI Settings:
+mp3_2_midi_converter=r"amazingmidi"
+Port Settings:
 arduino_com_port=r"COM3"
 piano_port=r"CASIO USB-MIDI 0"
+piano_size=r"M"
+Color Settings:
+whitekey_r=r"0"
+whitekey_g=r"255"
+whitekey_b=r"0"
+whitekey_brightness=r"0"
+blackkey_r=r"0"
+blackkey_g=r"100"
+blackkey_b=r"100"
+blackkey_brightness=r"0"
+Timing Settings:
+chord_timing_tolerance=r"15"
+time_per_tick=r"0.00001"
+manual_final_chord_sustain_timing=r"60"
+Spy PianoBooster Settings:
+mode=r"beginner"
+skill=r"listen"
+hand=r"Both"
+speed=r"100"
+play_button=r"1"
+reset_button=r"0"
