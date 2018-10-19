@@ -7,6 +7,7 @@ import serial
 import serial.tools.list_ports
 from shutil import copyfile
 from threading import Thread, Event
+from ctypes import windll
 
 #Determining where SKORE application is located.
 complete_path = os.path.dirname(os.path.abspath(__file__))
@@ -38,6 +39,10 @@ end_of_tutoring_event = Event()
 #time_per_tick = 0.00001
 chord_timing_tolerance = float(setting_read('chord_timing_tolerance'))
 time_per_tick = float(setting_read('time_per_tick'))
+increment_counter = int(setting_read("increment_counter"))
+
+timeBeginPeriod = windll.winmm.timeBeginPeriod
+timeBeginPeriod(1)
 
 between_note_delay = 0.02
 
@@ -220,6 +225,7 @@ def keyboard_equal(list1,list2):
     # Checks if all the elements in list1 are at least found in list2
     # returns 1 if yes, 0 for no.
 
+    #start = time.time()
     if list1 == [] and list2 != []:
         return 0
 
@@ -227,8 +233,14 @@ def keyboard_equal(list1,list2):
         if element in list2:
             continue
         else:
+            #end = time.time()
+            #print("keyboard_equal: " + str(start - end))
             return 0
+
+    #end = time.time()
+    #print("keyboard_equal: " + str(start - end))
     return 1
+
 
 def safe_change_target_keyboard_state(pitch, state):
     # This function safely removes or adds the pitch to the
@@ -439,34 +451,51 @@ def tutor_beginner():
             print("Target " + str(target_keyboard_state))
             arduino_comm(target_keyboard_state)
 
+            #counter = note_delay
+
             while(counter < note_delay):
+            #while(counter):
                 if keyboard_equal(target_keyboard_state,current_keyboard_state):
-                    counter += 1
+                    #print("Same")
+                    counter += increment_counter
+                    #counter -= increment_counter
                     time.sleep(time_per_tick)
+                    continue
+                #print("Not Same")
 
     # Turn off all notes when song is over
     arduino_comm([])
 
 ################################################################################
-#delete_midi_in_cwd()
-#file = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\conversion_test\10_note_sample.mid"
-#copy_midi_file(file,tutor_path)
 
-# Obtaining the MIDI sequence
-midi_status = midi2sequence()
+def complete_tutor():
 
-# Setting up piano
-piano_status = piano_port_setup()
-arduino_status = arduino_setup()
+    delete_midi_in_cwd()
+    file = r"C:\Users\daval\Documents\GitHub\SKORE\user_interface\app_control\conversion_test\ashkan_sonata.mid"
+    copy_midi_file(file,tutor_path)
 
-if arduino_status == 1 and piano_status == 1 and midi_status == 1:
+    # Obtaining the MIDI sequence
+    midi_status = midi2sequence()
 
-    # This begins the piano_comm keyboard tracking
-    piano_comm_thread = Thread(target=piano_comm)
-    piano_comm_thread.start()
+    # Setting up piano
+    piano_status = piano_port_setup()
+    arduino_status = arduino_setup()
 
-    # Beginning tutoring
-    tutor_beginner()
+    if arduino_status == 1 and piano_status == 1 and midi_status == 1:
 
-    # Closes the piano_comm keyboard tracking after tutoring is complete
-    end_of_tutoring_event.set()
+        # This begins the piano_comm keyboard tracking
+        piano_comm_thread = Thread(target=piano_comm)
+        piano_comm_thread.start()
+
+        # Beginning tutoring
+        tutor_beginner()
+
+        # Closes the piano_comm keyboard tracking after tutoring is complete
+        end_of_tutoring_event.set()
+
+
+    return
+
+################################################################################
+#complete_tutor()
+#print(avaliable_piano_port())
