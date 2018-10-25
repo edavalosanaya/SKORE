@@ -7,7 +7,7 @@ from PyQt5.QtCore import pyqtSlot
 
 #Importing the Settings Dialog
 #from settings_dialog import *
-from settings_dialog2 import *
+from settings_dialog_tab import *
 
 #This is to prevent an error caused when importing skore_program_controller
 import warnings
@@ -38,7 +38,7 @@ file_conversion_event = 0
 class Ui_MainWindow(object):
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(916, 579)
+        MainWindow.resize(916, 530)
         self.centralwidget = QtWidgets.QWidget(MainWindow)
         self.centralwidget.setObjectName("centralwidget")
 
@@ -65,6 +65,7 @@ class Ui_MainWindow(object):
 #############################Tutoring Buttons###################################
 
         #Tutor Group Box
+        """
         self.tutor_groupBox = QtWidgets.QGroupBox(self.centralwidget)
         self.tutor_groupBox.setGeometry(QtCore.QRect(20, 310, 421, 201))
         self.tutor_groupBox.setObjectName("tutor_groupBox")
@@ -90,6 +91,13 @@ class Ui_MainWindow(object):
         self.tutoring_buttonGroup.addButton(self.intermediate_pushButton)
         self.tutoring_buttonGroup.addButton(self.expert_pushButton)
         self.tutoring_buttonGroup.buttonClicked.connect(self.open_pianobooster)
+        """
+
+        self.tutor_pushButton = QtWidgets.QPushButton(self.centralwidget)
+        self.tutor_pushButton.setGeometry(QtCore.QRect(20, 330, 421, 171))
+        self.tutor_pushButton.setObjectName("tutor_pushButton")
+        self.tutor_pushButton.setText("Tutoring")
+        self.tutor_pushButton.clicked.connect(self.open_pianobooster)
 
 
 ##########################Conversion Buttons####################################
@@ -141,10 +149,10 @@ class Ui_MainWindow(object):
         self.uploadAudioFile_toolButton.setText(_translate("MainWindow", "Upload audio file"))
         self.record_toolButton.setText(_translate("MainWindow", "Record"))
         self.settings_toolButton.setText(_translate("MainWindow", "Settings"))
-        self.tutor_groupBox.setTitle(_translate("MainWindow", "Tutoring"))
-        self.beginner_pushButton.setText(_translate("MainWindow", "Beginner Mode"))
-        self.intermediate_pushButton.setText(_translate("MainWindow", "Intermediate Mode"))
-        self.expert_pushButton.setText(_translate("MainWindow", "Expert Mode"))
+        #self.tutor_groupBox.setTitle(_translate("MainWindow", "Tutoring"))
+        #self.beginner_pushButton.setText(_translate("MainWindow", "Beginner Mode"))
+        #self.intermediate_pushButton.setText(_translate("MainWindow", "Intermediate Mode"))
+        #self.expert_pushButton.setText(_translate("MainWindow", "Expert Mode"))
         self.generateMusicSheet_pushButton.setText(_translate("MainWindow", "Generate Music Sheet"))
         self.textBrowser.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
@@ -165,6 +173,7 @@ class Ui_MainWindow(object):
     def open_pianobooster(self, button):
 
         start_piano_booster()
+        return
 
     def upload_file(self):
         #This function allows the user to upload a file for file conversion.

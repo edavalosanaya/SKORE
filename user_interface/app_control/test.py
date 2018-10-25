@@ -1,12 +1,11 @@
+import serial
+import serial.tools.list_ports
+import time
 
-a = [60,50,40]
-b = [30]
+arduino = serial.Serial("COM3", 9600)
 
-c = a + b
-d = ''
-
-for element in c:
-    d += str(element) + ','
-
-d = d[:-1]
-print(d)
+while(True):
+    time.sleep(2)
+    message = ' '
+    arduino.write(message.encode('utf-8'))
+    print(".", end = '')
