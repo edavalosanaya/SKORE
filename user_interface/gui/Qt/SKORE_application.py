@@ -23,6 +23,7 @@ skore_path = complete_path[0:skore_index+1]
 skore_program_controller_extension_path = r'user_interface\app_control'
 sys.path.append(skore_path + skore_program_controller_extension_path)
 from skore_program_controller import *
+from spy_pianobooster import *
 
 #File Information
 upload_file_path = []
@@ -170,9 +171,11 @@ class Ui_MainWindow(object):
         start_red_dot_forever()
         return
 
-    def open_pianobooster(self, button):
-
-        start_piano_booster()
+    def open_pianobooster(self):
+        piano_booster_setup()
+        self.skore_companion_dialog = Companion_Dialog()
+        self.skore_companion_dialog.show()
+        #start_piano_booster()
         return
 
     def upload_file(self):

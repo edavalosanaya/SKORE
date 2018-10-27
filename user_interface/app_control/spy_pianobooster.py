@@ -8,7 +8,7 @@ import sys
 from pywinauto.controls.win32_controls import ButtonWrapper
 from time import sleep
 
-from skore_program_controller import setting_read, click_center_try
+from skore_program_controller import setting_read, click_center_try, setting_write
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 import os
@@ -23,14 +23,8 @@ button_history = []
 processed_button_history = []
 processed_index = 0
 message_box_active = 0
-
-playing = False
-hand = ''
-mode = ''
-tranpose = 0
-speed = 100
-restart = 0
-#default_or_temp_mode = 'temp'
+all_qwidgets = []
+all_qwidgets_names = []
 
 ################################################################################
 def track_mouse_clicks():
@@ -74,6 +68,8 @@ def determine_button(x , y):
     # dimensions of a button or qwigets of the PianoBooster application
     int_dimensions = [0,0,0,0]
 
+    #print("Click Detected")
+
     for widget in all_qwidgets:
 
         # Obtaining the dimensions of the qwidgets
@@ -114,12 +110,6 @@ class ButtonThread(QThread):
     def run(self):
 
         global button_history
-        global playing
-        global hand
-        global mode
-        global tranpose
-        global speed
-        global restart
         global processed_button_history
         global processed_index
         global message_box_active
@@ -139,21 +129,28 @@ class ButtonThread(QThread):
 
                 for index, item in enumerate(all_qwidgets_names):
                     if item == processed_button_history[processed_index]:
-                        if index <= 2: # Mode Selection
+                        if index <= 2: # Skill Selection
                             print("Tutoring Mode Change")
-                            mode = item
+                            setting_write('skill',str(item),'append')
+
                         elif index > 2 and index <= 5: # Hand Selection
                             print("Hand Mode Change")
-                            hand = item
+                            setting_write('hand',str(item),'append')
+
                         elif index > 5 and index <= 7: # Song and Book Combo
-                            print("Song and Combo Boxes were pressed. Please don't change the song")
+                            print("Song and Combo Boxes were pressed. Please do not change the song")
+
                         elif index == 8: # Play Button
-                            playing = not playing
-                            print("Playing State: " + str(playing))
+                            playing_state = setting_read('playing_state')
+                            playing_state = eval(playing_state)
+                            playing_state = not playing_state
+                            setting_write('playing_state',str(playing_state),'append')
+
                         elif index == 9: # Restart Button
                             print("Restart Detected")
-                            restart = 1
-                            playing = True
+                            setting_write('restart','1','append')
+                            setting_write('playing_state','1','append')
+
                         elif index > 9 and index <= 11: # Spin Boxes
                             print("Spin Buttons Pressed")
                             if message_box_active == 0:
@@ -286,9 +283,11 @@ class Companion_Dialog(QtWidgets.QDialog):
         if ok:
 
             if item == 'speed_spin_button':
-                speed = num
+                #speed = num
+                setting_write('speed',str(num),'append')
             elif item == 'transpose_spin_button':
-                tranpose = num
+                #tranpose = num
+                setting_write('tranpose',str(num),'append')
 
         print("End of Message Box Usage")
         message_box_active = 0
@@ -302,101 +301,112 @@ def retrieve_name(var):
     callers_local_vars = inspect.currentframe().f_back.f_locals.items()
     return [var_name for var_name, var_val in callers_local_vars if var_val is var]
 
+def piano_booster_setup():
+
+    global all_qwidgets
+    global all_qwidgets_names
+
+    # Initilizing the PianoBooster Application
+    pia_app = pywinauto.application.Application()
+    #pia_app_exe_path = setting_read('pia_app_exe_path', default_or_temp_mode)
+    pia_app_exe_path = setting_read('pia_app_exe_path')
+    pia_app.start(pia_app_exe_path)
+    print("Initialized PianoBooser")
+
+    # Getting a handle of the application, the application's title changes depending
+    # on the .mid file opened by the application.
+    possible_handles = pywinauto.findwindows.find_elements()
+
+    for i in range(len(possible_handles)):
+        key = str(possible_handles[i])
+        if(key.find('Piano Booster') != -1):
+            wanted_key = key
+            #print('Found it ' + key)
+
+    first_index = wanted_key.find("'")
+    last_index = wanted_key.find(',')
+    pia_app_title = wanted_key[first_index + 1 :last_index - 1]
+
+    # Once with the handle, control over the window is achieved.
+    w_handle = pywinauto.findwindows.find_windows(title=pia_app_title)[0]
+    window = pia_app.window(handle=w_handle) #pywinauto.application.WindowSpecification Object
+
+    # Initializion of the Qwidget within the application
+    window.maximize()
+    time.sleep(1)
+
+    click_center_try('skill_groupBox_pia')
+    click_center_try('hands_groupBox_pia')
+    click_center_try('book_song_buttons_pia')
+    click_center_try('flag_button_pia')
+
+    # Aquiring the qwigets from the application
+    main_qwidget = pia_app.QWidget
+    main_qwidget.wait('ready')
+
+    # Skill Group Box
+    listen_button = main_qwidget.Skill3
+    follow_you_button = main_qwidget.Skill2
+    play_along_button = main_qwidget.Skill
+
+    # Hands Group Box
+    right_hand = main_qwidget.Hands4
+    both_hands = main_qwidget.Hands3
+    left_hands = main_qwidget.Hands2
+
+    # Song and
+    song_combo_button = main_qwidget.songCombo
+    book_combo_button = main_qwidget.bookCombo
+
+    # GuiTopBar
+    key_combo_button = main_qwidget.keyCombo
+    play_button = main_qwidget.playButton
+    play_from_the_start_button = main_qwidget.playFromStartButton
+    save_bar_button = main_qwidget.savebarButton
+    speed_spin_button = main_qwidget.speedSpin
+    start_bar_spin_button = main_qwidget.startBarSpin
+    transpose_spin_button = main_qwidget.transposeSpin
+    looping_bars_popup_button = main_qwidget.loopingBarsPopupButton
+
+    all_qwidgets = [listen_button, follow_you_button, play_along_button, right_hand,
+                    both_hands, left_hands, song_combo_button, book_combo_button,
+                    play_button, play_from_the_start_button, speed_spin_button,
+                    transpose_spin_button, start_bar_spin_button,
+                    looping_bars_popup_button, save_bar_button, key_combo_button]
+
+    all_qwidgets_names = ['listen_button', 'follow_you_button', 'play_along_button', 'right_hand',
+                          'both_hands', 'left_hands', 'song_combo_button', 'book_combo_button',
+                          'play_button', 'play_from_the_start_button', 'speed_spin_button',
+                          'transpose_spin_button', 'start_bar_spin_button',
+                          'looping_bars_popup_button', 'save_bar_button', 'key_combo_button']
+
+    """
+    all_qwidgets_names = ['','','','',''
+                          '','','','','',
+                          '','','','','',
+                          '','','','','']
+
+    # Getting the name of the applications
+    for qwigets in all_qwidgets:
+        a = retrieve_name(qwigets)[0]
+        print(a)
+        all_qwidgets_names[all_qwidgets.index(qwigets)] = retrieve_name(qwigets)[0]
+
+    """
+
+    # Enabling the mouse tracking
+    print("Mouse Tracking Enabled")
+    click_action_thread = Thread(target=track_mouse_clicks)
+    click_action_thread.start()
+
+    return
+
+
 ################################################################################
-# Initilizing the PianoBooster Application
-pia_app = pywinauto.application.Application()
-#pia_app_exe_path = setting_read('pia_app_exe_path', default_or_temp_mode)
-pia_app_exe_path = setting_read('pia_app_exe_path')
-pia_app.start(pia_app_exe_path)
-print("Initialized PianoBooser")
 
-# Getting a handle of the application, the application's title changes depending
-# on the .mid file opened by the application.
-possible_handles = pywinauto.findwindows.find_elements()
-
-for i in range(len(possible_handles)):
-    key = str(possible_handles[i])
-    if(key.find('Piano Booster') != -1):
-        wanted_key = key
-        #print('Found it ' + key)
-
-first_index = wanted_key.find("'")
-last_index = wanted_key.find(',')
-pia_app_title = wanted_key[first_index + 1 :last_index - 1]
-
-# Once with the handle, control over the window is achieved.
-w_handle = pywinauto.findwindows.find_windows(title=pia_app_title)[0]
-window = pia_app.window(handle=w_handle) #pywinauto.application.WindowSpecification Object
-
-# Initializion of the Qwidget within the application
-window.maximize()
-time.sleep(1)
-
-click_center_try('skill_groupBox_pia')
-click_center_try('hands_groupBox_pia')
-click_center_try('book_song_buttons_pia')
-click_center_try('flag_button_pia')
-
-# Aquiring the qwigets from the application
-main_qwidget = pia_app.QWidget
-main_qwidget.wait('ready')
-
-# Skill Group Box
-listen_button = main_qwidget.Skill3
-follow_you_button = main_qwidget.Skill2
-play_along_button = main_qwidget.Skill
-
-# Hands Group Box
-right_hand = main_qwidget.Hands4
-both_hands = main_qwidget.Hands3
-left_hands = main_qwidget.Hands2
-
-# Song and
-song_combo_button = main_qwidget.songCombo
-book_combo_button = main_qwidget.bookCombo
-
-# GuiTopBar
-key_combo_button = main_qwidget.keyCombo
-play_button = main_qwidget.playButton
-play_from_the_start_button = main_qwidget.playFromStartButton
-save_bar_button = main_qwidget.savebarButton
-speed_spin_button = main_qwidget.speedSpin
-start_bar_spin_button = main_qwidget.startBarSpin
-transpose_spin_button = main_qwidget.transposeSpin
-looping_bars_popup_button = main_qwidget.loopingBarsPopupButton
-
-all_qwidgets = [listen_button, follow_you_button, play_along_button, right_hand,
-                both_hands, left_hands, song_combo_button, book_combo_button,
-                play_button, play_from_the_start_button, speed_spin_button,
-                transpose_spin_button, start_bar_spin_button,
-                looping_bars_popup_button, save_bar_button, key_combo_button]
-
-all_qwidgets_names = ['','','','',''
-                      '','','','','',
-                      '','','','','',
-                      '','','','','']
-
-# Getting the name of the applications
-for qwigets in all_qwidgets:
-    all_qwidgets_names[all_qwidgets.index(qwigets)] = retrieve_name(qwigets)[0]
-
-
-# Enabling the mouse tracking
-print("Mouse Tracking Enabled")
-click_action_thread = Thread(target=track_mouse_clicks)
-click_action_thread.start()
-#click_action_thread.join()
-#print(button_history)
-
+#piano_booster_setup()
 
 """
-# Action upon the Button Presses
-print("Enabling Overall User Interaction Tracking")
-user_tracking_thread = Thread(target=user_usage_tracking)
-user_tracking_thread.start()
-"""
-
-
 #Initializing Live Settings UI
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
@@ -405,3 +415,4 @@ if __name__ == "__main__":
     #ui.setupUiDialog(Dialog)
     #Dialog.show()
     app.exec_()
+"""

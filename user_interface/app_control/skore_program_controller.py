@@ -155,17 +155,8 @@ def temp_to_folder(**kwargs):
 def setting_read(setting):
     #Reading the value of the setting
     import sys
+    
     #Opening File
-
-    """
-    if(default_or_temp == 'default'):
-        file = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings_default.txt', 'r')
-    elif(default_or_temp == 'temp'):
-        file = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings_temp.txt', 'r')
-    else:
-        raise RuntimeError('Invalid setting file selection')
-    """
-
     file = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings.txt', 'r')
     #Reading the contents of the setting text
     contents = file.readlines()
@@ -221,17 +212,6 @@ def setting_write(setting, write_data, temp_mode):
     #Writing the configuration settings of the settings_temp.txt file
 
     #Opening File
-    """
-    if(temp_mode == 'write'):
-        #overwrite complete settings_temp.txt
-        file_read = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings_default.txt', 'r')
-    elif(temp_mode == 'append'):
-        #only edit sections of settings_temp.txt
-        file_read = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings_temp.txt', 'r')
-    else:
-        raise RuntimeError('Invalid overwriting/appending mode')
-    """
-
     file_read = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings.txt', 'r')
     contents_all = file_read.read()
     contents_line = file_read.readlines()
