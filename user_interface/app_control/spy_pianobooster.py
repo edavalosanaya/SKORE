@@ -17,108 +17,193 @@ from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QAction, QMainWi
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot, pyqtSignal, QThread
 
-app_running_stop_event = Event()
-all_qwidgets = []
-button_history = []
-processed_button_history = []
-processed_index = 0
-message_box_active = 0
+###############################VARIABLES########################################
 all_qwidgets = []
 all_qwidgets_names = []
 
-################################################################################
-def track_mouse_clicks():
-    # Code to check if left or right mouse buttons were pressed, only while the
-    # PianoBooster application is running.
+button_history = []
+processed_button_history = []
+processed_index = 0
 
-    state_left = win32api.GetKeyState(0x01)  # Left button down = 0 or 1. Button up = -127 or -128
-    state_right = win32api.GetKeyState(0x02)  # Right button down = 0 or 1. Button up = -127 or -128
+message_box_active = 0
 
-    while True:
+x_coord_history = []
+y_coord_history = []
+processed_x_coord_history = []
+processed_y_coord_history = []
+processed_index_coord = 0
 
-        # Checking if the pianobooster application is running
-        processes = [p.name() for p in psutil.process_iter()]
+timing_lineedit = ['time_per_tick','increment_counter','chord_timing_tolerance','manual_final_chord_sustain_timing']
+timing_values = ['','','','']
 
-        for process in processes:
-            if process == 'pianobooster.exe':
-                # PianoBooster is running
-                break
+#####################################PYQT5######################################
 
-        if process != 'pianobooster.exe':
-            # if the PianoBooster is not running, end mouse tracking
-            app_running_stop_event.set()
-            break
+class AppOpenThread(QThread):
+    # This thread deals with closure of the PianoBooster Application. Once the
+    # application is closed, it will emit a signal to inform the SKORE Companion
+    # application to close.
 
-        # Checking if the mouse has been clicked and obtain its coordinates
-        a = win32api.GetKeyState(0x01)
-        #b = win32api.GetKeyState(0x02)
-
-        if a != state_left:  # Button state changed
-            state_left = a
-            #print(a)
-
-            if a < 0:
-                c = 1
-            else:
-                x, y = win32api.GetCursorPos()
-                determine_button(x,y)
-
-def determine_button(x , y):
-    # This function determines where the mouse click coordinates are within the
-    # dimensions of a button or qwigets of the PianoBooster application
-    int_dimensions = [0,0,0,0]
-
-    #print("Click Detected")
-
-    for widget in all_qwidgets:
-
-        # Obtaining the dimensions of the qwidgets
-        try:
-            dimensions = str(widget.rectangle())
-        except pywinauto.findbestmatch.MatchError:
-            return
-
-        # Editing the values of the dimensions to integers
-        dimensions = dimensions[1:-1]
-        dimensions = dimensions.split(',')
-
-        for dimension in dimensions:
-
-            int_dimension = dimension.replace("L","")
-            int_dimension = int_dimension.replace("T","")
-            int_dimension = int_dimension.replace("R","")
-            int_dimension = int_dimension.replace("B","")
-            int_dimension = int(int_dimension)
-            int_dimensions[dimensions.index(dimension)] = int_dimension
-
-        # Checking if the mouse click is within the integer coordinates
-        if x > int_dimensions[0] and x < int_dimensions[2] and y > int_dimensions[1] and y < int_dimensions[3]:
-            # Found the qwidget
-            #print("QWidget Pressed Detected: " + str(all_qwidgets_names[all_qwidgets.index(widget)]))
-            button = all_qwidgets_names[all_qwidgets.index(widget)]
-            button_history.append(button)
-
-    return
-
-################################################################################
-class ButtonThread(QThread):
-    signal = QtCore.pyqtSignal('QString')
+    app_close_signal = QtCore.pyqtSignal()
 
     def __init__(self):
         QThread.__init__(self)
 
     def run(self):
 
-        global button_history
-        global processed_button_history
-        global processed_index
-        global message_box_active
+        print("Piano Booster App State Thread Enabled")
 
-        print("User Usage Tracking Enabled")
+        while(True):
+            time.sleep(5)
+
+            # Checking if the pianobooster application is running
+            processes = [p.name() for p in psutil.process_iter()]
+
+            for process in processes:
+                if process == 'pianobooster.exe':
+                    # PianoBooster is running
+                    break
+
+            if process != 'pianobooster.exe':
+                # if the PianoBooster is not running, end mouse tracking
+                print("PianoBooster Application Closure Detection")
+                time.sleep(1)
+                self.app_close_signal.emit()
+                break
+
+################################################################################
+
+class CoordinateThread(QThread):
+    # This thread determines the widget clicked with the given coordinates from
+    # the ClickThread. Once it determines if the click coordinates fit within
+    # a widget, it appends the clicked qwidget to a list of qwidgets pressed.
+
+    def __init__(self):
+        QThread.__init__(self)
+
+    def run(self):
+
+        print("Coordinate Tracking Thread Enabled")
+
+        global button_history, x_coord_history, y_coord_history, processed_index_coord
+        global processed_x_coord_history, processed_y_coord_history
+
+        int_dimensions = [0,0,0,0]
 
         while(True):
             time.sleep(0.1)
 
+            #print('x_coord_history: ' + str(x_coord_history))
+            #print('y_coord_history: ' + str(y_coord_history))
+
+            #print('processed_x_coord_history: ' + str(processed_x_coord_history))
+            #print('processed_y_coord_history: ' + str(processed_y_coord_history))
+
+            if len(x_coord_history) != len(processed_x_coord_history):
+
+                processed_x_coord_history.append(x_coord_history[processed_index_coord])
+                processed_y_coord_history.append(y_coord_history[processed_index_coord])
+
+                #print("Click Detected")
+
+                for widget in all_qwidgets:
+
+                    # Obtaining the dimensions of the qwidgets
+                    try:
+                        dimensions = str(widget.rectangle())
+                    except pywinauto.findbestmatch.MatchError:
+                        return
+
+                    # Editing the values of the dimensions to integers
+                    dimensions = dimensions[1:-1]
+                    dimensions = dimensions.split(',')
+
+                    for dimension in dimensions:
+
+                        int_dimension = dimension.replace("L","")
+                        int_dimension = int_dimension.replace("T","")
+                        int_dimension = int_dimension.replace("R","")
+                        int_dimension = int_dimension.replace("B","")
+                        int_dimension = int(int_dimension)
+                        int_dimensions[dimensions.index(dimension)] = int_dimension
+
+                    # Checking if the mouse click is within the integer coordinates
+                    if processed_x_coord_history[processed_index_coord] > int_dimensions[0] and processed_x_coord_history[processed_index_coord] < int_dimensions[2] and processed_y_coord_history[processed_index_coord] > int_dimensions[1] and processed_y_coord_history[processed_index_coord] < int_dimensions[3]:
+                        # Found the qwidget
+                        #print("QWidget Pressed Detected: " + str(all_qwidgets_names[all_qwidgets.index(widget)]))
+                        button = all_qwidgets_names[all_qwidgets.index(widget)]
+                        button_history.append(button)
+                        break
+
+                processed_index_coord += 1
+
+################################################################################
+
+class ClickThread(QThread):
+    # This thread constantly checks the status of the mouse, clicked or unclicked,
+    # and determines whenever there is a unclicked to clicked event. Then it
+    # appends the coordinates of the event to lists of coordinates
+
+    global y_coord_history, x_coord_history
+
+
+    def __init__(self):
+        QThread.__init__(self)
+
+    def run(self):
+
+        print("Click Tracking Thread Enabled")
+
+        global click_event
+
+        state_left = win32api.GetKeyState(0x01)  # Left button down = 0 or 1. Button up = -127 or -128
+        state_right = win32api.GetKeyState(0x02)  # Right button down = 0 or 1. Button up = -127 or -128
+
+        while True:
+
+            # Checking if the mouse has been clicked and obtain its coordinates
+            a = win32api.GetKeyState(0x01)
+            #b = win32api.GetKeyState(0x02)
+
+            if a != state_left:  # Button state changed
+                state_left = a
+                #print(a)
+
+                if a < 0:
+                    c = 1
+                else:
+                    x_coord, y_coord = win32api.GetCursorPos()
+                    x_coord_history.append(x_coord)
+                    y_coord_history.append(y_coord)
+
+
+################################################################################
+
+class ButtonThread(QThread):
+    # This thread processes the list of the buttons clicked on. It determines if
+    # the settings need to changed, and performs according to the users button
+    # clicks
+
+    button_signal = QtCore.pyqtSignal('QString')
+
+    def __init__(self):
+        QThread.__init__(self)
+
+    def run(self):
+
+        print("User Usage Tracking Thread Enabled")
+
+        """
+        global button_history
+        global processed_button_history
+        global processed_index
+        global message_box_active
+        """
+        global button_history, processed_button_history, processed_index, message_box_active
+
+        while(True):
+            time.sleep(0.1)
+
+            #print("button_history: " + str(button_history))
 
             if len(button_history) != len(processed_button_history):
 
@@ -130,12 +215,18 @@ class ButtonThread(QThread):
                 for index, item in enumerate(all_qwidgets_names):
                     if item == processed_button_history[processed_index]:
                         if index <= 2: # Skill Selection
-                            print("Tutoring Mode Change")
-                            setting_write('skill',str(item),'append')
+                            skill = setting_read('skill')
+                            if skill != item:
+                                print("Tutoring Mode Change")
+                                setting_write('skill',str(item),'append')
+                                setting_write('live_setting_change','1','append')
 
                         elif index > 2 and index <= 5: # Hand Selection
-                            print("Hand Mode Change")
-                            setting_write('hand',str(item),'append')
+                            hand = setting_read('hand')
+                            if hand != item:
+                                print("Hand Mode Change")
+                                setting_write('hand',str(item),'append')
+                                setting_write('live_setting_change','1','append')
 
                         elif index > 5 and index <= 7: # Song and Book Combo
                             print("Song and Combo Boxes were pressed. Please do not change the song")
@@ -145,18 +236,20 @@ class ButtonThread(QThread):
                             playing_state = eval(playing_state)
                             playing_state = not playing_state
                             setting_write('playing_state',str(playing_state),'append')
+                            setting_write('live_setting_change','1','append')
 
                         elif index == 9: # Restart Button
                             print("Restart Detected")
                             setting_write('restart','1','append')
                             setting_write('playing_state','1','append')
+                            setting_write('live_setting_change','1','append')
 
                         elif index > 9 and index <= 11: # Spin Boxes
                             print("Spin Buttons Pressed")
                             if message_box_active == 0:
-                                self.signal.emit(item)
+                                self.button_signal.emit(item)
                             else:
-                                print("message box in use")
+                                print("Message box in use")
                         else:
                             print("Current Button: " + item + " is not functional yet")
 
@@ -166,10 +259,11 @@ class ButtonThread(QThread):
                     else:
                         continue
 
+################################################################################
 
 class Companion_Dialog(QtWidgets.QDialog):
-
-    spinButtonClicked = QtCore.pyqtSignal('QString')
+    # This is the SKORE Companion Application that aids the user in controlling
+    # the tutoring mode and timing settings
 
     def __init__(self):
         super(QtWidgets.QDialog, self).__init__()
@@ -178,8 +272,11 @@ class Companion_Dialog(QtWidgets.QDialog):
     def init_ui(self):
         self.setObjectName("Dialog")
         self.resize(420, 250)
-        self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
         self.setWindowTitle("SKORE Companion")
+        # Making SKORE Companion always ontop
+        self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+        # Removing the close button
+        self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
 
         self.tabWidget = QtWidgets.QTabWidget(self)
         self.tabWidget.setGeometry(QtCore.QRect(10,10,400,230))
@@ -197,6 +294,7 @@ class Companion_Dialog(QtWidgets.QDialog):
         self.tutor_label.setObjectName("tutor_label")
         self.tutor_label.setText("Select or change Tutoring Mode")
 
+        # Tutoring Mode
         self.beginner_companion_pushButton = QtWidgets.QPushButton(self.tutor_mode_tab)
         self.beginner_companion_pushButton.setGeometry(QtCore.QRect(10,30,381,51))
         self.beginner_companion_pushButton.setObjectName("beginner_companion_pushButton")
@@ -261,54 +359,206 @@ class Companion_Dialog(QtWidgets.QDialog):
         self.apply_pushButton.setGeometry(QtCore.QRect(250, 170, lineEdit_length, 25))
         self.apply_pushButton.setObjectName("apply_pushButton")
         self.apply_pushButton.setText("Apply")
+        self.apply_pushButton.clicked.connect(self.apply_timing_values)
 
-        # Initializing MutliThraeding
+        # Tutoring Mode Function Assignment
+        self.beginner_companion_pushButton.clicked.connect(self.beginner_mode_setting)
+        self.intermediate_companion_pushButton.clicked.connect(self.intermediate_mode_setting)
+        self.expert_companion_pushButton.clicked.connect(self.expert_mode_setting)
+
+        # Initializing PianoBooster App Open Check MultiThreading
+        self.check_open_app_thread = AppOpenThread()
+        self.check_open_app_thread.app_close_signal.connect(self.close_all_thread)
+        self.check_open_app_thread.start()
+
+        # Initializing CLick MultiThreading
+        self.click_tracking_thread = ClickThread()
+        #self.click_tracking_thread.click_signal.connect(self.determine_button)
+        self.click_tracking_thread.start()
+
+        # Initializing Coordinate MultiThreading
+        self.coord_tracking_thread = CoordinateThread()
+        self.coord_tracking_thread.start()
+
+        # Initializing Button MultiThreading
         self.user_tracking_thread = ButtonThread()
-        self.user_tracking_thread.signal.connect(self.create_message_box)
+        self.user_tracking_thread.button_signal.connect(self.create_message_box)
         self.user_tracking_thread.start()
+
+        # Timing Tab Initialization
+        self.settings_timing_read()
+        self.update_timing_values()
 
         self.show()
 
+###############################DIALOG FUNCTIONS#################################
+
+    def beginner_mode_setting(self):
+        current_mode = setting_read('mode')
+        if current_mode != 'beginner':
+            setting_write('mode','beginner','append')
+            setting_write('live_setting_change','1','append')
+        return
+
+    def intermediate_mode_setting(self):
+        current_mode = setting_read('mode')
+        if current_mode != 'intermediate':
+            setting_write('mode','intermediate','append')
+            setting_write('live_setting_change','1','append')
+        return
+
+    def expert_mode_setting(self):
+        current_mode = setting_read('mode')
+        if current_mode != 'expert':
+            setting_write('mode','expert','append')
+            setting_write('live_setting_change','1','append')
+        return
+
+    def settings_timing_read(self):
+        # This function reads the settings for the timing values
+
+        global timing_values
+
+        for i in range(len(timing_lineedit)):
+            timing_values[i] = setting_read(timing_lineedit[i])
+        return
+
+    def update_timing_values(self):
+        # This function updates the lineedits of the timing values
+
+        for i in range(len(timing_lineedit)):
+            lineEdit_attribute = getattr(self, timing_lineedit[i] + '_lineEdit')
+            lineEdit_attribute.setText(timing_values[i])
+        return
+
+    def apply_timing_values(self):
+        # This function applies the changes of the timings values to the settings file
+
+        self.settings_timing_read()
+
+        for i in range(len(timing_lineedit)):
+            lineEdit_attribute = getattr(self, timing_lineedit[i] + '_lineEdit')
+            text = lineEdit_attribute.text()
+            if timing_values[i] != text:
+                timing_values[i] = text
+                current_setting = setting_read(timing_lineedit[i])
+                if current_setting != text:
+                    setting_write(timing_lineedit[i], timing_values[i], 'append')
+                    setting_write('live_setting_change','1','append')
+        return
+
     @pyqtSlot('QString')
     def create_message_box(self, item):
+        # This function creates a QInputDialog box for the user to input
+        # multivalue information, such as speed and tranpose
 
-        global speed
-        global tranpose
-        global message_box_active
+        global speed, tranpose, message_box_active
 
-        #QMessageBox.information(self, item + " Pressed", "Please enter the value for the " + item)
+        flag = 0
+
+        # Stopping the application
+        playing_state = setting_read('playing_state')
+        if eval(playing_state) == True:
+            flag = 1
+            print("Stoping app")
+            all_qwidgets[8].click()
+            setting_write('playing_state','0','append')
+
+        # Asking user for value of spin button
         message_box_active = 1
         num, ok = QInputDialog.getInt(self, item + "Pressed", "Enter the value for " + item)
 
+        # Processing data entered from QInputDialog
         if ok:
-
             if item == 'speed_spin_button':
                 #speed = num
-                setting_write('speed',str(num),'append')
+                speed = int(setting_read('speed'))
+                if speed != num:
+                    setting_write('speed',str(num),'append')
+                    setting_write('live_setting_change','1','append')
             elif item == 'transpose_spin_button':
                 #tranpose = num
-                setting_write('tranpose',str(num),'append')
+                tranpose = int(setting_read('tranpose'))
+                if tranpose != num:
+                    setting_write('tranpose',str(num),'append')
+                    setting_write('live_setting_change','1','append')
 
         print("End of Message Box Usage")
         message_box_active = 0
 
+        if flag == 1:
+            print("Continuing the app")
+            all_qwidgets[8].click()
+            setting_write('playing_state','1','append')
+
         return
 
-################################################################################
+    def close_all_thread(self):
+        # This function terminates appropriately all the threads and then closes
+        # the SKORE Companion Application
+
+        print("Terminating all threads")
+        self.click_tracking_thread.terminate()
+        self.coord_tracking_thread.terminate()
+        self.user_tracking_thread.terminate()
+        self.check_open_app_thread.terminate()
+        self.close()
+
+        return
+
+################################GENERAL FUNCTIONS###############################
 
 def retrieve_name(var):
-    #This function retrieves the name of a variable
+    # This function retrieves the name of a variable
+
     callers_local_vars = inspect.currentframe().f_back.f_locals.items()
     return [var_name for var_name, var_val in callers_local_vars if var_val is var]
 
+def variable_setup():
+    # This function assures that everytime PianoBooster and the SKORE Companion
+    # applications are open, the variables are initialzed correctly
+
+    global all_qwidgets,all_qwidgets_names,button_history,processed_button_history
+    global processed_index, message_box_active,x_coord_history,y_coord_history
+    global processed_x_coord_history,processed_y_coord_history,processed_index_coord
+
+    all_qwidgets = []
+    all_qwidgets = []
+    all_qwidgets_names = []
+
+    button_history = []
+    processed_button_history = []
+    processed_index = 0
+
+    message_box_active = 0
+
+    x_coord_history = []
+    y_coord_history = []
+    processed_x_coord_history = []
+    processed_y_coord_history = []
+    processed_index_coord = 0
+
+    setting_write('live_setting_change','0','append')
+    setting_write('mode','beginner','append')
+    setting_write('playing_state','0','append')
+    setting_write('hand','both_hands','append')
+    setting_write('skill','follow_you_button','append')
+
+    return
+
 def piano_booster_setup():
+    # This function performs the task of opening PianoBooster and appropriately
+    # clicking on the majority of the qwidgets to make them addressable. When
+    # PianoBooster is opened, the qwidgets are still not addressible via
+    # pywinauto. For some weird reason, clicked on them enables them. The code
+    # utilizes template matching to click on specific regions of the PianoBooster
+    # GUI
 
     global all_qwidgets
     global all_qwidgets_names
 
     # Initilizing the PianoBooster Application
     pia_app = pywinauto.application.Application()
-    #pia_app_exe_path = setting_read('pia_app_exe_path', default_or_temp_mode)
     pia_app_exe_path = setting_read('pia_app_exe_path')
     pia_app.start(pia_app_exe_path)
     print("Initialized PianoBooser")
@@ -329,11 +579,11 @@ def piano_booster_setup():
 
     # Once with the handle, control over the window is achieved.
     w_handle = pywinauto.findwindows.find_windows(title=pia_app_title)[0]
-    window = pia_app.window(handle=w_handle) #pywinauto.application.WindowSpecification Object
+    window = pia_app.window(handle=w_handle)
 
     # Initializion of the Qwidget within the application
     window.maximize()
-    time.sleep(1)
+    time.sleep(0.5)
 
     click_center_try('skill_groupBox_pia')
     click_center_try('hands_groupBox_pia')
@@ -368,6 +618,7 @@ def piano_booster_setup():
     transpose_spin_button = main_qwidget.transposeSpin
     looping_bars_popup_button = main_qwidget.loopingBarsPopupButton
 
+    # Creating list easily address each qwidget
     all_qwidgets = [listen_button, follow_you_button, play_along_button, right_hand,
                     both_hands, left_hands, song_combo_button, book_combo_button,
                     play_button, play_from_the_start_button, speed_spin_button,
@@ -393,11 +644,6 @@ def piano_booster_setup():
         all_qwidgets_names[all_qwidgets.index(qwigets)] = retrieve_name(qwigets)[0]
 
     """
-
-    # Enabling the mouse tracking
-    print("Mouse Tracking Enabled")
-    click_action_thread = Thread(target=track_mouse_clicks)
-    click_action_thread.start()
 
     return
 

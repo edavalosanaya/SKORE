@@ -24,7 +24,8 @@ sys.path.append(skore_path + tutor_program_extension_path)
 from tutor import avaliable_arduino_com, avaliable_piano_port
 #default_or_temp_mode = 'temp'
 
-#Variable Array for Executiable path
+################################VARIABLES#######################################
+
 #Path Tab Variables
 app_exe_path = ['','','','','','','','']
 possible_app = ['audiveris','amazingmidi','audacity','midiSheetMusic','xenoplay','reddotforever','pianobooster','anthemscore']
@@ -38,8 +39,12 @@ timing_lineedit = ['time_per_tick','increment_counter','chord_timing_tolerance',
 timing_values = ['','','','']
 port_combobox_titles = ['piano_port','piano_size','arduino_com_port']
 port_combobox_values = ['','','']
-################################################################################
+
+#####################################PYQT5######################################
+
 class arduino_ComboBox(QtWidgets.QComboBox):
+    # This class allows the combobox to recognize arduinos connected as soon as
+    # the user clicks the combobox
 
     def showPopup(self):
         avaliable_arduino_ports = avaliable_arduino_com()
@@ -50,6 +55,8 @@ class arduino_ComboBox(QtWidgets.QComboBox):
         super(arduino_ComboBox, self).showPopup()
 
 class piano_ComboBox(QtWidgets.QComboBox):
+    # This class allows the combobox to recognize piano connected as soon as the
+    # user clicks the combobox
 
     def showPopup(self):
         avaliable_piano_ports = avaliable_piano_port()
@@ -60,7 +67,11 @@ class piano_ComboBox(QtWidgets.QComboBox):
         super(piano_ComboBox, self).showPopup()
 
 class Ui_Dialog(object):
+    # This class contains all the processes for settings
+
     def setupUiDialog(self, Dialog):
+        # This functions creates the layout of the settings GUI
+
         Dialog.setObjectName("Dialog")
         Dialog.resize(530, 679)
         self.buttonBox = QtWidgets.QDialogButtonBox(Dialog)
@@ -76,7 +87,7 @@ class Ui_Dialog(object):
         self.tabWidget.setLayoutDirection(QtCore.Qt.LeftToRight)
         self.tabWidget.setObjectName("tabWidget")
 
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@Path Settings@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@Path Settings Tab@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
         self.path_tab = QtWidgets.QWidget()
         self.path_tab.setObjectName("path_tab")
@@ -186,7 +197,7 @@ class Ui_Dialog(object):
         self.browse_button_group.addButton(self.anthemscore_pushButton)
         self.browse_button_group.buttonClicked.connect(self.upload_exe_file)
 
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@Tutoring Settings@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@Tutoring Settings Tab@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
         self.tabWidget.addTab(self.path_tab, "")
         self.tutor_tab = QtWidgets.QWidget()
@@ -449,6 +460,7 @@ class Ui_Dialog(object):
     def settings_path_read(self):
         # This function reads the settings for the exe paths of the applications
         # and stores the paths into a variable called app_exe_path
+
         global app_exe_path
 
         for i in range(len(possible_app)):
@@ -486,6 +498,7 @@ class Ui_Dialog(object):
 
     def settings_mp3_2_midi_choice(self):
         # This function reads the settings regarding which mp3 to midi converter
+
         global mp3_2_midi_choice
 
         mp3_2_midi_choice = setting_read("mp3_2_midi_converter")
@@ -526,6 +539,9 @@ class Ui_Dialog(object):
 ##############################TUTORING TAB FUNCTIONS############################
 
     def color_picker(self, button):
+        # This function creates a QColorDialog when the user clicks the color
+        # wheel color. Once the user selects a color, it will display the RGB
+        # colors in the lineedits
 
         button_name = str(button.objectName())
         color = QtWidgets.QColorDialog.getColor()
@@ -550,6 +566,7 @@ class Ui_Dialog(object):
 
     def settings_color_read(self):
         # This function reads the settings for the color values of the LEDs
+
         global color_values
 
         for i in range(len(color_lineedit)):
@@ -557,6 +574,7 @@ class Ui_Dialog(object):
         return
 
     def update_color_values(self):
+        # This function updates the lineedits of the color values of the LEDS
 
         for i in range(len(color_lineedit)):
             lineEdit_attribute = getattr(self, color_lineedit[i] + '_lineEdit')
@@ -564,6 +582,8 @@ class Ui_Dialog(object):
         return
 
     def apply_color_values(self):
+        # This function applies the changes of the color values of the LEDs to
+        # the settings file
 
         self.settings_color_read()
 
@@ -577,6 +597,7 @@ class Ui_Dialog(object):
         return
 
     def settings_timing_read(self):
+        # This function reads the settings for the timing values
 
         global timing_values
 
@@ -585,6 +606,7 @@ class Ui_Dialog(object):
         return
 
     def update_timing_values(self):
+        # This function updates the lineedits of the timing values
 
         for i in range(len(timing_lineedit)):
             lineEdit_attribute = getattr(self, timing_lineedit[i] + '_lineEdit')
@@ -592,6 +614,7 @@ class Ui_Dialog(object):
         return
 
     def apply_timing_values(self):
+        # This function applies the changes of the timings values to the settings file
 
         self.settings_timing_read()
 
@@ -605,6 +628,7 @@ class Ui_Dialog(object):
         return
 
     def settings_combobox_read(self):
+        # This function reads the settings for the combobox values
 
         global port_combobox_values
 
@@ -615,6 +639,7 @@ class Ui_Dialog(object):
         return
 
     def update_combobox_values(self):
+        # This function updates the lineedits of the combobox values
 
         for i in range(len(port_combobox_titles)):
             combobox_attribute = getattr(self, port_combobox_titles[i] + '_comboBox')
@@ -638,6 +663,7 @@ class Ui_Dialog(object):
         return
 
     def apply_combobox_values(self):
+        # This function applies the changes of the combobox values to the settings file
 
         for i in range(len(port_combobox_titles)):
             combobox_attribute = getattr(self, port_combobox_titles[i] + '_comboBox')
@@ -675,6 +701,8 @@ class Ui_Dialog(object):
 ################################OVERALL FUNCTIONS###############################
 
     def apply_changes(self):
+        # This functions applies all the changes of the settings once the apply
+        # button has been pressed
 
         self.apply_path()
         self.apply_mp3_2_midi_choice()
@@ -687,6 +715,8 @@ class Ui_Dialog(object):
 ################################################################################
 
     def retranslateUi(self, Dialog):
+        # This functions applies all the text features of the settings GUI
+        
         _translate = QtCore.QCoreApplication.translate
         Dialog.setWindowTitle(_translate("Dialog", "Settings"))
         self.anthemscore_pushButton.setText(_translate("Dialog", "Browse"))

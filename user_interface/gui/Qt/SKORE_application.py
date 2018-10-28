@@ -6,7 +6,6 @@ from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot
 
 #Importing the Settings Dialog
-#from settings_dialog import *
 from settings_dialog_tab import *
 
 #This is to prevent an error caused when importing skore_program_controller
@@ -25,6 +24,7 @@ sys.path.append(skore_path + skore_program_controller_extension_path)
 from skore_program_controller import *
 from spy_pianobooster import *
 
+################################VARIABLES#######################################
 #File Information
 upload_file_path = []
 save_folder_path = []
@@ -34,9 +34,11 @@ upload_file_type = []
 #Event Information
 file_conversion_event = 0
 
-################################################################################
+#####################################PYQT5######################################
 
 class Ui_MainWindow(object):
+    # This is the main window of the SKORE application
+
     def setupUi(self, MainWindow):
         MainWindow.setObjectName("MainWindow")
         MainWindow.resize(916, 530)
@@ -63,37 +65,9 @@ class Ui_MainWindow(object):
         self.settings_toolButton.setObjectName("settings_toolButton")
         self.settings_toolButton.clicked.connect(self.settingsDialog)
 
-#############################Tutoring Buttons###################################
+#############################Tutoring Button####################################
 
-        #Tutor Group Box
-        """
-        self.tutor_groupBox = QtWidgets.QGroupBox(self.centralwidget)
-        self.tutor_groupBox.setGeometry(QtCore.QRect(20, 310, 421, 201))
-        self.tutor_groupBox.setObjectName("tutor_groupBox")
-
-        #Beginner Button
-        self.beginner_pushButton = QtWidgets.QPushButton(self.tutor_groupBox)
-        self.beginner_pushButton.setGeometry(QtCore.QRect(20, 20, 381, 51))
-        self.beginner_pushButton.setObjectName("beginner_pushButton")
-
-        #Intermediate Button
-        self.intermediate_pushButton = QtWidgets.QPushButton(self.tutor_groupBox)
-        self.intermediate_pushButton.setGeometry(QtCore.QRect(20, 80, 381, 51))
-        self.intermediate_pushButton.setObjectName("intermediate_pushButton")
-
-        #Expert Button
-        self.expert_pushButton = QtWidgets.QPushButton(self.tutor_groupBox)
-        self.expert_pushButton.setGeometry(QtCore.QRect(20, 140, 381, 51))
-        self.expert_pushButton.setObjectName("expert_pushButton")
-
-        self.tutoring_buttonGroup = QButtonGroup()
-        self.tutoring_buttonGroup.setExclusive(True)
-        self.tutoring_buttonGroup.addButton(self.beginner_pushButton)
-        self.tutoring_buttonGroup.addButton(self.intermediate_pushButton)
-        self.tutoring_buttonGroup.addButton(self.expert_pushButton)
-        self.tutoring_buttonGroup.buttonClicked.connect(self.open_pianobooster)
-        """
-
+        #Tutor Button
         self.tutor_pushButton = QtWidgets.QPushButton(self.centralwidget)
         self.tutor_pushButton.setGeometry(QtCore.QRect(20, 330, 421, 171))
         self.tutor_pushButton.setObjectName("tutor_pushButton")
@@ -144,7 +118,10 @@ class Ui_MainWindow(object):
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
 ################################################################################
+
     def retranslateUi(self, MainWindow):
+        # This function applies all the text changes in the main SKORE app.
+
         _translate = QtCore.QCoreApplication.translate
         MainWindow.setWindowTitle(_translate("MainWindow", "SKORE"))
         self.uploadAudioFile_toolButton.setText(_translate("MainWindow", "Upload audio file"))
@@ -166,24 +143,24 @@ class Ui_MainWindow(object):
 
 ################################################################################
     def open_red_dot_forever(self):
-        #This function start red dot forever
+        # This function start red dot forever
 
         start_red_dot_forever()
         return
 
     def open_pianobooster(self):
+        # This function initializes PianoBooster and opens the SKORE Companion app
+
+        variable_setup()
         piano_booster_setup()
         self.skore_companion_dialog = Companion_Dialog()
         self.skore_companion_dialog.show()
-        #start_piano_booster()
         return
 
     def upload_file(self):
-        #This function allows the user to upload a file for file conversion.
+        # This function allows the user to upload a file for file conversion.
 
-        global upload_file_path
-        global upload_file_name
-        global upload_file_type
+        global upload_file_path, upload_file_name, upload_file_type
 
         upload_file_path = self.openFileNameDialog_UserInput()
         upload_file_name = os.path.splitext(os.path.basename(upload_file_path))[0]
@@ -194,8 +171,8 @@ class Ui_MainWindow(object):
         return
 
     def generateMusicSheet(self):
-        #This functions converts the file uploaded to .pdf. It checkes if the
-        #user has actually uploaded a file and if the conversion is valid.
+        # This functions converts the file uploaded to .pdf. It checkes if the
+        # user has actually uploaded a file and if the conversion is valid.
 
         global file_conversion_event
 
@@ -211,8 +188,8 @@ class Ui_MainWindow(object):
         return
 
     def generateMIDFile(self):
-        #This functions converts the file uploaded to .mid. It checkes if the
-        #user has actually uploaded a file and if the conversion is valid.
+        # This functions converts the file uploaded to .mid. It checkes if the
+        # user has actually uploaded a file and if the conversion is valid.
 
         global file_conversion_event
 
@@ -227,8 +204,8 @@ class Ui_MainWindow(object):
         return
 
     def saveGeneratedFiles(self):
-        #This functions saves all the files generated by the user. Effectively
-        #it relocates all the files found temp to the user's choice of directory
+        # This functions saves all the files generated by the user. Effectively
+        # it relocates all the files found temp to the user's choice of directory
 
         global save_folder_path
         global file_conversion_event
@@ -247,8 +224,8 @@ class Ui_MainWindow(object):
 
 ################################################################################
     def openFileNameDialog_UserInput(self):
-        #This file dialog is used to obtain the file location of the .mid, .mp3,
-        #and .pdf file.
+        # This file dialog is used to obtain the file location of the .mid, .mp3,
+        # and .pdf file.
 
         fileName, _ = QFileDialog.getOpenFileName(caption = "Select Audio File", filter = "MIDI files (*.mid);;MP3 Files (*.mp3);;PDF files (*.pdf)")
 
@@ -262,8 +239,8 @@ class Ui_MainWindow(object):
         return file_dialog_output
 
     def openDirectoryDialog_UserInput(self):
-        #This file dialog is used to obtain the folder directory of the desired
-        #save location for the generated files
+        # This file dialog is used to obtain the folder directory of the desired
+        # save location for the generated files
 
         options = QFileDialog.ShowDirsOnly
         directory = QFileDialog.getExistingDirectory(MainWindow, caption = 'Open a folder', directory = skore_path, options = options)
@@ -277,6 +254,8 @@ class Ui_MainWindow(object):
         return file_dialog_output
 
     def settingsDialog(self):
+        # This function opens the settings dialog
+
         self.dialog = QtWidgets.QDialog()
         self.ui = Ui_Dialog()
         self.ui.setupUiDialog(self.dialog)
@@ -284,8 +263,8 @@ class Ui_MainWindow(object):
 
         return
 
-################################################################################
-#This starts the application
+#################################MAIN CODE######################################
+# This starts the application
 
 if __name__ == "__main__":
     import sys
