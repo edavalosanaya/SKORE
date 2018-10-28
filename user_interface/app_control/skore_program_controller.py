@@ -10,6 +10,9 @@ import glob
 from pathlib import Path
 from shutil import copyfile, move
 import shutil
+import sys
+
+int_dimensions = []
 
 ################################################################################
 ##############################CONSTANTS#########################################
@@ -39,7 +42,6 @@ output_folder_path = skore_path + output_folder_extension_path
 skore_program_controller_path = skore_path + skore_program_controller_extension_path
 
 # Purely Testing Purposes
-default_or_temp_mode = 'temp'
 amazing_midi_tune = misc_folder_path + '\\' + 'piano0.wav'
 
 ################################################################################
@@ -62,17 +64,51 @@ def output_address(input_address, final_address, end_file_extension):
 
 ################################################################################
 
+def rect_to_int(rect_dimensions):
+    # This function is catered to help click_center by converting the RECT object
+    # to a list of integers that is compatible with the cropping feature of the
+    # click_center_try function
+
+    int_dimensions = [0,0,0,0]
+
+    dimensions = str(rect_dimensions)
+    dimensions = dimensions[1:-1]
+    dimensions = dimensions.split(',')
+
+    for dimension in dimensions:
+
+        int_dimension = dimension.replace("L","")
+        int_dimension = int_dimension.replace("T","")
+        int_dimension = int_dimension.replace("R","")
+        int_dimension = int_dimension.replace("B","")
+        int_dimension = int(int_dimension)
+        int_dimensions[dimensions.index(dimension)] = int_dimension
+
+    tolerance = 10
+
+    int_dimensions[2] = int_dimensions[2] - int_dimensions[0] + tolerance
+    int_dimensions[3] = int_dimensions[3] - int_dimensions[1] + tolerance
+
+    #print(int_dimensions)
+
+    return int_dimensions
+
+################################################################################
+
 def click_center(button):
     # This function utilizes screen shoots and determines the location of certain
-    # buttons within the screenshot.
+    # buttons within the screenshot. The screenshot will then be cropped to only
+    # include the application that is being clicked
 
-    #global templates_folder_path
+    if int_dimensions == []:
+        image = pyautogui.screenshot()
+    else:
+        image = pyautogui.screenshot(region=int_dimensions)
+        #image = pyautogui.screenshot(region = (722,425,381,132))
 
-    image = pyautogui.screenshot()
     image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
     cv2.imwrite('gui_screenshot.png', image)
     img = cv2.imread('gui_screenshot.png', 0)
-
     #location = find_image_path(button)
     template = cv2.imread(templates_folder_path + '\\' + button + '.png', 0)
 
@@ -84,6 +120,15 @@ def click_center(button):
 
     top_left = max_loc
     bottom_right = (top_left[0] + w, top_left[1] + h)
+
+    if int_dimensions != []:
+        # Shifting values to lay ontop of the region correctly
+        top_left = [top_left[0] + int_dimensions[0], top_left[1] + int_dimensions[1]]
+        bottom_right = (top_left[0] + w, top_left[1] + h)
+
+    #print(top_left)
+    #print(bottom_right)
+
     file_button_center_coords = [ int((top_left[0]+bottom_right[0])/2) , int((top_left[1]+bottom_right[1])/2) ]
     pywinauto.mouse.click(button="left",coords=(file_button_center_coords[0],file_button_center_coords[1]))
     os.remove('gui_screenshot.png')
@@ -124,6 +169,7 @@ def temp_to_folder(**kwargs):
     # This functions transfer all the files found within temp folder into
     # "destination_folder" with the "filename" given.
 
+    mid_path = []
     filename = kwargs.get('filename', None)
     destination_folder = kwargs.get('destination_folder', None)
     print("Transfering files with name: " + filename + "\t To directory: " + destination_folder)
@@ -136,17 +182,32 @@ def temp_to_folder(**kwargs):
         old_file = os.path.basename(file)
         file_type = os.path.splitext(old_file)[1]
 
+        #print(file_type)
+
         if(filename):
             if(destination_folder):
+                if(file_type == '.mid'):
+                    print("MIDI file detected, 1")
+                    mid_path = destination_folder + '\\' + filename + file_type
                 shutil.move(file, destination_folder + '\\' + filename + file_type)
             else:
+                if(file_type == '.mid'):
+                    print("MIDI file detected, 2")
+                    mid_path = output_folder_path + '\\' + filename + file_type
                 shutil.move(file, output_folder_path + '\\' + filename + file_type)
         else:
             if(destination_folder):
+                if(file_type == '.mid'):
+                    print("MIDI file detected, 3")
+                    mid_path = destination_folder + '\\' + old_file
                 shutil.move(file, destination_folder + '\\' + old_file)
             else:
+                if(file_type == '.mid'):
+                    print("MIDI file detected, 4")
+                    mid_path = output_folder_path + '\\' + old_file
                 shutil.move(file, output_folder_path + '\\' + old_file)
-    return
+
+    return mid_path
 
 
 ################################################################################
@@ -495,6 +556,9 @@ def auto_audiveris(user_input_address_audi, destination_address):
     window.maximize()
     time.sleep(0.1)
 
+    original_rect_dimensions = window.rectangle()
+    int_dimensions = rect_to_int(original_rect_dimensions)
+
     # Accessing the input menu
     click_center_try('file_button')
     click_center_try('input_button')
@@ -556,8 +620,9 @@ def auto_audiveris(user_input_address_audi, destination_address):
 
 def auto_xenoplay(user_input_address_xeno, destination_address):
     # This function does the automation of the xenoplay application
-
     # This is the highest-possibility of failure function. THIS WORKS SOMETIMES
+
+    global int_dimensions
 
     [end_address, filename] = output_address(user_input_address_xeno, destination_address, '.mid')
     os.system("start \"\" cmd /c \"cd " + skore_program_controller_path +" & start_xenoplay.py \"")
@@ -580,6 +645,9 @@ def auto_xenoplay(user_input_address_xeno, destination_address):
     delay = 0.4
 
     # Opening the .mxl file onto Xenoage Player
+    original_rect_dimensions = window.rectangle()
+    int_dimensions = rect_to_int(original_rect_dimensions)
+
     time.sleep(delay)
     click_center_try('file_button_xeno')
     time.sleep(delay)
@@ -587,20 +655,36 @@ def auto_xenoplay(user_input_address_xeno, destination_address):
     time.sleep(delay)
 
     # Entering the address of the mxl file and opening the file
-    window.type_keys(user_input_address_xeno)
+    time.sleep(1)
+    o_handle = pywinauto.findwindows.find_windows(title='Open')[0]
+    o_window = xeno_app.window(handle=o_handle)
+    original_rect_dimensions = o_window.rectangle()
+    int_dimensions = rect_to_int(original_rect_dimensions)
+
+    o_window.type_keys(user_input_address_xeno)
     time.sleep(delay)
     click_center_try('open_button_xeno')
     time.sleep(delay)
 
-    # Attempting to save the .mxl as a .mid file
+    # Attempting to save the .mxl as a .mid file, while also stoping the app
+    # from playing music
+    original_rect_dimensions = window.rectangle()
+    int_dimensions = rect_to_int(original_rect_dimensions)
+
+    click_center_try('stop_button_xeno')
+    time.sleep(delay)
     click_center_try('file_button_xeno')
     time.sleep(delay)
     click_center_try('save_as_button_xeno')
     time.sleep(delay)
 
     # Entering the new name and address of the .mid file
+    time.sleep(1)
     s_handle = pywinauto.findwindows.find_windows(title='Save')[0]
     s_window = xeno_app.window(handle=s_handle)
+    original_rect_dimensions = s_window.rectangle()
+    int_dimensions = rect_to_int(original_rect_dimensions)
+
     time.sleep(delay)
     s_window.type_keys(end_address)
     time.sleep(delay)
@@ -648,7 +732,7 @@ def mp3_to_pdf(mp3_input):
     converted_mid_input = auto_amazing_midi(converted_wav_input, temp_folder_path, amazing_midi_tune)
     converted_pdf_input = auto_midi_music_sheet(converted_mid_input, temp_folder_path)
     print("Overall .mp3 -> .pdf complete")
-    return
+    return converted_mid_input
 
 def mp3_to_mid(mp3_input):
     # This function converts a .mp3 to .mid
@@ -658,43 +742,43 @@ def mp3_to_mid(mp3_input):
     converted_wav_input = auto_audacity(mp3_input, temp_folder_path)
     converted_mid_input = auto_amazing_midi(converted_wav_input, temp_folder_path, amazing_midi_tune)
     print("Overall .mp3 -> .mid complete")
-    return
+    return converted_mid_input
 
 def mid_to_pdf(mid_input):
     # This function converts a .mid to .pdf
 
     clean_temp_folder()
-    converted_mid_input = auto_midi_music_sheet(mid_input, temp_folder_path)
+    converted_pdf_input = auto_midi_music_sheet(mid_input, temp_folder_path)
     print("Overall .mid -> .pdf complete")
-    return
+    return mid_input
 
 def pdf_to_mid(pdf_input):
     # This function converts a .pdf to .mid
 
     clean_temp_folder()
     converted_mxl_input = auto_audiveris(pdf_input, temp_folder_path)
-    converted_mp3_input = auto_xenoplay(converted_mxl_input, temp_folder_path)
+    converted_mid_input = auto_xenoplay(converted_mxl_input, temp_folder_path)
     print("Overall .pdf -> .mid complete")
-    return
+    return converted_mid_input
 
 def input_to_pdf(input):
     # This function converts any file into a .pdf
 
     if(is_mid(input)):
-        mid_to_pdf(input)
+        mid_path = mid_to_pdf(input)
     elif(is_mp3(input)):
-        mp3_to_pdf(input)
+        mid_path = mp3_to_pdf(input)
     else:
         raise RuntimeError("Input file type is invalid")
-    return
+    return mid_path
 
 def input_to_mid(input):
     # This function converts any file into a .mid
 
     if(is_pdf(input)):
-        pdf_to_mid(input)
+        mid_path = pdf_to_mid(input)
     elif(is_mp3(input)):
-        mp3_to_mid(input)
+        mid_path = mp3_to_mid(input)
     else:
         raise RuntimeError("Input file type is invalid")
-    return
+    return mid_path

@@ -8,7 +8,7 @@ import sys
 from pywinauto.controls.win32_controls import ButtonWrapper
 from time import sleep
 
-from skore_program_controller import setting_read, click_center_try, setting_write
+from skore_program_controller import setting_read, click_center_try, setting_write, rect_to_int
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 import os
@@ -192,12 +192,6 @@ class ButtonThread(QThread):
 
         print("User Usage Tracking Thread Enabled")
 
-        """
-        global button_history
-        global processed_button_history
-        global processed_index
-        global message_box_active
-        """
         global button_history, processed_button_history, processed_index, message_box_active
 
         while(True):
@@ -546,7 +540,7 @@ def variable_setup():
 
     return
 
-def piano_booster_setup():
+def piano_booster_setup(mid_file_path):
     # This function performs the task of opening PianoBooster and appropriately
     # clicking on the majority of the qwidgets to make them addressable. When
     # PianoBooster is opened, the qwidgets are still not addressible via
@@ -554,8 +548,8 @@ def piano_booster_setup():
     # utilizes template matching to click on specific regions of the PianoBooster
     # GUI
 
-    global all_qwidgets
-    global all_qwidgets_names
+    global all_qwidgets, all_qwidgets_names, int_dimensions
+
 
     # Initilizing the PianoBooster Application
     pia_app = pywinauto.application.Application()
@@ -584,6 +578,9 @@ def piano_booster_setup():
     # Initializion of the Qwidget within the application
     window.maximize()
     time.sleep(0.5)
+
+    rect_dimensions = window.rectangle()
+    int_dimensions = rect_to_int(rect_dimensions)
 
     click_center_try('skill_groupBox_pia')
     click_center_try('hands_groupBox_pia')
@@ -631,6 +628,20 @@ def piano_booster_setup():
                           'transpose_spin_button', 'start_bar_spin_button',
                           'looping_bars_popup_button', 'save_bar_button', 'key_combo_button']
 
+    delay = 0.4
+
+    # Opening the .mxl file onto Xenoage Player
+    time.sleep(delay)
+    click_center_try('file_button_xeno')
+    time.sleep(delay)
+    click_center_try('open_button_pianobooster_menu')
+    time.sleep(delay)
+
+    o_handle = pywinauto.findwindows.find_windows(title='Open Midi File')[0]
+    o_window = pia_app.window(handle = o_handle)
+    o_window.type_keys(mid_file_path)
+    o_window.type_keys('{ENTER}')
+
     """
     all_qwidgets_names = ['','','','',''
                           '','','','','',
@@ -650,7 +661,7 @@ def piano_booster_setup():
 
 ################################################################################
 
-#piano_booster_setup()
+#piano_booster_setup('hello')
 
 """
 #Initializing Live Settings UI

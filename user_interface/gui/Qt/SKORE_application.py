@@ -30,9 +30,11 @@ upload_file_path = []
 save_folder_path = []
 upload_file_name = []
 upload_file_type = []
+mid_file_obtained_path = []
 
 #Event Information
 file_conversion_event = 0
+mid_file_obtained_event = 0
 
 #####################################PYQT5######################################
 
@@ -61,7 +63,8 @@ class Ui_MainWindow(object):
 
         #Settings Button
         self.settings_toolButton = QtWidgets.QToolButton(self.centralwidget)
-        self.settings_toolButton.setGeometry(QtCore.QRect(20, 260, 871, 41))
+        #self.settings_toolButton.setGeometry(QtCore.QRect(20, 260, 871, 41))
+        self.settings_toolButton.setGeometry(QtCore.QRect(20, 280, 871, 41))
         self.settings_toolButton.setObjectName("settings_toolButton")
         self.settings_toolButton.clicked.connect(self.settingsDialog)
 
@@ -99,7 +102,8 @@ class Ui_MainWindow(object):
 
         #Text Browser
         self.textBrowser = QtWidgets.QTextBrowser(self.centralwidget)
-        self.textBrowser.setGeometry(QtCore.QRect(20, 200, 871, 51))
+        #self.textBrowser.setGeometry(QtCore.QRect(20, 200, 871, 51))
+        self.textBrowser.setGeometry(QtCore.QRect(20, 200, 871, 70))
         self.textBrowser.setObjectName("textBrowser")
 
         #Menubar
@@ -137,7 +141,8 @@ class Ui_MainWindow(object):
 "p, li { white-space: pre-wrap; }\n"
 "</style></head><body style=\" font-family:\'MS Shell Dlg 2\'; font-size:7.8pt; font-weight:400; font-style:normal;\">\n"
 "<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">To open previous files, access the files from the output folder within app_control folder. </p>\n"
-"<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">Uploaded File: " + str(upload_file_path) + " </p></body></html>"))
+"<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">Uploaded File: " + str(upload_file_path) + " </p>\n"
+"<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">MIDI File Location: " + str(mid_file_obtained_path) + "</p></body></html>"))
         self.generateMIDFile_pushButton.setText(_translate("MainWindow", "Generate MID File"))
         self.saveGeneratedFiles_pushButton.setText(_translate("MainWindow", "Save Generated Files"))
 
@@ -151,8 +156,13 @@ class Ui_MainWindow(object):
     def open_pianobooster(self):
         # This function initializes PianoBooster and opens the SKORE Companion app
 
+        if(mid_file_obtained_event == 0):
+            print("No midi file uploaded or generated")
+            QMessageBox.about(MainWindow, "MIDI File Needed", "Please upload or generate a MIDI file before tutoring.")
+            return
+
         variable_setup()
-        piano_booster_setup()
+        piano_booster_setup(mid_file_obtained_path)
         self.skore_companion_dialog = Companion_Dialog()
         self.skore_companion_dialog.show()
         return
@@ -161,27 +171,39 @@ class Ui_MainWindow(object):
         # This function allows the user to upload a file for file conversion.
 
         global upload_file_path, upload_file_name, upload_file_type
+        global mid_file_obtained_event, mid_file_obtained_path
 
         upload_file_path = self.openFileNameDialog_UserInput()
         upload_file_name = os.path.splitext(os.path.basename(upload_file_path))[0]
         upload_file_type = os.path.splitext(os.path.basename(upload_file_path))[1]
 
         if(upload_file_path != ''):
+            if(is_mid(upload_file_path)):
+                # Obtaining mid file location
+                mid_file_obtained_event = 1
+                mid_file_obtained_path = upload_file_path
+            elif(file_conversion_event == 0):
+                mid_file_obtained_event = 0
+                mid_file_obtained_path = []
             self.retranslateUi(MainWindow)
+
         return
 
     def generateMusicSheet(self):
         # This functions converts the file uploaded to .pdf. It checkes if the
         # user has actually uploaded a file and if the conversion is valid.
 
-        global file_conversion_event
+        global file_conversion_event, mid_file_obtained_event, mid_file_obtained_path
 
         if(upload_file_path):
             if(is_pdf(upload_file_path)):
                 QMessageBox.about(MainWindow, "Invalid Conversion", "Cannot convert .pdf to .pdf")
                 return
+            # Obtaining mid file location
             file_conversion_event = 1
-            input_to_pdf(upload_file_path)
+            mid_file_obtained_event = 1
+            mid_file_obtained_path = input_to_pdf(upload_file_path)
+            self.retranslateUi(MainWindow)
         else:
             print("No file uploaded")
             QMessageBox.about(MainWindow, "File Needed", "Please upload a file before taking an action.")
@@ -191,14 +213,17 @@ class Ui_MainWindow(object):
         # This functions converts the file uploaded to .mid. It checkes if the
         # user has actually uploaded a file and if the conversion is valid.
 
-        global file_conversion_event
+        global file_conversion_event, mid_file_obtained_event, mid_file_obtained_path
 
         if(upload_file_path):
             if(is_mid(upload_file_path)):
                 QMessageBox.about(MainWindow, "Invalid Conversion", "Cannot convert .mid to .mid")
                 return
+            # Obtaining mid file location
             file_conversion_event = 1
-            input_to_mid(upload_file_path)
+            mid_file_obtained_event = 1
+            mid_file_obtained_path = input_to_mid(upload_file_path)
+            self.retranslateUi(MainWindow)
         else:
             QMessageBox.about(MainWindow, "File Needed", "Please upload a file before taking an action")
         return
@@ -207,17 +232,21 @@ class Ui_MainWindow(object):
         # This functions saves all the files generated by the user. Effectively
         # it relocates all the files found temp to the user's choice of directory
 
-        global save_folder_path
-        global file_conversion_event
+        global save_folder_path, file_conversion_event, mid_file_obtained_path
 
         if(file_conversion_event):
             user_given_filename, okPressed = QInputDialog.getText(MainWindow, "Save Files","Files Group Name:", QLineEdit.Normal, upload_file_name)
             if(okPressed):
                 save_folder_path = self.openDirectoryDialog_UserInput()
                 print(save_folder_path)
-                temp_to_folder(destination_folder = save_folder_path, filename = user_given_filename)
                 file_conversion_event = 0
 
+                # Obtaining mid file location
+                file = temp_to_folder(destination_folder = save_folder_path, filename = user_given_filename)
+                if file != []:
+                    mid_file_obtained_path = file
+                print(mid_file_obtained_path)
+                self.retranslateUi(MainWindow)
         else:
             QMessageBox.about(MainWindow, "No Conversion Present", "Please upload and convert a file before saving it.")
         return
