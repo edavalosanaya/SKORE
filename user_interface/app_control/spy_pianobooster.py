@@ -580,12 +580,12 @@ def piano_booster_setup(mid_file_path):
     time.sleep(0.5)
 
     rect_dimensions = window.rectangle()
-    int_dimensions = rect_to_int(rect_dimensions)
+    unique_int_dimensions = rect_to_int(rect_dimensions)
 
-    click_center_try('skill_groupBox_pia')
-    click_center_try('hands_groupBox_pia')
-    click_center_try('book_song_buttons_pia')
-    click_center_try('flag_button_pia')
+    click_center_try('skill_groupBox_pia', dimensions_unique = unique_int_dimensions)
+    click_center_try('hands_groupBox_pia', dimensions_unique = unique_int_dimensions)
+    click_center_try('book_song_buttons_pia', dimensions_unique = unique_int_dimensions)
+    click_center_try('flag_button_pia', dimensions_unique = unique_int_dimensions)
 
     # Aquiring the qwigets from the application
     main_qwidget = pia_app.QWidget
@@ -632,9 +632,9 @@ def piano_booster_setup(mid_file_path):
 
     # Opening the .mxl file onto Xenoage Player
     time.sleep(delay)
-    click_center_try('file_button_xeno')
+    click_center_try('file_button_xeno', dimensions_unique = unique_int_dimensions)
     time.sleep(delay)
-    click_center_try('open_button_pianobooster_menu')
+    click_center_try('open_button_pianobooster_menu', dimensions_unique = unique_int_dimensions)
     time.sleep(delay)
 
     o_handle = pywinauto.findwindows.find_windows(title='Open Midi File')[0]

@@ -95,13 +95,18 @@ def rect_to_int(rect_dimensions):
 
 ################################################################################
 
-def click_center(button):
+def click_center(button, **kwargs):
     # This function utilizes screen shoots and determines the location of certain
     # buttons within the screenshot. The screenshot will then be cropped to only
     # include the application that is being clicked
+    unique = kwargs.get('unique',None)
 
-    if int_dimensions == []:
+    if int_dimensions == [] and unique == None:
         image = pyautogui.screenshot()
+    elif unique != None:
+        print('Using unique dimensions')
+        print(unique)
+        image = pyautogui.screenshot(region=unique)
     else:
         image = pyautogui.screenshot(region=int_dimensions)
         #image = pyautogui.screenshot(region = (722,425,381,132))
@@ -121,7 +126,11 @@ def click_center(button):
     top_left = max_loc
     bottom_right = (top_left[0] + w, top_left[1] + h)
 
-    if int_dimensions != []:
+    if unique != None:
+        top_left = [top_left[0] + unique[0], top_left[1] + unique[1]]
+        bottom_right = (top_left[0] + w, top_left[1] + h)
+
+    elif int_dimensions != []:
         # Shifting values to lay ontop of the region correctly
         top_left = [top_left[0] + int_dimensions[0], top_left[1] + int_dimensions[1]]
         bottom_right = (top_left[0] + w, top_left[1] + h)
@@ -137,13 +146,14 @@ def click_center(button):
 
 ################################################################################
 
-def click_center_try(button):
+def click_center_try(button, **kwargs):
     # This functions does the same as click_center, but allows the function to wait
     # Until the image is found.
+    dimensions_unique = kwargs.get('dimensions_unique',None)
 
     while(True):
         try:
-            click_center(button)
+            click_center(button, unique = dimensions_unique)
             break
         except AttributeError:
             #print('.', end='')
