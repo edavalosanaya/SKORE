@@ -1,8 +1,0 @@
-<RCC>
-  <qresource prefix="newPrefix">
-    <file>MID_icon.png</file>
-    <file>MP3_icon.png</file>
-    <file>PDF_icon.png</file>
-    <file>music_note.jpg</file>
-  </qresource>
-</RCC>
