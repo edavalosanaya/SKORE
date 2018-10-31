@@ -17,7 +17,18 @@ from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QAction, QMainWi
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot, pyqtSignal, QThread
 
+from midi import read_midifile, NoteEvent, NoteOffEvent
+from skore_program_controller import is_mid,setting_read,output_address
+import serial
+import serial.tools.list_ports
+import glob
+import os
+from ctypes import windll
+import rtmidi
+
 ###############################VARIABLES########################################
+pia_app = []
+
 all_qwidgets = []
 all_qwidgets_names = []
 
@@ -36,7 +47,454 @@ processed_index_coord = 0
 timing_lineedit = ['time_per_tick','increment_counter','chord_timing_tolerance','manual_final_chord_sustain_timing']
 timing_values = ['','','','']
 
+#############################TUTOR VARIABLES####################################
+midi_in = []
+midi_out = []
+piano_size = []
+
+# Tutoring Variables
+current_keyboard_state = []
+target_keyboard_state = []
+sequence = []
+end_of_tutoring_event = Event()
+
+#chord_timing_tolerance = 10
+#time_per_tick = 0.00001
+chord_timing_tolerance = float(setting_read('chord_timing_tolerance'))
+time_per_tick = float(setting_read('time_per_tick'))
+increment_counter = int(setting_read("increment_counter"))
+
+timeBeginPeriod = windll.winmm.timeBeginPeriod
+timeBeginPeriod(1)
+
+between_note_delay = 0.02
+
+#Arduino Variables
+arduino_keyboard = []
+arduino = []
+
+############################LIVE TUTORING VARIABLES#############################
+skill = []
+hands = []
+speed = []
+tranpose = []
+playing_state = False
+restart = False
+mode = []
+live_setting_change = False
+
+
 #####################################PYQT5######################################
+
+class TutorThread(QThread):
+
+    def __init__(self):
+        QThread.__init__(self)
+
+    def run(self):
+
+        ################################MIDI FIlE SETUP#########################
+
+        def midi_setup():
+            # This fuction deletes pre-existing MIDI files and places the new desired MIDI
+            # file into the cwd of tutor.py . Then it converts the midi information
+            # of that file into a sequence of note events.
+
+            global sequence
+            mid_file = []
+
+            cwd_path = os.path.dirname(os.path.abspath(__file__))
+            files = glob.glob(cwd_path + '\*')
+
+            for file in files:
+                if(is_mid(file)):
+                    print("Deleted: " + str(file))
+                    os.remove(file)
+
+            midi_file_location = setting_read('midi_file_location')
+
+            new_midi_file_location, trash = output_address(midi_file_location, cwd_path, '.mid')
+            copyfile(midi_file_location, new_midi_file_location)
+
+            for file in files:
+                if(is_mid(file)):
+                    mid_file = file
+
+            if mid_file == []:
+                print("No midi file within the cwd: " + str(cwd_path))
+                return 0
+
+            #Obtaining the note event info for the mid file
+            sequence = midi_to_note_event_info(mid_file)
+            return 1
+
+        def midi_to_note_event_info(mid_file):
+            #Now obtaining the pattern of the midi file found.
+            #print('mid_file: ' + mid_file)
+
+            mid_file_name = os.path.basename(mid_file)
+            #pattern = read_midifile(mid_file_name)
+            pattern = read_midifile(mid_file)
+
+
+            note_event_matrix = []
+
+            for track in pattern:
+                for event in track:
+                    if isinstance(event, NoteEvent):
+                        if event.tick > 0:
+                            note_event_matrix.append('D,'+str(event.tick))
+                        if isinstance(event, NoteOffEvent):
+                            note_event_matrix.append('0,'+str(event.pitch))
+                        else:
+                            note_event_matrix.append('1,'+str(event.pitch))
+
+            return note_event_matrix
+
+        ##############################UTILITY FUNCTIONS#########################
+
+        def keyboard_equal(list1,list2):
+            # Checks if all the elements in list1 are at least found in list2
+            # returns 1 if yes, 0 for no.
+
+            #start = time.time()
+            if list1 == [] and list2 != []:
+                return 0
+
+            for element in list1:
+                if element in list2:
+                    continue
+                else:
+                    #end = time.time()
+                    #print("keyboard_equal: " + str(start - end))
+                    return 0
+
+            #end = time.time()
+            #print("keyboard_equal: " + str(start - end))
+            return 1
+
+        #############################TUTORING UTILITY FUNCTIONS#################
+
+        def chord_detection(inital_delay_location):
+            # This function returns the final delay location, meaning the next delay that
+            # does not include the chord. If the function returns inital_delay_location,
+            # it means that the inital delay is not a chord.
+
+            #print(inital_delay_location)
+            final_delay_location = inital_delay_location
+            for_counter = 0
+
+
+            if int(sequence[inital_delay_location][2:]) <= chord_timing_tolerance:
+
+                for event in sequence[inital_delay_location: ]:
+
+                    if event[0] == 'D':
+                        #print("Delay Detected")
+
+                        if int(event[2:]) >= chord_timing_tolerance:
+                            #print("End of Chord Detected")
+                            break
+
+                        else:
+                            for_counter += 1
+                            continue
+                    else:
+                        for_counter += 1
+                        continue
+            else:
+                #print("Not a chord")
+                return inital_delay_location
+
+            final_delay_location += for_counter
+            return final_delay_location
+
+        def get_chord_notes(inital_delay_location,final_delay_location):
+            # This functions obtains the notes within the inital and final delay locations
+            # Additionally, the function obtains the duration of the chord.
+
+            notes = []
+
+            for event in sequence[inital_delay_location:final_delay_location]:
+                if event[0] != 'D':
+                    notes.append(event)
+
+            try:
+                chord_delay = int(sequence[final_delay_location][2:])
+            except IndexError:
+                chord_delay = float(setting_read("manual_final_chord_sustain_timing"))
+
+            return notes, chord_delay
+
+        ##############################COMMUNICATION FUNCTIONS###################
+
+        def arduino_comm(notes):
+            # This function sends the information about which notes need to be added and
+            # removed from the LED Rod.
+
+            notes_to_add = []
+            notes_to_remove = []
+
+            time.sleep(0.001)
+
+            for note in notes:
+                if note not in arduino_keyboard:
+                    #print(note)
+                    notes_to_add.append(note)
+                    arduino_keyboard.append(note)
+
+            if notes == []:
+                temp_keyboard = []
+
+                for note in arduino_keyboard:
+                    notes_to_remove.append(note)
+                    temp_keyboard.append(note)
+
+                for note in temp_keyboard:
+                    arduino_keyboard.remove(note)
+            else:
+                for note in arduino_keyboard:
+                    if note not in notes:
+                        notes_to_remove.append(note)
+                        arduino_keyboard.remove(note)
+
+            # All transmitted notes are contain within the same string
+            transmitted_string = ''
+            notes_to_send = notes_to_add + notes_to_remove
+
+            for note in notes_to_send:
+                transmitted_string += str(note) + ','
+
+            #transmitted_string = transmitted_string[:-1] # to remove last note's comma
+            #print("transmitted_string:" + transmitted_string)
+
+            b = transmitted_string.encode('utf-8')
+            #b2 = bytes(transmitted_string, 'utf-8')
+            arduino.write(b)
+            time.sleep(between_note_delay)
+
+            return
+
+        #################################TUTOR FUNCTIONS########################
+
+        def tutor_beginner():
+            # This is practically the tutoring code for Beginner Mode
+
+            event_counter = -1
+            final_delay_location = 0
+            chord_event_skip = 0
+
+            for event in sequence:
+                event_counter += 1
+                counter = 0
+                #print(event)
+
+                if chord_event_skip != 0:
+                    # This ensures that the sequence is taken all the way to the sustain
+                    # of the chord rather than duplicating the chords' data processing.
+
+                    chord_event_skip -= 1
+                    continue
+
+                if event[0] == '1':
+                    #safe_change_target_keyboard_state(int(event[2:]), 1)
+                    target_keyboard_state.append(int(event[2:]))
+                if event[0] == '0':
+                    #safe_change_target_keyboard_state(int(event[2:]), 0)
+                    target_keyboard_state.remove(int(event[2:]))
+
+                if event[0] == 'D':
+
+                    note_delay = int(event[2:])
+                    final_delay_location = chord_detection(event_counter)
+
+                    if final_delay_location != event_counter:
+                        #print("Chord Detected")
+                        notes, note_delay = get_chord_notes(event_counter, final_delay_location)
+
+                        for note in notes:
+                            if note[0] == '1':
+                                #safe_change_target_keyboard_state(int(note[2:]),1)
+                                target_keyboard_state.append(int(event[2:]))
+                            else:
+                                #safe_change_target_keyboard_state(int(note[2:]),0)
+                                target_keyboard_state.remove(int(event[2:]))
+
+                        chord_event_skip = final_delay_location - event_counter
+
+                    print("Target " + str(target_keyboard_state))
+                    arduino_comm(target_keyboard_state)
+
+                    #counter = note_delay
+
+                    while(counter < note_delay):
+                    #while(counter):
+                        if keyboard_equal(target_keyboard_state,current_keyboard_state):
+                            #print("Same")
+                            counter += increment_counter
+                            #counter -= increment_counter
+                            time.sleep(time_per_tick)
+                            continue
+                        #print("Not Same")
+
+            # Turn off all notes when song is over
+            arduino_comm([])
+
+        ###############################MAIN RUN CODE############################
+
+        print("Tutor Thread Enabled")
+
+        tutor_beginner()
+
+        return
+
+################################################################################
+
+class CommThread(QThread):
+
+    def __init__(self):
+        QThread.__init__(self)
+
+    def run(self):
+
+        def arduino_setup():
+            # This functions sets up the communication between Python and the Arduino.
+            # For now the Arduino is assumed to be connected to COM3.
+
+            global arduino
+            global piano_size
+
+            whitekey = []
+            blackkey = []
+            whitekey_transmitted_string = ''
+            blackkey_transmitted_string = ''
+            piano_size = setting_read('piano_size') + ','
+
+            # Closing, if applicable, the arduino port
+            if arduino != []:
+                arduino.close()
+                arduino = []
+
+            try:
+                #com_port = setting_read("arduino_com_port",default_or_temp)
+                com_port = setting_read("arduino_com_port")
+                print("COM Port Selected: " + str(com_port))
+
+                #arduino = serial.Serial("COM3", 9600)
+                arduino = serial.Serial(com_port, 9600)
+                print("Arduino Connected")
+
+                whitekey.append(int(setting_read('whitekey_r')))
+                whitekey.append(int(setting_read('whitekey_g')))
+                whitekey.append(int(setting_read('whitekey_b')))
+
+                blackkey.append(int(setting_read('blackkey_r')))
+                blackkey.append(int(setting_read('blackkey_g')))
+                blackkey.append(int(setting_read('blackkey_b')))
+
+                for data in whitekey:
+                    if data == 0:
+                        data = 1
+                    whitekey_transmitted_string += str(data) + ','
+
+                for data in blackkey:
+                    if data == 0:
+                        data = 1
+                    blackkey_transmitted_string += str(data) + ','
+
+
+                print("Data Transmitted to the Arduino for Setup:")
+                print("Piano Size: " + str(piano_size))
+                print("WhiteKey Colors: " + str(whitekey_transmitted_string))
+                print("BlackKey Colors: " + str(blackkey_transmitted_string))
+
+                #time.sleep(5)
+                time.sleep(2)
+                arduino.write(piano_size.encode('utf-8'))
+                time.sleep(1)
+                whitekey_message = whitekey_transmitted_string.encode('utf-8')
+                arduino.write(whitekey_message)
+                time.sleep(1)
+                blackkey_message = blackkey_transmitted_string.encode('utf-8')
+                arduino.write(blackkey_message)
+                print("Arduino Setup Complete")
+                return 1
+
+            except serial.serialutil.SerialException:
+                print("Arduino Not Found")
+                return 0
+
+        def piano_port_setup():
+            # This function sets up the communication between Python and the MIDI device
+            # For now Python will connect the first listed device.
+
+            import difflib
+            global midi_in, midi_out
+
+            if midi_in != [] and midi_out != []:
+                midi_in.close()
+                midi_out.close()
+                midi_in = []
+                midi_out = []
+
+            try:
+                midi_in = rtmidi.MidiIn()
+                in_avaliable_ports = midi_in.get_ports()
+                selected_port = setting_read("piano_port")
+                closes_match_in_port = difflib.get_close_matches(selected_port, in_avaliable_ports)[0]
+                print("Piano Port: " + str(closes_match_in_port))
+                midi_in.open_port(in_avaliable_ports.index(closes_match_in_port))
+            except:
+                print("Piano Port Setup Failure")
+                midi_in = []
+                midi_out = []
+                return 0
+
+            try:
+                midi_out = rtmidi.MidiOut()
+                out_avaliable_ports = midi_out.get_ports()
+                closes_match_out_port = difflib.get_close_matches('LoopBe Internal MIDI',out_avaliable_ports)[0]
+                print("LoopBe Internal Port: " + str(closes_match_out_port))
+                midi_out.open_port(out_avaliable_ports.index(closes_match_out_port))
+                return 1
+            except:
+                print("LoopBe Internal Port Setup Failure")
+                midi_in = []
+                midi_out = []
+
+            return 0
+
+        print("Piano and Arduino Communication Thread Enabled")
+
+        arduino_status = arduino_setup()
+        piano_status = piano_port_setup()
+
+        if arduino_status and piano_status:
+            print("Piano and Arduino Communication Setup Successful")
+
+            try:
+                while(True):
+
+                    message = midi_in.get_message()
+
+                    if message:
+                        note_info, delay = message
+                        #print(note_info)
+                        midi_out.send_message(note_info)
+
+                        if note_info[0] == 144: # Note ON event
+                            current_keyboard_state.append(note_info[1])
+                        else: # Note OFF event
+                            current_keyboard_state.remove(note_info[1])
+
+                        print(current_keyboard_state)
+
+            except AttributeError:
+                print("Lost Piano Communication")
+
+        return
+
+################################################################################
 
 class AppOpenThread(QThread):
     # This thread deals with closure of the PianoBooster Application. Once the
@@ -175,7 +633,6 @@ class ClickThread(QThread):
                     x_coord_history.append(x_coord)
                     y_coord_history.append(y_coord)
 
-
 ################################################################################
 
 class ButtonThread(QThread):
@@ -193,6 +650,7 @@ class ButtonThread(QThread):
         print("User Usage Tracking Thread Enabled")
 
         global button_history, processed_button_history, processed_index, message_box_active
+        global skill, hands, speed, playing_state, restart, tranpose, live_setting_change
 
         while(True):
             time.sleep(0.1)
@@ -209,41 +667,32 @@ class ButtonThread(QThread):
                 for index, item in enumerate(all_qwidgets_names):
                     if item == processed_button_history[processed_index]:
                         if index <= 2: # Skill Selection
-                            skill = setting_read('skill')
-                            if skill != item:
-                                print("Tutoring Mode Change")
-                                setting_write('skill',str(item))
-                                setting_write('live_setting_change','1')
+                            skill = str(item)
+                            live_setting_change = True
 
                         elif index > 2 and index <= 5: # Hand Selection
-                            hand = setting_read('hand')
-                            if hand != item:
-                                print("Hand Mode Change")
-                                setting_write('hand',str(item))
-                                setting_write('live_setting_change','1')
+                            hands = str(item)
+                            live_setting_change = True
 
                         elif index > 5 and index <= 7: # Song and Book Combo
                             print("Song and Combo Boxes were pressed. Please do not change the song")
 
                         elif index == 8: # Play Button
-                            playing_state = setting_read('playing_state')
-                            playing_state = eval(playing_state)
                             playing_state = not playing_state
-                            setting_write('playing_state',str(playing_state))
-                            setting_write('live_setting_change','1')
+                            live_setting_change = True
 
                         elif index == 9: # Restart Button
                             print("Restart Detected")
-                            setting_write('restart','1')
-                            setting_write('playing_state','1')
-                            setting_write('live_setting_change','1')
+                            playing_state = True
+                            restart = True
+                            live_setting_change = True
 
                         elif index > 9 and index <= 11: # Spin Boxes
                             print("Spin Buttons Pressed")
                             if message_box_active == 0:
                                 self.button_signal.emit(item)
                             else:
-                                print("Message box in use")
+                                print("QInputDialog in use")
                         else:
                             print("Current Button: " + item + " is not functional yet")
 
@@ -360,6 +809,10 @@ class Companion_Dialog(QtWidgets.QDialog):
         self.intermediate_companion_pushButton.clicked.connect(self.intermediate_mode_setting)
         self.expert_companion_pushButton.clicked.connect(self.expert_mode_setting)
 
+        # Initializing PianoBooster
+        self.variable_setup()
+        self.piano_booster_setup()
+
         # Initializing PianoBooster App Open Check MultiThreading
         self.check_open_app_thread = AppOpenThread()
         self.check_open_app_thread.app_close_signal.connect(self.close_all_thread)
@@ -379,6 +832,10 @@ class Companion_Dialog(QtWidgets.QDialog):
         self.user_tracking_thread.button_signal.connect(self.create_message_box)
         self.user_tracking_thread.start()
 
+        # Initializing Piano and Arduino Communication
+        self.comm_thread = CommThread()
+        self.comm_thread.start()
+
         # Timing Tab Initialization
         self.settings_timing_read()
         self.update_timing_values()
@@ -388,24 +845,18 @@ class Companion_Dialog(QtWidgets.QDialog):
 ###############################DIALOG FUNCTIONS#################################
 
     def beginner_mode_setting(self):
-        current_mode = setting_read('mode')
-        if current_mode != 'beginner':
-            setting_write('mode','beginner')
-            setting_write('live_setting_change','1')
+        global current_mode
+        current_mode = 'beginner'
         return
 
     def intermediate_mode_setting(self):
-        current_mode = setting_read('mode')
-        if current_mode != 'intermediate':
-            setting_write('mode','intermediate')
-            setting_write('live_setting_change','1')
+        global current_mode
+        current_mode = 'intermediate'
         return
 
     def expert_mode_setting(self):
-        current_mode = setting_read('mode')
-        if current_mode != 'expert':
-            setting_write('mode','expert')
-            setting_write('live_setting_change','1')
+        global current_mode
+        current_mode = 'expert'
         return
 
     def settings_timing_read(self):
@@ -427,6 +878,7 @@ class Companion_Dialog(QtWidgets.QDialog):
 
     def apply_timing_values(self):
         # This function applies the changes of the timings values to the settings file
+        global live_setting_change
 
         self.settings_timing_read()
 
@@ -437,8 +889,8 @@ class Companion_Dialog(QtWidgets.QDialog):
                 timing_values[i] = text
                 current_setting = setting_read(timing_lineedit[i])
                 if current_setting != text:
-                    setting_write(timing_lineedit[i], timing_values[i], 'append')
-                    setting_write('live_setting_change','1')
+                    setting_write(timing_lineedit[i], timing_values[i])
+                    live_setting_change = True
         return
 
     @pyqtSlot('QString')
@@ -447,16 +899,17 @@ class Companion_Dialog(QtWidgets.QDialog):
         # multivalue information, such as speed and tranpose
 
         global speed, tranpose, message_box_active
+        global playing_state, speed, tranpose, live_setting_change
 
         flag = 0
 
         # Stopping the application
-        playing_state = setting_read('playing_state')
-        if eval(playing_state) == True:
+        if playing_state == True:
             flag = 1
             print("Stoping app")
             all_qwidgets[8].click()
-            setting_write('playing_state','0')
+            playing_state = False
+            live_setting_change = True
 
         # Asking user for value of spin button
         message_box_active = 1
@@ -465,17 +918,11 @@ class Companion_Dialog(QtWidgets.QDialog):
         # Processing data entered from QInputDialog
         if ok:
             if item == 'speed_spin_button':
-                #speed = num
-                speed = int(setting_read('speed'))
-                if speed != num:
-                    setting_write('speed',str(num))
-                    setting_write('live_setting_change','1')
+                speed = num
+                live_setting_change = True
             elif item == 'transpose_spin_button':
-                #tranpose = num
-                tranpose = int(setting_read('tranpose'))
-                if tranpose != num:
-                    setting_write('tranpose',str(num))
-                    setting_write('live_setting_change','1')
+                tranpose = num
+                live_setting_change = True
 
         print("End of Message Box Usage")
         message_box_active = 0
@@ -483,7 +930,8 @@ class Companion_Dialog(QtWidgets.QDialog):
         if flag == 1:
             print("Continuing the app")
             all_qwidgets[8].click()
-            setting_write('playing_state','1')
+            playing_state = True
+            live_setting_change = True
 
         return
 
@@ -496,179 +944,192 @@ class Companion_Dialog(QtWidgets.QDialog):
         self.coord_tracking_thread.terminate()
         self.user_tracking_thread.terminate()
         self.check_open_app_thread.terminate()
+        self.comm_thread.terminate()
+        pia_app.kill()
         self.close()
 
         return
 
 ################################GENERAL FUNCTIONS###############################
 
-def retrieve_name(var):
-    # This function retrieves the name of a variable
+    def retrieve_name(var):
+        # This function retrieves the name of a variable
 
-    callers_local_vars = inspect.currentframe().f_back.f_locals.items()
-    return [var_name for var_name, var_val in callers_local_vars if var_val is var]
+        callers_local_vars = inspect.currentframe().f_back.f_locals.items()
+        return [var_name for var_name, var_val in callers_local_vars if var_val is var]
 
-def variable_setup():
-    # This function assures that everytime PianoBooster and the SKORE Companion
-    # applications are open, the variables are initialzed correctly
+    def variable_setup(self):
+        # This function assures that everytime PianoBooster and the SKORE Companion
+        # applications are open, the variables are initialzed correctly
 
-    global all_qwidgets,all_qwidgets_names,button_history,processed_button_history
-    global processed_index, message_box_active,x_coord_history,y_coord_history
-    global processed_x_coord_history,processed_y_coord_history,processed_index_coord
+        global all_qwidgets,all_qwidgets_names,button_history,processed_button_history
+        global processed_index, message_box_active,x_coord_history,y_coord_history
+        global processed_x_coord_history,processed_y_coord_history,processed_index_coord
 
-    all_qwidgets = []
-    all_qwidgets = []
-    all_qwidgets_names = []
+        all_qwidgets = []
+        all_qwidgets = []
+        all_qwidgets_names = []
 
-    button_history = []
-    processed_button_history = []
-    processed_index = 0
+        button_history = []
+        processed_button_history = []
+        processed_index = 0
 
-    message_box_active = 0
+        message_box_active = 0
 
-    x_coord_history = []
-    y_coord_history = []
-    processed_x_coord_history = []
-    processed_y_coord_history = []
-    processed_index_coord = 0
+        x_coord_history = []
+        y_coord_history = []
+        processed_x_coord_history = []
+        processed_y_coord_history = []
+        processed_index_coord = 0
 
-    setting_write('live_setting_change','0')
-    setting_write('mode','beginner')
-    setting_write('playing_state','0')
-    setting_write('hand','both_hands')
-    setting_write('skill','follow_you_button')
+        setting_write('live_setting_change','0')
+        setting_write('mode','beginner')
+        setting_write('playing_state','0')
+        setting_write('hand','both_hands')
+        setting_write('skill','follow_you_button')
 
-    return
+        return
 
-def piano_booster_setup(mid_file_path):
-    # This function performs the task of opening PianoBooster and appropriately
-    # clicking on the majority of the qwidgets to make them addressable. When
-    # PianoBooster is opened, the qwidgets are still not addressible via
-    # pywinauto. For some weird reason, clicked on them enables them. The code
-    # utilizes template matching to click on specific regions of the PianoBooster
-    # GUI
+    def piano_booster_setup(self):
+        # This function performs the task of opening PianoBooster and appropriately
+        # clicking on the majority of the qwidgets to make them addressable. When
+        # PianoBooster is opened, the qwidgets are still not addressible via
+        # pywinauto. For some weird reason, clicked on them enables them. The code
+        # utilizes template matching to click on specific regions of the PianoBooster
+        # GUI
 
-    global all_qwidgets, all_qwidgets_names, int_dimensions
+        global all_qwidgets, all_qwidgets_names, int_dimensions, pia_app
 
 
-    # Initilizing the PianoBooster Application
-    pia_app = pywinauto.application.Application()
-    pia_app_exe_path = setting_read('pia_app_exe_path')
-    pia_app.start(pia_app_exe_path)
-    print("Initialized PianoBooser")
+        # Initilizing the PianoBooster Application
+        pia_app = pywinauto.application.Application()
+        pia_app_exe_path = setting_read('pia_app_exe_path')
+        pia_app.start(pia_app_exe_path)
+        print("Initialized PianoBooser")
 
-    # Getting a handle of the application, the application's title changes depending
-    # on the .mid file opened by the application.
-    possible_handles = pywinauto.findwindows.find_elements()
+        # Getting a handle of the application, the application's title changes depending
+        # on the .mid file opened by the application.
+        possible_handles = pywinauto.findwindows.find_elements()
 
-    for i in range(len(possible_handles)):
-        key = str(possible_handles[i])
-        if(key.find('Piano Booster') != -1):
-            wanted_key = key
-            #print('Found it ' + key)
+        # Getting the title of the PianoBooster application, might to try multiple times
+        time.sleep(0.5)
+        while(True):
+            try:
+                for i in range(len(possible_handles)):
+                    key = str(possible_handles[i])
+                    if(key.find('Piano Booster') != -1):
+                        wanted_key = key
+                        #print('Found it ' + key)
 
-    first_index = wanted_key.find("'")
-    last_index = wanted_key.find(',')
-    pia_app_title = wanted_key[first_index + 1 :last_index - 1]
+                first_index = wanted_key.find("'")
+                last_index = wanted_key.find(',')
+                pia_app_title = wanted_key[first_index + 1 :last_index - 1]
+                break
 
-    # Once with the handle, control over the window is achieved.
-    while(True):
-        try:
-            w_handle = pywinauto.findwindows.find_windows(title=pia_app_title)[0]
-            window = pia_app.window(handle=w_handle)
-            break
-        except IndexError:
-            time.sleep(0.1)
+            except UnboundLocalError:
+                time.sleep(0.1)
 
-    # Initializion of the Qwidget within the application
-    window.maximize()
-    time.sleep(0.5)
 
-    rect_dimensions = window.rectangle()
-    unique_int_dimensions = rect_to_int(rect_dimensions)
+        # Once with the handle, control over the window is achieved.
+        while(True):
+            try:
+                w_handle = pywinauto.findwindows.find_windows(title=pia_app_title)[0]
+                window = pia_app.window(handle=w_handle)
+                break
+            except IndexError:
+                time.sleep(0.1)
 
-    click_center_try('skill_groupBox_pia', unique_int_dimensions)
-    click_center_try('hands_groupBox_pia', unique_int_dimensions)
-    click_center_try('book_song_buttons_pia', unique_int_dimensions)
-    click_center_try('flag_button_pia', unique_int_dimensions)
+        # Initializion of the Qwidget within the application
+        window.maximize()
+        time.sleep(0.5)
 
-    # Aquiring the qwigets from the application
-    main_qwidget = pia_app.QWidget
-    main_qwidget.wait('ready')
+        rect_dimensions = window.rectangle()
+        unique_int_dimensions = rect_to_int(rect_dimensions)
 
-    # Skill Group Box
-    listen_button = main_qwidget.Skill3
-    follow_you_button = main_qwidget.Skill2
-    play_along_button = main_qwidget.Skill
+        click_center_try('skill_groupBox_pia', unique_int_dimensions)
+        click_center_try('hands_groupBox_pia', unique_int_dimensions)
+        click_center_try('book_song_buttons_pia', unique_int_dimensions)
+        click_center_try('flag_button_pia', unique_int_dimensions)
 
-    # Hands Group Box
-    right_hand = main_qwidget.Hands4
-    both_hands = main_qwidget.Hands3
-    left_hands = main_qwidget.Hands2
+        # Aquiring the qwigets from the application
+        main_qwidget = pia_app.QWidget
+        main_qwidget.wait('ready')
 
-    # Song and
-    song_combo_button = main_qwidget.songCombo
-    book_combo_button = main_qwidget.bookCombo
+        # Skill Group Box
+        listen_button = main_qwidget.Skill3
+        follow_you_button = main_qwidget.Skill2
+        play_along_button = main_qwidget.Skill
 
-    # GuiTopBar
-    key_combo_button = main_qwidget.keyCombo
-    play_button = main_qwidget.playButton
-    play_from_the_start_button = main_qwidget.playFromStartButton
-    save_bar_button = main_qwidget.savebarButton
-    speed_spin_button = main_qwidget.speedSpin
-    start_bar_spin_button = main_qwidget.startBarSpin
-    transpose_spin_button = main_qwidget.transposeSpin
-    looping_bars_popup_button = main_qwidget.loopingBarsPopupButton
+        # Hands Group Box
+        right_hand = main_qwidget.Hands4
+        both_hands = main_qwidget.Hands3
+        left_hands = main_qwidget.Hands2
 
-    # Creating list easily address each qwidget
-    all_qwidgets = [listen_button, follow_you_button, play_along_button, right_hand,
-                    both_hands, left_hands, song_combo_button, book_combo_button,
-                    play_button, play_from_the_start_button, speed_spin_button,
-                    transpose_spin_button, start_bar_spin_button,
-                    looping_bars_popup_button, save_bar_button, key_combo_button]
+        # Song and
+        song_combo_button = main_qwidget.songCombo
+        book_combo_button = main_qwidget.bookCombo
 
-    all_qwidgets_names = ['listen_button', 'follow_you_button', 'play_along_button', 'right_hand',
-                          'both_hands', 'left_hands', 'song_combo_button', 'book_combo_button',
-                          'play_button', 'play_from_the_start_button', 'speed_spin_button',
-                          'transpose_spin_button', 'start_bar_spin_button',
-                          'looping_bars_popup_button', 'save_bar_button', 'key_combo_button']
+        # GuiTopBar
+        key_combo_button = main_qwidget.keyCombo
+        play_button = main_qwidget.playButton
+        play_from_the_start_button = main_qwidget.playFromStartButton
+        save_bar_button = main_qwidget.savebarButton
+        speed_spin_button = main_qwidget.speedSpin
+        start_bar_spin_button = main_qwidget.startBarSpin
+        transpose_spin_button = main_qwidget.transposeSpin
+        looping_bars_popup_button = main_qwidget.loopingBarsPopupButton
 
-    delay = 0.4
+        # Creating list easily address each qwidget
+        all_qwidgets = [listen_button, follow_you_button, play_along_button, right_hand,
+                        both_hands, left_hands, song_combo_button, book_combo_button,
+                        play_button, play_from_the_start_button, speed_spin_button,
+                        transpose_spin_button, start_bar_spin_button,
+                        looping_bars_popup_button, save_bar_button, key_combo_button]
 
-    # Opening the .mxl file onto Xenoage Player
-    time.sleep(delay)
-    click_center_try('file_button_xeno', unique_int_dimensions)
-    time.sleep(delay)
-    click_center_try('open_button_pianobooster_menu', unique_int_dimensions)
-    time.sleep(delay)
+        all_qwidgets_names = ['listen_button', 'follow_you_button', 'play_along_button', 'right_hand',
+                              'both_hands', 'left_hands', 'song_combo_button', 'book_combo_button',
+                              'play_button', 'play_from_the_start_button', 'speed_spin_button',
+                              'transpose_spin_button', 'start_bar_spin_button',
+                              'looping_bars_popup_button', 'save_bar_button', 'key_combo_button']
 
-    while(True):
-        try:
-            o_handle = pywinauto.findwindows.find_windows(title='Open Midi File')[0]
-            o_window = pia_app.window(handle = o_handle)
-            break
-        except IndexError:
-            time.sleep(0.1)
+        delay = 0.4
 
-    o_window.type_keys(mid_file_path)
-    o_window.type_keys('{ENTER}')
+        """
+        # Opening the .mid file
+        time.sleep(delay)
+        click_center_try('file_button_xeno', unique_int_dimensions)
+        time.sleep(delay)
+        click_center_try('open_button_pianobooster_menu', unique_int_dimensions)
+        time.sleep(delay)
 
-    """
-    all_qwidgets_names = ['','','','',''
-                          '','','','','',
-                          '','','','','',
-                          '','','','','']
 
-    # Getting the name of the applications
-    for qwigets in all_qwidgets:
-        a = retrieve_name(qwigets)[0]
-        print(a)
-        all_qwidgets_names[all_qwidgets.index(qwigets)] = retrieve_name(qwigets)[0]
+        while(True):
+            try:
+                o_handle = pywinauto.findwindows.find_windows(title='Open Midi File')[0]
+                o_window = pia_app.window(handle = o_handle)
+                break
+            except IndexError:
+                time.sleep(0.1)
 
-    """
+        o_window.type_keys(mid_file_path)
+        o_window.type_keys('{ENTER}')
+        """
 
-    return
+        """
+        all_qwidgets_names = ['','','','',''
+                              '','','','','',
+                              '','','','','',
+                              '','','','','']
 
+        # Getting the name of the applications
+        for qwigets in all_qwidgets:
+            a = retrieve_name(qwigets)[0]
+            print(a)
+            all_qwidgets_names[all_qwidgets.index(qwigets)] = retrieve_name(qwigets)[0]
+
+        """
+
+        return
 
 ################################################################################
 

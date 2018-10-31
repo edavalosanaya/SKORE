@@ -15,7 +15,7 @@ sys.coinit_flags = 2
 
 from skore_program_controller import *
 from skore_companion import *
-from tutor import *
+#from tutor import *
 
 ################################VARIABLES#######################################
 #File Information
@@ -154,13 +154,13 @@ class Ui_MainWindow(object):
             QMessageBox.about(MainWindow, "MIDI File Needed", "Please upload or generate a MIDI file before tutoring.")
             return
 
-        variable_setup()
-        piano_booster_setup(mid_file_obtained_path)
+        #variable_setup()
+        #piano_booster_setup(mid_file_obtained_path)
         self.skore_companion_dialog = Companion_Dialog()
         self.skore_companion_dialog.show()
 
         #Tutor Code Goes Here
-        complete_tutor()
+        #complete_tutor()
         return
 
     def upload_file(self):

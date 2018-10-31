@@ -5,12 +5,15 @@ import warnings
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QAction, QMainWindow, QInputDialog, QLineEdit, QFileDialog, QMessageBox, QLabel, QButtonGroup, QDialogButtonBox, QColorDialog
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot
+import rtmidi
+import serial
+import serial.tools.list_ports
 
 warnings.simplefilter("ignore", UserWarning)
 sys.coinit_flags = 2
 
 from skore_program_controller import setting_read, setting_write
-from tutor import avaliable_arduino_com, avaliable_piano_port
+#from tutor import avaliable_arduino_com, avaliable_piano_port
 
 ################################VARIABLES#######################################
 
@@ -34,8 +37,17 @@ class arduino_ComboBox(QtWidgets.QComboBox):
     # This class allows the combobox to recognize arduinos connected as soon as
     # the user clicks the combobox
 
+    def avaliable_arduino_com(self):
+        # This fuction returns all the available COM ports in a list of strings.
+        ports = serial.tools.list_ports.comports(include_links=False)
+        results = []
+        for port in ports:
+            #print(port.device)
+            results.append(str(port.device))
+        return results
+
     def showPopup(self):
-        avaliable_arduino_ports = avaliable_arduino_com()
+        avaliable_arduino_ports = self.avaliable_arduino_com()
         #print(avaliable_arduino_ports)
         self.clear()
         for avaliable_port in avaliable_arduino_ports:
@@ -46,9 +58,24 @@ class piano_ComboBox(QtWidgets.QComboBox):
     # This class allows the combobox to recognize piano connected as soon as the
     # user clicks the combobox
 
+    def avaliable_piano_port(self):
+        # This function returns all the available MIDI ports in a list of string.
+        temp_midi_in = []
+
+        temp_midi_in = rtmidi.MidiIn()
+
+        avaliable_ports = temp_midi_in.get_ports()
+        #print("Avaliable Ports:")
+
+        results = []
+        for port_name in avaliable_ports:
+            #print(port_name)
+            results.append(str(port_name))
+        return results
+
     def showPopup(self):
-        avaliable_piano_ports = avaliable_piano_port()
-        print(avaliable_piano_ports)
+        avaliable_piano_ports = self.avaliable_piano_port()
+        #print(avaliable_piano_ports)
         self.clear()
         for avaliable_piano_port_connected in avaliable_piano_ports:
             self.addItem(avaliable_piano_port_connected)
@@ -480,7 +507,7 @@ class Ui_Dialog(object):
             text = lineEdit_attribute.text()
             if(app_exe_path[i] != text):
                 app_exe_path[i] = text
-                setting_write(app_exe_setting_label[i], app_exe_path[i], 'append')
+                setting_write(app_exe_setting_label[i], app_exe_path[i])
 
         return
 
@@ -516,12 +543,12 @@ class Ui_Dialog(object):
         if self.amazingmidi_radioButton.isChecked():
             if mp3_2_midi_choice != 'amazingmidi':
                 print("Settings Changed: AmazingMIDI Converter has been selected")
-                setting_write("mp3_2_midi_converter", "amazingmidi", "append")
+                setting_write("mp3_2_midi_converter", "amazingmidi")
 
         elif self.anthemscore_radioButton.isChecked():
             if mp3_2_midi_choice != 'anthemscore':
                 print("Settings Changed: AnthemScore Converter has been selected")
-                setting_write("mp3_2_midi_converter", "anthemscore", "append")
+                setting_write("mp3_2_midi_converter", "anthemscore")
 
 
 ##############################TUTORING TAB FUNCTIONS############################
@@ -580,7 +607,7 @@ class Ui_Dialog(object):
             text = lineEdit_attribute.text()
             if color_values[i] != text:
                 color_values[i] = text
-                setting_write(color_lineedit[i], color_values[i], 'append')
+                setting_write(color_lineedit[i], color_values[i])
 
         return
 
@@ -611,7 +638,7 @@ class Ui_Dialog(object):
             text = lineEdit_attribute.text()
             if timing_values[i] != text:
                 timing_values[i] = text
-                setting_write(timing_lineedit[i], timing_values[i], 'append')
+                setting_write(timing_lineedit[i], timing_values[i])
 
         return
 
@@ -667,7 +694,7 @@ class Ui_Dialog(object):
                     #print("Piano Port Change")
                     #print(port_combobox_values[i])
                     #print(text)
-                    setting_write(port_combobox_titles[i], text, 'append')
+                    setting_write(port_combobox_titles[i], text)
 
             if i == 1: # Piano Size Settings
                 important_text = text[-1:]
@@ -675,14 +702,14 @@ class Ui_Dialog(object):
                     #print("Piano Size Change")
                     #print(port_combobox_values[i])
                     #print(important_text)
-                    setting_write(port_combobox_titles[i], important_text, 'append')
+                    setting_write(port_combobox_titles[i], important_text)
 
             if i == 2: # Arduino Port Setting
                 if port_combobox_values[i] != text:
                     #print("Arduino Port Change")
                     #print(port_combobox_values[i])
                     #print(text)
-                    setting_write(port_combobox_titles[i], text, 'append')
+                    setting_write(port_combobox_titles[i], text)
         return
 
 
