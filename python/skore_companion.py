@@ -1,3 +1,4 @@
+# General Utility
 import win32api
 import psutil
 import time
@@ -8,8 +9,7 @@ import sys
 from pywinauto.controls.win32_controls import ButtonWrapper
 from time import sleep
 
-from skore_program_controller import setting_read, click_center_try, setting_write, rect_to_int
-
+# General GUI
 from PyQt5 import QtCore, QtGui, QtWidgets
 import os
 import warnings
@@ -17,6 +17,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QAction, QMainWi
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot, pyqtSignal, QThread
 
+# Tutor Application
 from midi import read_midifile, NoteEvent, NoteOffEvent
 from skore_program_controller import is_mid,setting_read,output_address
 import serial
@@ -25,6 +26,10 @@ import glob
 import os
 from ctypes import windll
 import rtmidi
+from shutil import copyfile
+
+# General Utility created by SKORE Team
+from skore_program_controller import setting_read, click_center_try, setting_write, rect_to_int
 
 ###############################VARIABLES########################################
 pia_app = []
@@ -109,12 +114,18 @@ class TutorThread(QThread):
             for file in files:
                 if(is_mid(file)):
                     print("Deleted: " + str(file))
-                    os.remove(file)
+                    try:
+                        os.remove(file)
+                        break
+                    except PermissionError:
+                        raise RuntimeError("PianoBooster is restricting the removable of previous midi files")
 
             midi_file_location = setting_read('midi_file_location')
 
             new_midi_file_location, trash = output_address(midi_file_location, cwd_path, '.mid')
             copyfile(midi_file_location, new_midi_file_location)
+
+            files = glob.glob(cwd_path + '\*')
 
             for file in files:
                 if(is_mid(file)):
@@ -226,6 +237,22 @@ class TutorThread(QThread):
 
             return notes, chord_delay
 
+        def safe_change_target_keyboard_state(pitch, state):
+            # This function safely removes or adds the pitch to the
+            # target_keyboard_state variable
+
+            if state == 1:
+                if pitch in target_keyboard_state:
+                    return
+                target_keyboard_state.append(pitch)
+
+            elif state == 0:
+                if pitch not in target_keyboard_state:
+                    return
+                target_keyboard_state.remove(pitch)
+
+            return
+
         ##############################COMMUNICATION FUNCTIONS###################
 
         def arduino_comm(notes):
@@ -266,12 +293,12 @@ class TutorThread(QThread):
                 transmitted_string += str(note) + ','
 
             #transmitted_string = transmitted_string[:-1] # to remove last note's comma
-            #print("transmitted_string:" + transmitted_string)
+            print("transmitted_string to Arduino: " + transmitted_string)
 
             b = transmitted_string.encode('utf-8')
             #b2 = bytes(transmitted_string, 'utf-8')
             arduino.write(b)
-            time.sleep(between_note_delay)
+            #time.sleep(between_note_delay)
 
             return
 
@@ -314,11 +341,11 @@ class TutorThread(QThread):
 
                         for note in notes:
                             if note[0] == '1':
-                                #safe_change_target_keyboard_state(int(note[2:]),1)
-                                target_keyboard_state.append(int(event[2:]))
+                                safe_change_target_keyboard_state(int(note[2:]),1)
+                                #target_keyboard_state.append(int(event[2:]))
                             else:
-                                #safe_change_target_keyboard_state(int(note[2:]),0)
-                                target_keyboard_state.remove(int(event[2:]))
+                                safe_change_target_keyboard_state(int(note[2:]),0)
+                                #target_keyboard_state.remove(int(event[2:]))
 
                         chord_event_skip = final_delay_location - event_counter
 
@@ -330,7 +357,7 @@ class TutorThread(QThread):
                     while(counter < note_delay):
                     #while(counter):
                         if keyboard_equal(target_keyboard_state,current_keyboard_state):
-                            #print("Same")
+                            print("Same")
                             counter += increment_counter
                             #counter -= increment_counter
                             time.sleep(time_per_tick)
@@ -344,6 +371,7 @@ class TutorThread(QThread):
 
         print("Tutor Thread Enabled")
 
+        midi_setup()
         tutor_beginner()
 
         return
@@ -351,6 +379,8 @@ class TutorThread(QThread):
 ################################################################################
 
 class CommThread(QThread):
+
+    comm_setup_signal = QtCore.pyqtSignal()
 
     def __init__(self):
         QThread.__init__(self)
@@ -418,6 +448,7 @@ class CommThread(QThread):
                 blackkey_message = blackkey_transmitted_string.encode('utf-8')
                 arduino.write(blackkey_message)
                 print("Arduino Setup Complete")
+                time.sleep(10)
                 return 1
 
             except serial.serialutil.SerialException:
@@ -464,6 +495,22 @@ class CommThread(QThread):
 
             return 0
 
+        def safe_change_current_keyboard_state(pitch, state):
+            # This function safely removes or adds the pitch to the
+            # current_keyboard_state variable
+
+            if state == 1:
+                if pitch in current_keyboard_state:
+                    return
+                current_keyboard_state.append(pitch)
+
+            elif state == 0:
+                if pitch not in current_keyboard_state:
+                    return
+                current_keyboard_state.remove(pitch)
+
+            return
+
         print("Piano and Arduino Communication Thread Enabled")
 
         arduino_status = arduino_setup()
@@ -471,6 +518,7 @@ class CommThread(QThread):
 
         if arduino_status and piano_status:
             print("Piano and Arduino Communication Setup Successful")
+            self.comm_setup_signal.emit()
 
             try:
                 while(True):
@@ -483,11 +531,13 @@ class CommThread(QThread):
                         midi_out.send_message(note_info)
 
                         if note_info[0] == 144: # Note ON event
-                            current_keyboard_state.append(note_info[1])
+                            #current_keyboard_state.append(note_info[1])
+                            safe_change_current_keyboard_state(note_info[1],1)
                         else: # Note OFF event
-                            current_keyboard_state.remove(note_info[1])
+                            #current_keyboard_state.remove(note_info[1])
+                            safe_change_current_keyboard_state(note_info[1],0)
 
-                        print(current_keyboard_state)
+                        print('current_keyboard_state: ' + str(current_keyboard_state))
 
             except AttributeError:
                 print("Lost Piano Communication")
@@ -569,6 +619,8 @@ class CoordinateThread(QThread):
                     try:
                         dimensions = str(widget.rectangle())
                     except pywinauto.findbestmatch.MatchError:
+                        return
+                    except pyqintypes.error:
                         return
 
                     # Editing the values of the dimensions to integers
@@ -834,6 +886,7 @@ class Companion_Dialog(QtWidgets.QDialog):
 
         # Initializing Piano and Arduino Communication
         self.comm_thread = CommThread()
+        self.comm_thread.comm_setup_signal.connect(self.start_tutoring_thread)
         self.comm_thread.start()
 
         # Timing Tab Initialization
@@ -935,6 +988,11 @@ class Companion_Dialog(QtWidgets.QDialog):
 
         return
 
+    @pyqtSlot()
+    def start_tutoring_thread(self):
+        self.tutor_thread = TutorThread()
+        self.tutor_thread.start()
+
     def close_all_thread(self):
         # This function terminates appropriately all the threads and then closes
         # the SKORE Companion Application
@@ -945,6 +1003,7 @@ class Companion_Dialog(QtWidgets.QDialog):
         self.user_tracking_thread.terminate()
         self.check_open_app_thread.terminate()
         self.comm_thread.terminate()
+        self.tutor_thread.terminate()
         pia_app.kill()
         self.close()
 
@@ -1094,7 +1153,7 @@ class Companion_Dialog(QtWidgets.QDialog):
 
         delay = 0.4
 
-        """
+
         # Opening the .mid file
         time.sleep(delay)
         click_center_try('file_button_xeno', unique_int_dimensions)
@@ -1111,9 +1170,10 @@ class Companion_Dialog(QtWidgets.QDialog):
             except IndexError:
                 time.sleep(0.1)
 
+        mid_file_path = setting_read('midi_file_location')
         o_window.type_keys(mid_file_path)
         o_window.type_keys('{ENTER}')
-        """
+
 
         """
         all_qwidgets_names = ['','','','',''
