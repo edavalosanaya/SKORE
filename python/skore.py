@@ -16,6 +16,7 @@ sys.coinit_flags = 2
 from skore_program_controller import *
 from skore_companion import *
 #from tutor import *
+from test import ProgressBarDialog
 
 ################################VARIABLES#######################################
 #File Information
@@ -31,13 +32,17 @@ mid_file_obtained_event = 0
 
 #####################################PYQT5######################################
 
-class Ui_MainWindow(object):
+class Skore(QtWidgets.QMainWindow):
     # This is the main window of the SKORE application
 
-    def setupUi(self, MainWindow):
-        MainWindow.setObjectName("MainWindow")
-        MainWindow.resize(916, 530)
-        self.centralwidget = QtWidgets.QWidget(MainWindow)
+    def __init__(self):
+        super(QtWidgets.QMainWindow, self).__init__()
+        self.setupUI()
+
+    def setupUI(self):
+        self.setObjectName("MainWindow")
+        self.resize(916,530)
+        self.centralwidget = QtWidgets.QWidget(self)
         self.centralwidget.setObjectName("centralwidget")
 
 ###############################Main Buttons#####################################
@@ -56,7 +61,6 @@ class Ui_MainWindow(object):
 
         #Settings Button
         self.settings_toolButton = QtWidgets.QToolButton(self.centralwidget)
-        #self.settings_toolButton.setGeometry(QtCore.QRect(20, 260, 871, 41))
         self.settings_toolButton.setGeometry(QtCore.QRect(20, 280, 871, 41))
         self.settings_toolButton.setObjectName("settings_toolButton")
         self.settings_toolButton.clicked.connect(self.settingsDialog)
@@ -79,6 +83,7 @@ class Ui_MainWindow(object):
         self.generateMusicSheet_pushButton.setObjectName("generateMusicSheet_pushButton")
         self.generateMusicSheet_pushButton.clicked.connect(self.generateMusicSheet)
 
+
         #Generate MID Button
         self.generateMIDFile_pushButton = QtWidgets.QPushButton(self.centralwidget)
         self.generateMIDFile_pushButton.setGeometry(QtCore.QRect(470, 390, 421, 51))
@@ -95,40 +100,40 @@ class Ui_MainWindow(object):
 
         #Text Browser
         self.textBrowser = QtWidgets.QTextBrowser(self.centralwidget)
-        #self.textBrowser.setGeometry(QtCore.QRect(20, 200, 871, 51))
         self.textBrowser.setGeometry(QtCore.QRect(20, 200, 871, 70))
         self.textBrowser.setObjectName("textBrowser")
 
         #Menubar
-        MainWindow.setCentralWidget(self.centralwidget)
-        self.menubar = QtWidgets.QMenuBar(MainWindow)
+        self.setCentralWidget(self.centralwidget)
+        self.menubar = QtWidgets.QMenuBar(self)
         self.menubar.setGeometry(QtCore.QRect(0, 0, 916, 26))
         self.menubar.setObjectName("menubar")
-        MainWindow.setMenuBar(self.menubar)
+        self.setMenuBar(self.menubar)
 
         #Status Bar
-        self.statusbar = QtWidgets.QStatusBar(MainWindow)
+        self.statusbar = QtWidgets.QStatusBar(self)
         self.statusbar.setObjectName("statusbar")
-        MainWindow.setStatusBar(self.statusbar)
+        self.setStatusBar(self.statusbar)
 
-        self.retranslateUi(MainWindow)
-        QtCore.QMetaObject.connectSlotsByName(MainWindow)
+        self.retranslateUi()
+        QtCore.QMetaObject.connectSlotsByName(self)
+
+        self.progress_bar = ProgressBarDialog()
+        self.progress_bar.show()
+        #self.generateMIDFile_pushButton.clicked.connect(self.open_progress_bar)
+
 
 ################################################################################
 
-    def retranslateUi(self, MainWindow):
+    def retranslateUi(self):
         # This function applies all the text changes in the main SKORE app.
 
         _translate = QtCore.QCoreApplication.translate
-        MainWindow.setWindowTitle(_translate("MainWindow", "SKORE"))
+        self.setWindowTitle('SKORE')
         self.uploadAudioFile_toolButton.setText(_translate("MainWindow", "Upload audio file"))
         self.record_toolButton.setText(_translate("MainWindow", "Record"))
         self.settings_toolButton.setText(_translate("MainWindow", "Settings"))
-        #self.tutor_groupBox.setTitle(_translate("MainWindow", "Tutoring"))
-        #self.beginner_pushButton.setText(_translate("MainWindow", "Beginner Mode"))
-        #self.intermediate_pushButton.setText(_translate("MainWindow", "Intermediate Mode"))
-        #self.expert_pushButton.setText(_translate("MainWindow", "Expert Mode"))
-        self.generateMusicSheet_pushButton.setText(_translate("MainWindow", "Generate Music Sheet"))
+        self.generateMusicSheet_pushButton.setText(_translate("MainWindow", "Generate Music Sheet (and MIDI file)"))
         self.textBrowser.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
 "p, li { white-space: pre-wrap; }\n"
@@ -136,10 +141,32 @@ class Ui_MainWindow(object):
 "<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">To open previous files, access the files from the output folder within app_control folder. </p>\n"
 "<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">Uploaded File: " + str(upload_file_path) + " </p>\n"
 "<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">MIDI File Location: " + str(mid_file_obtained_path) + "</p></body></html>"))
-        self.generateMIDFile_pushButton.setText(_translate("MainWindow", "Generate MID File"))
+        self.generateMIDFile_pushButton.setText(_translate("MainWindow", "Generate MIDI File"))
         self.saveGeneratedFiles_pushButton.setText(_translate("MainWindow", "Save Generated Files"))
 
+    def closeEvent(self, event):
+        try:
+            self.skore_companion_dialog.close()
+            print("skore_copanion_dialog closure successful")
+        except:
+            print("skore_copanion_dialog closure failed")
+
+        try:
+            self.progress_bar.close()
+            print("progress_bar closure successful")
+        except:
+            print("progress_bar closure failed")
+
+        try:
+            self.dialog.close()
+            print("progress_bar closure successful")
+        except:
+            print("dialog closure failed")
+
+        return
+
 ################################################################################
+
     def open_red_dot_forever(self):
         # This function start red dot forever
 
@@ -151,16 +178,12 @@ class Ui_MainWindow(object):
 
         if(mid_file_obtained_event == 0):
             print("No midi file uploaded or generated")
-            QMessageBox.about(MainWindow, "MIDI File Needed", "Please upload or generate a MIDI file before tutoring.")
+            QMessageBox.about(self, "MIDI File Needed", "Please upload or generate a MIDI file before tutoring.")
             return
 
-        #variable_setup()
-        #piano_booster_setup(mid_file_obtained_path)
         self.skore_companion_dialog = Companion_Dialog()
         self.skore_companion_dialog.show()
 
-        #Tutor Code Goes Here
-        #complete_tutor()
         return
 
     def upload_file(self):
@@ -178,11 +201,12 @@ class Ui_MainWindow(object):
                 # Obtaining mid file location
                 mid_file_obtained_event = 1
                 mid_file_obtained_path = upload_file_path
-            elif(file_conversion_event == 0):
+            else:
                 mid_file_obtained_event = 0
                 mid_file_obtained_path = []
-            setting_write('midi_file_location',mid_file_obtained_path)
-            self.retranslateUi(MainWindow)
+            setting_write('midi_file_location', mid_file_obtained_path)
+            #self.retranslateUi(MainWindow)
+            self.retranslateUi()
 
         return
 
@@ -194,17 +218,18 @@ class Ui_MainWindow(object):
 
         if(upload_file_path):
             if(is_pdf(upload_file_path)):
-                QMessageBox.about(MainWindow, "Invalid Conversion", "Cannot convert .pdf to .pdf")
+                QMessageBox.about(self, "Invalid Conversion", "Cannot convert .pdf to .pdf")
                 return
             # Obtaining mid file location
             file_conversion_event = 1
             mid_file_obtained_event = 1
-            mid_file_obtained_path = input_to_pdf(upload_file_path)
+            mid_file_obtained_path = input_to_pdf(upload_file_path, self.progress_bar)
             setting_write('midi_file_location',mid_file_obtained_path)
-            self.retranslateUi(MainWindow)
+            self.retranslateUi()
+
         else:
             print("No file uploaded")
-            QMessageBox.about(MainWindow, "File Needed", "Please upload a file before taking an action.")
+            QMessageBox.about(self, "File Needed", "Please upload a file before taking an action.")
         return
 
     def generateMIDFile(self):
@@ -215,16 +240,18 @@ class Ui_MainWindow(object):
 
         if(upload_file_path):
             if(is_mid(upload_file_path)):
-                QMessageBox.about(MainWindow, "Invalid Conversion", "Cannot convert .mid to .mid")
+                QMessageBox.about(self, "Invalid Conversion", "Cannot convert .mid to .mid")
                 return
             # Obtaining mid file location
             file_conversion_event = 1
             mid_file_obtained_event = 1
-            mid_file_obtained_path = input_to_mid(upload_file_path)
+            mid_file_obtained_path = input_to_mid(upload_file_path, self.progress_bar)
             setting_write('midi_file_location',mid_file_obtained_path)
-            self.retranslateUi(MainWindow)
+            self.retranslateUi()
+
         else:
-            QMessageBox.about(MainWindow, "File Needed", "Please upload a file before taking an action")
+            #QMessageBox.about(MainWindow, "File Needed", "Please upload a file before taking an action")
+            QMessageBox.about(self, "File Needed", "Please upload a file before taking an action")
         return
 
     def saveGeneratedFiles(self):
@@ -234,7 +261,7 @@ class Ui_MainWindow(object):
         global save_folder_path, file_conversion_event, mid_file_obtained_path
 
         if(file_conversion_event):
-            user_given_filename, okPressed = QInputDialog.getText(MainWindow, "Save Files","Files Group Name:", QLineEdit.Normal, upload_file_name)
+            user_given_filename, okPressed = QInputDialog.getText(self, "Save Files","Files Group Name:", QLineEdit.Normal, upload_file_name)
             if(okPressed):
                 save_folder_path = self.openDirectoryDialog_UserInput()
                 print(save_folder_path)
@@ -245,13 +272,14 @@ class Ui_MainWindow(object):
                 if file != []:
                     mid_file_obtained_path = file
                     setting_write('midi_file_location',mid_file_obtained_path)
-                print(mid_file_obtained_path)
-                self.retranslateUi(MainWindow)
+                    print(mid_file_obtained_path)
+                    self.retranslateUi()
         else:
-            QMessageBox.about(MainWindow, "No Conversion Present", "Please upload and convert a file before saving it.")
+            QMessageBox.about(self, "No Conversion Present", "Please upload and convert a file before saving it.")
         return
 
 ################################################################################
+
     def openFileNameDialog_UserInput(self):
         # This file dialog is used to obtain the file location of the .mid, .mp3,
         # and .pdf file.
@@ -272,7 +300,7 @@ class Ui_MainWindow(object):
         # save location for the generated files
 
         options = QFileDialog.ShowDirsOnly
-        directory = QFileDialog.getExistingDirectory(MainWindow, caption = 'Open a folder', directory = skore_path, options = options)
+        directory = QFileDialog.getExistingDirectory(self, caption = 'Open a folder', directory = skore_path, options = options)
 
         if directory:
             file_dialog_output = str(directory)
@@ -285,9 +313,7 @@ class Ui_MainWindow(object):
     def settingsDialog(self):
         # This function opens the settings dialog
 
-        self.dialog = QtWidgets.QDialog()
-        self.ui = Ui_Dialog()
-        self.ui.setupUiDialog(self.dialog)
+        self.dialog = SettingsDialog()
         self.dialog.show()
 
         return
@@ -298,8 +324,6 @@ class Ui_MainWindow(object):
 if __name__ == "__main__":
     import sys
     app = QtWidgets.QApplication(sys.argv)
-    MainWindow = QtWidgets.QMainWindow()
-    ui = Ui_MainWindow()
-    ui.setupUi(MainWindow)
-    MainWindow.show()
+    ui = Skore()
+    ui.show()
     sys.exit(app.exec_())

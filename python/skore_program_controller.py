@@ -11,15 +11,19 @@ from pathlib import Path
 from shutil import copyfile, move
 import shutil
 import sys
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QAction, QMainWindow, QInputDialog, QLineEdit, QFileDialog, QMessageBox, QLabel
+from PyQt5.QtGui import QIcon
+from PyQt5.QtCore import pyqtSlot
 
-#int_dimensions = []
+from test import ProgressBarDialog
 
-################################################################################
 ##############################CONSTANTS#########################################
-################################################################################
 
 templates_address = []
 destination_address = []
+progress_bar = []
+conversion_identifier = []
 
 # Determing the address of the entire SKORE system
 complete_path = os.path.dirname(os.path.abspath(__file__))
@@ -44,9 +48,11 @@ skore_program_controller_path = skore_path + skore_program_controller_extension_
 # Purely Testing Purposes
 amazing_midi_tune = misc_folder_path + '\\' + 'piano0.wav'
 
-################################################################################
-##############################FUNCTIONS#########################################
-################################################################################
+#################################CLASSES########################################
+
+
+
+################################FUNCTIONS#######################################
 
 def output_address(input_address, final_address, end_file_extension):
     # This function obtains the input_address of a file, and uses the final address
@@ -61,8 +67,6 @@ def output_address(input_address, final_address, end_file_extension):
     #input_address_new_extension = str(file_path) + '\\' + filename + end_file_extension
     end_address = final_address + '\\' + filename + end_file_extension
     return end_address, filename
-
-################################################################################
 
 def rect_to_int(rect_dimensions):
     # This function is catered to help click_center by converting the RECT object
@@ -92,8 +96,6 @@ def rect_to_int(rect_dimensions):
     #print(int_dimensions)
 
     return int_dimensions
-
-################################################################################
 
 def click_center(button, dimensions):
     # This function utilizes screen shoots and determines the location of certain
@@ -126,8 +128,6 @@ def click_center(button, dimensions):
     time.sleep(0.1)
     return
 
-################################################################################
-
 def click_center_try(button, dimensions):
     # This functions does the same as click_center, but allows the function to wait
     # Until the image is found.
@@ -141,8 +141,6 @@ def click_center_try(button, dimensions):
             time.sleep(0.5)
     return
 
-################################################################################
-
 def clean_temp_folder():
     # This function cleans the temp file within SKORE repository
 
@@ -153,8 +151,6 @@ def clean_temp_folder():
     for file in files:
         os.remove(file)
     return
-
-################################################################################
 
 def temp_to_folder(**kwargs):
     # This functions transfer all the files found within temp folder into
@@ -199,9 +195,6 @@ def temp_to_folder(**kwargs):
                 shutil.move(file, output_folder_path + '\\' + old_file)
 
     return mid_path
-
-
-################################################################################
 
 def setting_read(setting):
     # Reading the value of the setting
@@ -259,10 +252,11 @@ def setting_read(setting):
         raise RuntimeError("Invalid Setting Title")
     return
 
-################################################################################
-
 def setting_write(setting, write_data):
     # Writing the configuration settings of the settings_temp.txt file
+
+    if write_data == []:
+        write_data = ''
 
     # Opening File
     #file_read = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings.txt', 'r')
@@ -325,12 +319,15 @@ def is_pdf(file_path):
 
     return False
 
-################################################################################
 #################################AUTO FUNCTIONS#################################
-################################################################################
 
 def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address):
     # This function does the .wav to .mid file conversions
+
+    if conversion_identifier == 'mp3_to_pdf':
+        progress_bar_values = [40,45,50,55,60,66]
+    elif conversion_identifier == 'mp3_to_mid':
+        progress_bar_values = [60,68,75,83,91,100]
 
     [end_address, filename] = output_address(user_input_address_amaz, destination_address, '.mid')
 
@@ -339,16 +336,17 @@ def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address
     ama_app_exe_path = setting_read('ama_app_exe_path')
     ama_app.start(ama_app_exe_path)
     print("Initialized AmazingMIDI")
+    progress_bar.current_action_label.setText("Initializing AmazingMIDI")
+    progress_bar.progress.setValue(progress_bar_values[0])
+
 
     # Creating a window variable for AmazingMIDI
     while(True):
         try:
             w_handle = pywinauto.findwindows.find_windows(title='AmazingMIDI ')[0]
             window = ama_app.window(handle=w_handle) #pywinauto.application.WindowSpecification Object
-            #print()
             break
         except IndexError:
-            #print('.', end = '')
             time.sleep(0.1)
 
     # Clicking on file menu, selecting tone file
@@ -357,8 +355,11 @@ def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address
     # Entering the tone file's address
     t_handle = pywinauto.findwindows.find_windows(title='Specify Tone File')[0]
     t_window = ama_app.window(handle=t_handle)
+
     t_window.type_keys(tone_address)
     t_window.type_keys('{ENTER}')
+    progress_bar.current_action_label.setText("Opening tune WAV file")
+    progress_bar.progress.setValue(progress_bar_values[1])
 
     # Clicking on file menu, selecting input file
     window.menu_item(u'&File->&Specify Input File...').click()
@@ -366,8 +367,11 @@ def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address
     # Entering the user input file's address
     i_handle = pywinauto.findwindows.find_windows(title='Specify Input File')[0]
     i_window = ama_app.window(handle=i_handle)
+
     i_window.type_keys(user_input_address_amaz)
     i_window.type_keys('{ENTER}')
+    progress_bar.current_action_label.setText("Opening input WAV file")
+    progress_bar.progress.setValue(progress_bar_values[2])
 
     # Clicking on file menu, selecting output files
     window.menu_item(u'&File->&Specify Output File...').click()
@@ -375,8 +379,11 @@ def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address
     # Entering the output file's end_address
     o_handle = pywinauto.findwindows.find_windows(title='Specify Output File')[0]
     o_window = ama_app.window(handle=o_handle)
+
     o_window.type_keys(end_address)
     o_window.type_keys('{ENTER}')
+    progress_bar.current_action_label.setText("Selecting output WAV file location")
+    progress_bar.progress.setValue(progress_bar_values[3])
 
     # Clicking on Transcribe menu, selecting Transcribe
     time.sleep(1)
@@ -386,7 +393,10 @@ def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address
     # Entering Transcribe Options
     to_handle = pywinauto.findwindows.find_windows(title='Transcribe')[0]
     to_window = ama_app.window(handle=to_handle)
+
     to_window.type_keys('{ENTER}')
+    progress_bar.current_action_label.setText("Transcribing WAV files into MIDI")
+    progress_bar.progress.setValue(progress_bar_values[4])
 
     # Closing amazingmidi
     time.sleep(1)
@@ -394,6 +404,8 @@ def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address
     window.menu_item(u'&File->Exit').click()
 
     print(".wav -> .mid complete")
+    progress_bar.current_action_label.setText(".wav -> .mid complete")
+    progress_bar.progress.setValue(progress_bar_values[5])
     return end_address
 
 ###############################################################################
@@ -401,25 +413,45 @@ def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address
 def auto_audacity(user_input_address_auda,destination_address):
     # This function does the automation of the audacity application
 
+    if conversion_identifier == 'mp3_to_pdf':
+        progress_bar_values = [0,10,20,33]
+
+    elif conversion_identifier == 'mp3_to_mid':
+        progress_bar_values = [0,20,30,50]
+
     [end_address, filename] = output_address(user_input_address_auda, destination_address, '.wav')
     aud_app = pywinauto.application.Application()
     aud_app_exe_path = setting_read('aud_app_exe_path')
     aud_app.start(aud_app_exe_path)
+    progress_bar.current_action_label.setText("Initializing Audacity")
+    progress_bar.progress.setValue(progress_bar_values[0])
 
     # Creating a window variable for Audacity
-    w_handle = pywinauto.findwindows.find_windows(title='Audacity')[0] #[461274]
-    window = aud_app.window(handle=w_handle) #pywinauto.application.WindowSpecification Object
+    while(True):
+        try:
+            w_handle = pywinauto.findwindows.find_windows(title='Audacity')[0] #[461274]
+            window = aud_app.window(handle=w_handle) #pywinauto.application.WindowSpecification Object
+            break
+        except IndexError:
+            time.sleep(0.2)
 
     # Clicking on file menu
     window.menu_item(u'&File->&Open').click()
 
     # Creating a window variable for File Browser
-    w_open_handle = pywinauto.findwindows.find_windows(title='Select one or more audio files...')[0]
-    w_open = aud_app.window(handle=w_open_handle)
+    while(True):
+        try:
+            w_open_handle = pywinauto.findwindows.find_windows(title='Select one or more audio files...')[0]
+            w_open = aud_app.window(handle=w_open_handle)
+            break
+        except IndexError:
+            time.sleep(0.2)
 
     # Entering the user's input file
     w_open.type_keys(user_input_address_auda)
     w_open.type_keys("{ENTER}")
+    progress_bar.current_action_label.setText("Opening MP3 file")
+    progress_bar.progress.setValue(progress_bar_values[1])
 
     # Wait until the file has been opened
     time.sleep(1)
@@ -427,12 +459,19 @@ def auto_audacity(user_input_address_auda,destination_address):
 
     # Export the file
     window.menu_item('&File->Export Audio ...').click()
-    w_export_handle = pywinauto.findwindows.find_windows(title='Export Audio')[0]
-    w_export = aud_app.window(handle=w_export_handle)
+    while(True):
+        try:
+            w_export_handle = pywinauto.findwindows.find_windows(title='Export Audio')[0]
+            w_export = aud_app.window(handle=w_export_handle)
+            break
+        except IndexError:
+            time.sleep(0.2)
 
     #w_export.type_keys(filename)
     w_export.type_keys(end_address)
     w_export.type_keys("{ENTER}")
+    progress_bar.current_action_label.setText("Exporting MP3 file as WAV file")
+    progress_bar.progress.setValue(progress_bar_values[2])
 
     # Editing Metadata
     time.sleep(0.5)
@@ -449,6 +488,8 @@ def auto_audacity(user_input_address_auda,destination_address):
     time.sleep(0.1)
 
     print(".mp3 -> .wav complete")
+    progress_bar.current_action_label.setText(".mp3 -> .wav complete")
+    progress_bar.progress.setValue(progress_bar_values[3])
     return end_address
 
 ################################################################################
@@ -456,31 +497,45 @@ def auto_audacity(user_input_address_auda,destination_address):
 def auto_midi_music_sheet(user_input_address_midi,destination_address):
     # This functions does the automation of the midi_music_sheet application.
 
+    if conversion_identifier == 'mp3_to_pdf':
+        progress_bar_values = [70,80,90,100]
+    elif conversion_identifier == 'mid_to_pdf':
+        progress_bar_values = [0,40,80,100]
+
     [end_address, filename] = output_address(user_input_address_midi, destination_address, '.pdf')
     midi_app = pywinauto.application.Application()
     midi_app_exe_path = setting_read('midi_app_exe_path')
     midi_app.start(midi_app_exe_path)
     print("Initialized MidiSheetMusic")
+    progress_bar.current_action_label.setText("Initializing MidiSheetMusic")
+    progress_bar.progress.setValue(progress_bar_values[0])
 
     # Creating a window variable for Midi Sheet Music
     while(True):
         try:
             w_handle = pywinauto.findwindows.find_windows(title='Midi Sheet Music')[0]
-            window = midi_app.window(handle=w_handle) #pywinauto.application.WindowSpecification Object
-            #print()
+            window = midi_app.window(handle=w_handle)
             break
         except IndexError:
-            #print('.', end = '')
             time.sleep(0.2)
 
     # Clicking on file menu
     window.menu_item(u'&File->&Open').click()
 
     # Entering the input file's address
-    o_handle = pywinauto.findwindows.find_windows(title='Open')[0]
-    o_window = midi_app.window(handle=o_handle)
+    while(True):
+        try:
+            o_handle = pywinauto.findwindows.find_windows(title='Open')[0]
+            o_window = midi_app.window(handle=o_handle)
+            break
+        except IndexError:
+            time.sleep(0.2)
+
     o_window.type_keys(user_input_address_midi)
     o_window.type_keys('{ENTER}')
+
+    progress_bar.current_action_label.setText("Opening MIDI file")
+    progress_bar.progress.setValue(progress_bar_values[1])
 
     # Wait until the file has been opened
     time.sleep(1)
@@ -488,10 +543,20 @@ def auto_midi_music_sheet(user_input_address_midi,destination_address):
 
     # Saving the .pdf file to final address
     window.menu_item(u'&File->&Save as PDF...').click()
-    s_handle = pywinauto.findwindows.find_windows(title='Save As')[0]
-    s_window = midi_app.window(handle=s_handle)
+
+    while(True):
+        try:
+            s_handle = pywinauto.findwindows.find_windows(title='Save As')[0]
+            s_window = midi_app.window(handle=s_handle)
+            break
+        except IndexError:
+            time.sleep(0.2)
+
     s_window.type_keys(end_address)
     s_window.type_keys('{ENTER}')
+
+    progress_bar.current_action_label.setText("Saving PDF file")
+    progress_bar.progress.setValue(progress_bar_values[2])
 
     # Closing the application *HARD CODED*
     #time.sleep(0.5)
@@ -519,18 +584,24 @@ def auto_midi_music_sheet(user_input_address_midi,destination_address):
     midi_app.kill()
 
     print(".mid -> .pdf complete")
+    progress_bar.current_action_label.setText(".mid -> .pdf complete")
+    progress_bar.progress.setValue(progress_bar_values[3])
     return end_address
 
 ################################################################################
 
 def auto_audiveris(user_input_address_audi, destination_address):
     # This function automates the program audiveris.
+    if conversion_identifier == 'pdf_to_mid':
+        progress_bar_values = [0,20,30,50]
 
     [end_address,filename] = output_address(user_input_address_audi,destination_address, '.mxl')
     os.system("start \"\" cmd /c \"cd " + skore_program_controller_path +" & start_audiveris.py \"")
 
     time.sleep(1)
     print('Initialized Audiveris.', end = '')
+    progress_bar.current_action_label.setText("Initializing Audiveris")
+    progress_bar.progress.setValue(progress_bar_values[0])
 
     # Trying to handle Audiveris, waiting until the window is available
     while(True):
@@ -542,8 +613,13 @@ def auto_audiveris(user_input_address_audi, destination_address):
             time.sleep(0.5)
 
     # Once the window is available, obtain control of the application
-    w_handle = pywinauto.findwindows.find_windows(title='Audiveris')[0]
-    window = audi_app.window(handle=w_handle) #pywinauto.application.WindowSpecification Object
+    while(True):
+        try:
+            w_handle = pywinauto.findwindows.find_windows(title='Audiveris')[0]
+            window = audi_app.window(handle=w_handle) #pywinauto.application.WindowSpecification Object
+            break
+        except IndexError:
+            time.sleep(0.1)
 
     # Place the Audiveris window above all and maximize
     window.type_keys("{TAB}")
@@ -556,6 +632,8 @@ def auto_audiveris(user_input_address_audi, destination_address):
     # Accessing the input menu
     click_center_try('file_button', audi_dimensions)
     click_center_try('input_button', audi_dimensions)
+    progress_bar.current_action_label.setText("Opening PDF File")
+    progress_bar.progress.setValue(progress_bar_values[1])
 
     # Inputting the .pdf file address to load into audiveris
     while(True):
@@ -584,6 +662,8 @@ def auto_audiveris(user_input_address_audi, destination_address):
     while(True):
         try:
             window.type_keys(end_address)
+            progress_bar.current_action_label.setText("Exporting the MXL file")
+            progress_bar.progress.setValue(progress_bar_values[2])
             time.sleep(0.5)
             break
         except pywinauto.base_wrapper.ElementNotEnabled:
@@ -597,6 +677,8 @@ def auto_audiveris(user_input_address_audi, destination_address):
 
     # Waiting for the completion of the transcribing of the book
     output_file = Path(end_address)
+    progress_bar.current_action_label.setText("Waiting for MXL file generation. Takes a while")
+    progress_bar.progress.setValue(progress_bar_values[3])
     while(True):
         if(output_file.is_file()):
             time.sleep(0.1)
@@ -607,8 +689,9 @@ def auto_audiveris(user_input_address_audi, destination_address):
     # Closing Audiveris
     audi_app.kill()
     print(".pdf -> .mxl complete")
+    progress_bar.current_action_label.setText(".pdf -> .mxl complete")
+    progress_bar.progress.setValue(progress_bar_values[3])
     return end_address
-
 
 ################################################################################
 
@@ -616,10 +699,14 @@ def auto_xenoplay(user_input_address_xeno, destination_address):
     # This function does the automation of the xenoplay application
     # This is the highest-possibility of failure function. THIS WORKS SOMETIMES
 
-    #global int_dimensions
+    if conversion_identifier == 'pdf_to_mid':
+        progress_bar_values = [60,70,80,100]
 
     [end_address, filename] = output_address(user_input_address_xeno, destination_address, '.mid')
     os.system("start \"\" cmd /c \"cd " + skore_program_controller_path +" & start_xenoplay.py \"")
+    print("Initializing Xenoplayer")
+    progress_bar.current_action_label.setText("Initializing Xenoplayer")
+    progress_bar.progress.setValue(progress_bar_values[0])
 
     # Trying to handle Xenoage Player, waiting until the window is available
     while(True):
@@ -632,9 +719,14 @@ def auto_xenoplay(user_input_address_xeno, destination_address):
             time.sleep(0.1)
 
     # Once the window is available, obtain control of the application
-    xeno_app = pywinauto.application.Application().connect(title = 'Xenoage Player 0.4')
-    w_handle = pywinauto.findwindows.find_windows(title='Xenoage Player 0.4')[0]
-    window = xeno_app.window(handle=w_handle) #pywinauto.application.WindowSpecification Object
+    #xeno_app = pywinauto.application.Application().connect(title = 'Xenoage Player 0.4')
+    while(True):
+        try:
+            w_handle = pywinauto.findwindows.find_windows(title='Xenoage Player 0.4')[0]
+            window = xeno_app.window(handle=w_handle) #pywinauto.application.WindowSpecification Object
+            break
+        except IndexError:
+            time.sleep(0.1)
 
     delay = 0.4
 
@@ -647,6 +739,8 @@ def auto_xenoplay(user_input_address_xeno, destination_address):
     time.sleep(delay)
     click_center_try('open_button_xeno_menu', xeno_dimensions)
     time.sleep(delay)
+    progress_bar.current_action_label.setText("Opening MXL File")
+    progress_bar.progress.setValue(progress_bar_values[1])
 
     # Entering the address of the mxl file and opening the file
     #time.sleep(1)
@@ -677,6 +771,8 @@ def auto_xenoplay(user_input_address_xeno, destination_address):
     time.sleep(delay)
     click_center_try('save_as_button_xeno', xeno_dimensions)
     time.sleep(delay)
+    progress_bar.current_action_label.setText("Saving MIDI File")
+    progress_bar.progress.setValue(progress_bar_values[2])
 
     # Entering the new name and address of the .mid file
     #time.sleep(1)
@@ -700,6 +796,8 @@ def auto_xenoplay(user_input_address_xeno, destination_address):
     # Closing Xenoplay
     xeno_app.kill()
     print(".mxl -> .mid complete")
+    progress_bar.current_action_label.setText(".mxl -> .mid complete")
+    progress_bar.progress.setValue(progress_bar_values[3])
     return end_address
 
 ################################################################################
@@ -724,9 +822,7 @@ def start_piano_booster():
     print("Initialized PianoBooser")
     return
 
-################################################################################
 ########################MAJOR FILE CONVERSIONS FUNCTIONS########################
-################################################################################
 
 def mp3_to_pdf(mp3_input):
     # This function converts a .mp3 to .pdf
@@ -745,6 +841,7 @@ def mp3_to_mid(mp3_input):
 
     global amazing_midi_tune
 
+    clean_temp_folder()
     converted_wav_input = auto_audacity(mp3_input, temp_folder_path)
     converted_mid_input = auto_amazing_midi(converted_wav_input, temp_folder_path, amazing_midi_tune)
     print("Overall .mp3 -> .mid complete")
@@ -767,23 +864,37 @@ def pdf_to_mid(pdf_input):
     print("Overall .pdf -> .mid complete")
     return converted_mid_input
 
-def input_to_pdf(input):
+####################HIGHEST LEVEL FILE CONVERSION FUNCTIONS#####################
+
+def input_to_pdf(input, progress_bar_object):
     # This function converts any file into a .pdf
+    global progress_bar, conversion_identifier
+    progress_bar = progress_bar_object
+    progress_bar.current_action_label.setText('Staring input to pdf')
+    progress_bar.progress.setValue(0)
 
     if(is_mid(input)):
+        conversion_identifier = 'mid_to_pdf'
         mid_path = mid_to_pdf(input)
     elif(is_mp3(input)):
+        conversion_identifier = 'mp3_to_pdf'
         mid_path = mp3_to_pdf(input)
     else:
         raise RuntimeError("Input file type is invalid")
     return mid_path
 
-def input_to_mid(input):
+def input_to_mid(input, progress_bar_object):
     # This function converts any file into a .mid
+    global progress_bar, conversion_identifier
+    progress_bar = progress_bar_object
+    progress_bar.current_action_label.setText('Staring input to mid')
+    progress_bar.progress.setValue(0)
 
     if(is_pdf(input)):
+        conversion_identifier = 'pdf_to_mid'
         mid_path = pdf_to_mid(input)
     elif(is_mp3(input)):
+        conversion_identifier = 'mp3_to_mid'
         mid_path = mp3_to_mid(input)
     else:
         raise RuntimeError("Input file type is invalid")

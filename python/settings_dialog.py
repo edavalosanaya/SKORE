@@ -81,15 +81,22 @@ class piano_ComboBox(QtWidgets.QComboBox):
             self.addItem(avaliable_piano_port_connected)
         super(piano_ComboBox, self).showPopup()
 
-class Ui_Dialog(object):
+#class Ui_Dialog(object):
+class SettingsDialog(QtWidgets.QDialog):
     # This class contains all the processes for settings
 
-    def setupUiDialog(self, Dialog):
-        # This functions creates the layout of the settings GUI
+    def __init__(self):
+        super(QtWidgets.QDialog, self).__init__()
+        self.setupUiDialog()
 
-        Dialog.setObjectName("Dialog")
-        Dialog.resize(530, 679)
-        self.buttonBox = QtWidgets.QDialogButtonBox(Dialog)
+    #def setupUiDialog(self, Dialog):
+    def setupUiDialog(self):
+        # This functions creates the layout of the settings GUI
+        self.resize(530, 679)
+        self.setWindowTitle("SKORE Settings")
+        #Dialog.setObjectName("Dialog")
+        #Dialog.resize(530, 679)
+        self.buttonBox = QtWidgets.QDialogButtonBox(self)
         self.buttonBox.setGeometry(QtCore.QRect(310, 630, 201, 32))
         self.buttonBox.setLayoutDirection(QtCore.Qt.RightToLeft)
         self.buttonBox.setOrientation(QtCore.Qt.Horizontal)
@@ -97,7 +104,7 @@ class Ui_Dialog(object):
         self.buttonBox.setObjectName("buttonBox")
 
         #Tab Widget
-        self.tabWidget = QtWidgets.QTabWidget(Dialog)
+        self.tabWidget = QtWidgets.QTabWidget(self)
         self.tabWidget.setGeometry(QtCore.QRect(10, 10, 511, 611))
         self.tabWidget.setLayoutDirection(QtCore.Qt.LeftToRight)
         self.tabWidget.setObjectName("tabWidget")
@@ -394,7 +401,7 @@ class Ui_Dialog(object):
 
 ################################################################################
 
-        self.retranslateUi(Dialog)
+        self.retranslateUi()
         self.tabWidget.setCurrentIndex(0)
 
         #Path Tab Initalization
@@ -416,9 +423,9 @@ class Ui_Dialog(object):
 
         #self.buttonBox.button(QDialogButtonBox.Apply).clicked.connect(self.apply_path)
         self.buttonBox.button(QDialogButtonBox.Apply).clicked.connect(self.apply_changes)
-        self.buttonBox.accepted.connect(Dialog.accept)
-        self.buttonBox.rejected.connect(Dialog.reject)
-        QtCore.QMetaObject.connectSlotsByName(Dialog)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+        QtCore.QMetaObject.connectSlotsByName(self)
 
 ##############################PATH TAB FUNCTIONS################################
 
@@ -729,11 +736,10 @@ class Ui_Dialog(object):
 
 ################################################################################
 
-    def retranslateUi(self, Dialog):
+    def retranslateUi(self):
         # This functions applies all the text features of the settings GUI
 
         _translate = QtCore.QCoreApplication.translate
-        Dialog.setWindowTitle(_translate("Dialog", "Settings"))
         self.anthemscore_pushButton.setText(_translate("Dialog", "Browse"))
         self.pianobooster_pushButton.setText(_translate("Dialog", "Browse"))
         self.midiSheetMusic_pushButton.setText(_translate("Dialog", "Browse"))

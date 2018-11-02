@@ -997,13 +997,42 @@ class Companion_Dialog(QtWidgets.QDialog):
         # This function terminates appropriately all the threads and then closes
         # the SKORE Companion Application
 
+
         print("Terminating all threads")
         self.click_tracking_thread.terminate()
         self.coord_tracking_thread.terminate()
         self.user_tracking_thread.terminate()
         self.check_open_app_thread.terminate()
         self.comm_thread.terminate()
-        self.tutor_thread.terminate()
+
+        try:
+            self.tutor_thread.terminate()
+        except AttributeError:
+            print("Failure in Comms is acknowledge")
+
+        pia_app.kill()
+        self.close()
+
+        return
+
+    def closeEvent(self, event):
+        # This functions account for if skore.py attempts to close skore_companion.py
+        # This function terminates appropriately all the threads and then closes
+        # the SKORE Companion Application
+        print("SKORE application closes SKORE companion detected")
+
+        print("Terminating all threads")
+        self.click_tracking_thread.terminate()
+        self.coord_tracking_thread.terminate()
+        self.user_tracking_thread.terminate()
+        self.check_open_app_thread.terminate()
+        self.comm_thread.terminate()
+
+        try:
+            self.tutor_thread.terminate()
+        except AttributeError:
+            print("Failure in Comms is acknowledge")
+
         pia_app.kill()
         self.close()
 
