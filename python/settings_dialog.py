@@ -1,28 +1,35 @@
-from PyQt5 import QtCore, QtGui, QtWidgets
+# General Utility Libraries
 import sys
 import os
 import warnings
+
+# PyQt5, GUI LIbrary
+from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QAction, QMainWindow, QInputDialog, QLineEdit, QFileDialog, QMessageBox, QLabel, QButtonGroup, QDialogButtonBox, QColorDialog
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot
+
+# Serial and Midi Port LIbrary
 import rtmidi
 import serial
 import serial.tools.list_ports
 
+# CRUCIAL!! This ensures that any dialog open within other .py files that import
+# settings_dialog can open without crashing the entire application
 warnings.simplefilter("ignore", UserWarning)
 sys.coinit_flags = 2
 
+# SKORE Library
 from skore_program_controller import setting_read, setting_write
-#from tutor import avaliable_arduino_com, avaliable_piano_port
 
 ################################VARIABLES#######################################
 
-#Path Tab Variables
+# Path Tab Variables
 app_exe_path = ['','','','','','','','']
 possible_app = ['audiveris','amazingmidi','audacity','midiSheetMusic','xenoplay','reddotforever','pianobooster','anthemscore']
 app_exe_setting_label = ['audi_app_exe_path','ama_app_exe_path','aud_app_exe_path','midi_app_exe_path','xeno_app_exe_path','red_app_exe_path','pia_app_exe_path','ant_app_exe_path']
 
-#Tutoring Tab Variables
+# Tutoring Tab Variables
 mp3_2_midi_choice = []
 color_lineedit = ['whitekey_r','whitekey_g','whitekey_b','blackkey_r','blackkey_g','blackkey_b']
 color_values = ['','','','','','']
@@ -81,21 +88,19 @@ class piano_ComboBox(QtWidgets.QComboBox):
             self.addItem(avaliable_piano_port_connected)
         super(piano_ComboBox, self).showPopup()
 
-#class Ui_Dialog(object):
 class SettingsDialog(QtWidgets.QDialog):
-    # This class contains all the processes for settings
+    # This class contains all the processes and functions for the settings
+    # dialog of the SKORE application
 
     def __init__(self):
         super(QtWidgets.QDialog, self).__init__()
         self.setupUiDialog()
 
-    #def setupUiDialog(self, Dialog):
     def setupUiDialog(self):
         # This functions creates the layout of the settings GUI
+
         self.resize(530, 679)
         self.setWindowTitle("SKORE Settings")
-        #Dialog.setObjectName("Dialog")
-        #Dialog.resize(530, 679)
         self.buttonBox = QtWidgets.QDialogButtonBox(self)
         self.buttonBox.setGeometry(QtCore.QRect(310, 630, 201, 32))
         self.buttonBox.setLayoutDirection(QtCore.Qt.RightToLeft)
@@ -232,7 +237,6 @@ class SettingsDialog(QtWidgets.QDialog):
 
         # Piano Port ComboBox Class had to be overwritten to make the QComboBox
         # adjustable during the popup function
-        #self.piano_port_comboBox = QtWidgets.QComboBox(self.tutor_tab)
         self.piano_port_comboBox = piano_ComboBox(self.tutor_tab)
         self.piano_port_comboBox.setGeometry(QtCore.QRect(10, 50, 481, 31))
         self.piano_port_comboBox.setObjectName("piano_port_comboBox")
@@ -401,27 +405,25 @@ class SettingsDialog(QtWidgets.QDialog):
 
 ################################################################################
 
+        # Enabling text changes
         self.retranslateUi()
         self.tabWidget.setCurrentIndex(0)
 
-        #Path Tab Initalization
+        # Path Tab Initalization
         self.settings_path_read()
         self.update_paths()
 
-        #Tutoring Tab Initalization
+        # Tutoring Tab Initalization
         self.settings_mp3_2_midi_choice()
         self.update_mp3_2_midi_choice()
-
         self.settings_color_read()
         self.update_color_values()
-
         self.settings_timing_read()
         self.update_timing_values()
-
         self.settings_combobox_read()
         self.update_combobox_values()
 
-        #self.buttonBox.button(QDialogButtonBox.Apply).clicked.connect(self.apply_path)
+        # Apply and Cancel Button Information
         self.buttonBox.button(QDialogButtonBox.Apply).clicked.connect(self.apply_changes)
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
@@ -785,17 +787,14 @@ class SettingsDialog(QtWidgets.QDialog):
         self.piano_size_pushButton.setText(_translate("Dialog", "Piano Size Calibration"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tutor_tab), _translate("Dialog", "Tutoring Settings"))
 
-
-
 ################################################################################
 
 """
+# This section allows you to
 if __name__ == "__main__":
     import sys
     app = QtWidgets.QApplication(sys.argv)
-    Dialog = QtWidgets.QDialog()
-    ui = Ui_Dialog()
-    ui.setupUiDialog(Dialog)
-    Dialog.show()
+    setting_dialog = SettingsDialog()
+    setting_dialog.show()
     sys.exit(app.exec_())
 """

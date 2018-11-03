@@ -1,22 +1,29 @@
+# General Utility Libraries
+import sys
+import time
+import os
+
+# File, Folder, and Directory Manipulation Library
 import ntpath
 import pathlib
-import time
-import cv2
-import numpy as np
-import pyautogui
-import os
-import pywinauto
 import glob
 from pathlib import Path
 from shutil import copyfile, move
 import shutil
-import sys
+
+# Image Procressing Library
+import cv2
+import numpy as np
+import pyautogui
+
+# GUI Automation Library
+import pywinauto
+
+# PyQt5, GUI LIbrary
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QAction, QMainWindow, QInputDialog, QLineEdit, QFileDialog, QMessageBox, QLabel
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot
-
-from test import ProgressBarDialog
 
 ##############################CONSTANTS#########################################
 
@@ -47,10 +54,6 @@ skore_program_controller_path = skore_path + skore_program_controller_extension_
 
 # Purely Testing Purposes
 amazing_midi_tune = misc_folder_path + '\\' + 'piano0.wav'
-
-#################################CLASSES########################################
-
-
 
 ################################FUNCTIONS#######################################
 
@@ -202,7 +205,6 @@ def setting_read(setting):
     import sys
 
     # Opening File
-    #file = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings.txt', 'r')
     file = open('settings.txt','r')
 
     # Reading the contents of the setting text
@@ -259,7 +261,6 @@ def setting_write(setting, write_data):
         write_data = ''
 
     # Opening File
-    #file_read = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings.txt', 'r')
     file_read = open('settings.txt','r')
     contents_all = file_read.read()
     contents_line = file_read.readlines()
@@ -279,7 +280,6 @@ def setting_write(setting, write_data):
     contents_all = before_equal_string + modified_after_equal_string + '\n'
 
     # Writing the value of the setting onto the file
-    #file_write = open(skore_path + skore_program_controller_extension_path + '\\' + 'settings.txt', 'w')
     file_write = open('settings.txt', 'w')
     file_write.write(contents_all)
     file_write.close()
@@ -338,7 +338,6 @@ def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address
     print("Initialized AmazingMIDI")
     progress_bar.current_action_label.setText("Initializing AmazingMIDI")
     progress_bar.progress.setValue(progress_bar_values[0])
-
 
     # Creating a window variable for AmazingMIDI
     while(True):
@@ -592,6 +591,7 @@ def auto_midi_music_sheet(user_input_address_midi,destination_address):
 
 def auto_audiveris(user_input_address_audi, destination_address):
     # This function automates the program audiveris.
+
     if conversion_identifier == 'pdf_to_mid':
         progress_bar_values = [0,20,30,50]
 
@@ -868,7 +868,9 @@ def pdf_to_mid(pdf_input):
 
 def input_to_pdf(input, progress_bar_object):
     # This function converts any file into a .pdf
+
     global progress_bar, conversion_identifier
+
     progress_bar = progress_bar_object
     progress_bar.current_action_label.setText('Staring input to pdf')
     progress_bar.progress.setValue(0)
@@ -885,7 +887,9 @@ def input_to_pdf(input, progress_bar_object):
 
 def input_to_mid(input, progress_bar_object):
     # This function converts any file into a .mid
+
     global progress_bar, conversion_identifier
+
     progress_bar = progress_bar_object
     progress_bar.current_action_label.setText('Staring input to mid')
     progress_bar.progress.setValue(0)

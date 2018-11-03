@@ -1,22 +1,24 @@
+# General Utility Libraries
 import sys
 import os
+
+# PyQt5, GUI LIbrary
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QAction, QMainWindow, QInputDialog, QLineEdit, QFileDialog, QMessageBox, QLabel
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QAction, QMainWindow, QInputDialog, QLineEdit, QFileDialog, QMessageBox, QLabel, QProgressBar
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot
 
-#Importing the Settings Dialog
+# Importing the Settings Dialog (CAUSES ERROR)
 from settings_dialog import *
 
-#This is to prevent an error caused when importing skore_program_controller
+# This is to prevent an error caused when importing skore_program_controller
 import warnings
 warnings.simplefilter("ignore", UserWarning)
 sys.coinit_flags = 2
 
+# SKORE Library
 from skore_program_controller import *
 from skore_companion import *
-#from tutor import *
-from test import ProgressBarDialog
 
 ################################VARIABLES#######################################
 #File Information
@@ -52,6 +54,7 @@ class Skore(QtWidgets.QMainWindow):
         self.uploadAudioFile_toolButton.setGeometry(QtCore.QRect(20, 20, 421, 171))
         self.uploadAudioFile_toolButton.setObjectName("uploadAudioFile_toolButton")
         self.uploadAudioFile_toolButton.clicked.connect(self.upload_file)
+
 
         #Record Button
         self.record_toolButton = QtWidgets.QToolButton(self.centralwidget)
@@ -122,7 +125,6 @@ class Skore(QtWidgets.QMainWindow):
         self.progress_bar.show()
         #self.generateMIDFile_pushButton.clicked.connect(self.open_progress_bar)
 
-
 ################################################################################
 
     def retranslateUi(self):
@@ -187,7 +189,7 @@ class Skore(QtWidgets.QMainWindow):
         return
 
     def upload_file(self):
-        # This function allows the user to upload a file for file conversion.
+        # This function allows the user to upload a file for file conversions
 
         global upload_file_path, upload_file_name, upload_file_type
         global mid_file_obtained_event, mid_file_obtained_path
@@ -316,6 +318,61 @@ class Skore(QtWidgets.QMainWindow):
         self.dialog = SettingsDialog()
         self.dialog.show()
 
+        return
+
+################################################################################
+
+class ProgressBarDialog(QtWidgets.QDialog):
+    # This QtWidget deals with the display of the progress bar during the file
+    # conversion. This is to inform the user the state of the file conversion
+    # to ensure no malfunction due to user interference.
+
+    def __init__(self):
+        super(QtWidgets.QDialog, self).__init__()
+        self.init_dialog()
+
+    def init_dialog(self):
+        # This initializes the individual qtwidgets ontop of the progress bar dialog
+
+        self.setObjectName("ProgressBarDialog")
+        self.resize(350,150)
+        print("Initializing Progress Bar Dialog")
+        self.setWindowTitle("Progress Bar")
+        self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+        self.relocate()
+
+
+        self.progress = QProgressBar(self)
+        self.progress.setGeometry(60,40,270,25)
+
+        self.current_action_label = QtWidgets.QLabel(self)
+        self.current_action_label.setGeometry(QtCore.QRect(60,70,270,25))
+        self.current_action_label.setObjectName("current_action_label")
+        self.current_action_label.setText("Current Action: None")
+
+        #self.quit_pushButton = QPushButton("Quit",self)
+        #self.quit_pushButton.setGeometry(193,100,100,30)
+
+        print("Finished Initializing Progress Bar Dialog")
+
+        #self.show()
+
+    def relocate(self):
+        # Relocates the ProgressBarDialog in the center of the fourth quadrant
+        # of the screen. This is to ensure that the ProgressBarDialog does not
+        # affect the image processing to click the buttons.
+
+        frameGm = self.frameGeometry()
+        screen = QApplication.desktop().screenNumber(QApplication.desktop().cursor().pos())
+        centerPoint = QApplication.desktop().screenGeometry(screen).center()
+        x_center = centerPoint.x()
+        y_center = centerPoint.y()
+        x_desired = int(x_center + x_center/1.5)
+        y_desired = int(y_center + y_center/1.5)
+        centerPoint.setX(x_desired)
+        centerPoint.setY(y_desired)
+        frameGm.moveCenter(centerPoint)
+        self.move(frameGm.topLeft())
         return
 
 #################################MAIN CODE######################################

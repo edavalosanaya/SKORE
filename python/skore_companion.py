@@ -2,17 +2,16 @@
 import win32api
 import psutil
 import time
-from threading import Thread, Event
 import inspect
 import pywinauto
 import sys
 from pywinauto.controls.win32_controls import ButtonWrapper
 from time import sleep
-
-# General GUI
-from PyQt5 import QtCore, QtGui, QtWidgets
 import os
 import warnings
+
+# PYQT5, GUI Library
+from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QAction, QMainWindow, QInputDialog, QLineEdit, QFileDialog, QMessageBox, QLabel, QButtonGroup, QDialogButtonBox, QColorDialog
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot, pyqtSignal, QThread
@@ -23,15 +22,14 @@ from skore_program_controller import is_mid,setting_read,output_address
 import serial
 import serial.tools.list_ports
 import glob
-import os
 from ctypes import windll
 import rtmidi
 from shutil import copyfile
 
-# General Utility created by SKORE Team
+# SKORE Library
 from skore_program_controller import setting_read, click_center_try, setting_write, rect_to_int
 
-###############################VARIABLES########################################
+# ClickThread and CoordinateThread Variables
 pia_app = []
 
 all_qwidgets = []
@@ -52,16 +50,15 @@ processed_index_coord = 0
 timing_lineedit = ['time_per_tick','increment_counter','chord_timing_tolerance','manual_final_chord_sustain_timing']
 timing_values = ['','','','']
 
-#############################TUTOR VARIABLES####################################
+# CommThread Variables
 midi_in = []
 midi_out = []
 piano_size = []
 
-# Tutoring Variables
+# TutorThread Variables
 current_keyboard_state = []
 target_keyboard_state = []
 sequence = []
-end_of_tutoring_event = Event()
 
 #chord_timing_tolerance = 10
 #time_per_tick = 0.00001
@@ -72,9 +69,7 @@ increment_counter = int(setting_read("increment_counter"))
 timeBeginPeriod = windll.winmm.timeBeginPeriod
 timeBeginPeriod(1)
 
-between_note_delay = 0.02
-
-#Arduino Variables
+# Arduino Variables (within TutorThread)
 arduino_keyboard = []
 arduino = []
 
@@ -88,10 +83,13 @@ restart = False
 mode = []
 live_setting_change = False
 
-
 #####################################PYQT5######################################
 
 class TutorThread(QThread):
+    # This thread performs the algorithm to control the LED lights with the
+    # information of the other threads, such as the live tutoring variables.
+    # The thread will include the code for the beginner, intermediate, and
+    # expert mode.
 
     def __init__(self):
         QThread.__init__(self)
@@ -140,13 +138,10 @@ class TutorThread(QThread):
             return 1
 
         def midi_to_note_event_info(mid_file):
-            #Now obtaining the pattern of the midi file found.
-            #print('mid_file: ' + mid_file)
+            # Now obtaining the pattern of the midi file found.
 
             mid_file_name = os.path.basename(mid_file)
-            #pattern = read_midifile(mid_file_name)
             pattern = read_midifile(mid_file)
-
 
             note_event_matrix = []
 
@@ -165,10 +160,15 @@ class TutorThread(QThread):
         ##############################UTILITY FUNCTIONS#########################
 
         def keyboard_equal(list1,list2):
-            # Checks if all the elements in list1 are at least found in list2
-            # returns 1 if yes, 0 for no.
+            # This function checks if all the elements in list1 are at least
+            # found in list2 returns 1 if yes, 0 for no.
 
-            #start = time.time()
+            # The goal of this function is to match the way PianoBooster accepts
+            # additional incorrect notes. I realized that PianoBooster has the
+            # tolerance of one wrong note per event. Meaning that if a event
+            # requires 3 notes to be played, PianoBooster would accept 4 notes but
+            # not 5.
+
             if list1 == [] and list2 != []:
                 return 0
 
@@ -176,12 +176,7 @@ class TutorThread(QThread):
                 if element in list2:
                     continue
                 else:
-                    #end = time.time()
-                    #print("keyboard_equal: " + str(start - end))
                     return 0
-
-            #end = time.time()
-            #print("keyboard_equal: " + str(start - end))
             return 1
 
         #############################TUTORING UTILITY FUNCTIONS#################
@@ -191,10 +186,8 @@ class TutorThread(QThread):
             # does not include the chord. If the function returns inital_delay_location,
             # it means that the inital delay is not a chord.
 
-            #print(inital_delay_location)
             final_delay_location = inital_delay_location
             for_counter = 0
-
 
             if int(sequence[inital_delay_location][2:]) <= chord_timing_tolerance:
 
@@ -298,7 +291,6 @@ class TutorThread(QThread):
             b = transmitted_string.encode('utf-8')
             #b2 = bytes(transmitted_string, 'utf-8')
             arduino.write(b)
-            #time.sleep(between_note_delay)
 
             return
 
@@ -314,7 +306,6 @@ class TutorThread(QThread):
             for event in sequence:
                 event_counter += 1
                 counter = 0
-                #print(event)
 
                 if chord_event_skip != 0:
                     # This ensures that the sequence is taken all the way to the sustain
@@ -324,11 +315,11 @@ class TutorThread(QThread):
                     continue
 
                 if event[0] == '1':
-                    #safe_change_target_keyboard_state(int(event[2:]), 1)
-                    target_keyboard_state.append(int(event[2:]))
+                    safe_change_target_keyboard_state(int(event[2:]), 1)
+                    #target_keyboard_state.append(int(event[2:]))
                 if event[0] == '0':
-                    #safe_change_target_keyboard_state(int(event[2:]), 0)
-                    target_keyboard_state.remove(int(event[2:]))
+                    safe_change_target_keyboard_state(int(event[2:]), 0)
+                    #target_keyboard_state.remove(int(event[2:]))
 
                 if event[0] == 'D':
 
@@ -352,12 +343,10 @@ class TutorThread(QThread):
                     print("Target " + str(target_keyboard_state))
                     arduino_comm(target_keyboard_state)
 
-                    #counter = note_delay
-
                     while(counter < note_delay):
                     #while(counter):
                         if keyboard_equal(target_keyboard_state,current_keyboard_state):
-                            print("Same")
+                            #print("Same")
                             counter += increment_counter
                             #counter -= increment_counter
                             time.sleep(time_per_tick)
@@ -379,6 +368,10 @@ class TutorThread(QThread):
 ################################################################################
 
 class CommThread(QThread):
+    # This thread initializes the communication between the piano, virtual midi,
+    # and arduino. Additionally, it continuously keeping tracking of the current
+    # state of the piano and relays the information recieved from the piano to
+    # the virtual port. Look to the communication diagram for further explanation.
 
     comm_setup_signal = QtCore.pyqtSignal()
 
@@ -406,11 +399,9 @@ class CommThread(QThread):
                 arduino = []
 
             try:
-                #com_port = setting_read("arduino_com_port",default_or_temp)
                 com_port = setting_read("arduino_com_port")
                 print("COM Port Selected: " + str(com_port))
 
-                #arduino = serial.Serial("COM3", 9600)
                 arduino = serial.Serial(com_port, 9600)
                 print("Arduino Connected")
 
@@ -448,6 +439,7 @@ class CommThread(QThread):
                 blackkey_message = blackkey_transmitted_string.encode('utf-8')
                 arduino.write(blackkey_message)
                 print("Arduino Setup Complete")
+                # THIS IS AN ISSUE IN HOW LONG IT TAKES FOR THE ARDUINO TO BE READY
                 time.sleep(10)
                 return 1
 
@@ -655,7 +647,6 @@ class ClickThread(QThread):
 
     global y_coord_history, x_coord_history
 
-
     def __init__(self):
         QThread.__init__(self)
 
@@ -707,14 +698,9 @@ class ButtonThread(QThread):
         while(True):
             time.sleep(0.1)
 
-            #print("button_history: " + str(button_history))
-
             if len(button_history) != len(processed_button_history):
 
-                #print("BEFORE: Button History: " + str(button_history) + "\t Processed Button History: " + str(processed_button_history))
                 processed_button_history.append(button_history[processed_index])
-                #print("AFTER: Button History: " + str(button_history) + "\t Processed Button History: " + str(processed_button_history))
-                #print("Current Processed Action: " + str(processed_button_history[processed_index]))
 
                 for index, item in enumerate(all_qwidgets_names):
                     if item == processed_button_history[processed_index]:
@@ -898,17 +884,26 @@ class Companion_Dialog(QtWidgets.QDialog):
 ###############################DIALOG FUNCTIONS#################################
 
     def beginner_mode_setting(self):
+        # This function selects the tutoring mode to beginner
+
         global current_mode
+
         current_mode = 'beginner'
         return
 
     def intermediate_mode_setting(self):
+        # This function selects the tutoring mode to intermediate
+
         global current_mode
+
         current_mode = 'intermediate'
         return
 
     def expert_mode_setting(self):
+        # This function selects the tutoring mode to expert
+
         global current_mode
+
         current_mode = 'expert'
         return
 
@@ -931,6 +926,7 @@ class Companion_Dialog(QtWidgets.QDialog):
 
     def apply_timing_values(self):
         # This function applies the changes of the timings values to the settings file
+
         global live_setting_change
 
         self.settings_timing_read()
@@ -990,13 +986,16 @@ class Companion_Dialog(QtWidgets.QDialog):
 
     @pyqtSlot()
     def start_tutoring_thread(self):
+        # This function starts the tutoring thread. This is done after a signal,
+        # which is the communication setup successful signal, to ensure that
+        # the arduino and piano are ready for tutoring
+
         self.tutor_thread = TutorThread()
         self.tutor_thread.start()
 
     def close_all_thread(self):
         # This function terminates appropriately all the threads and then closes
         # the SKORE Companion Application
-
 
         print("Terminating all threads")
         self.click_tracking_thread.terminate()
@@ -1019,6 +1018,7 @@ class Companion_Dialog(QtWidgets.QDialog):
         # This functions account for if skore.py attempts to close skore_companion.py
         # This function terminates appropriately all the threads and then closes
         # the SKORE Companion Application
+
         print("SKORE application closes SKORE companion detected")
 
         print("Terminating all threads")
@@ -1087,7 +1087,6 @@ class Companion_Dialog(QtWidgets.QDialog):
         # GUI
 
         global all_qwidgets, all_qwidgets_names, int_dimensions, pia_app
-
 
         # Initilizing the PianoBooster Application
         pia_app = pywinauto.application.Application()
@@ -1203,34 +1202,15 @@ class Companion_Dialog(QtWidgets.QDialog):
         o_window.type_keys(mid_file_path)
         o_window.type_keys('{ENTER}')
 
-
-        """
-        all_qwidgets_names = ['','','','',''
-                              '','','','','',
-                              '','','','','',
-                              '','','','','']
-
-        # Getting the name of the applications
-        for qwigets in all_qwidgets:
-            a = retrieve_name(qwigets)[0]
-            print(a)
-            all_qwidgets_names[all_qwidgets.index(qwigets)] = retrieve_name(qwigets)[0]
-
-        """
-
         return
 
 ################################################################################
 
-#piano_booster_setup('hello')
-
 """
-#Initializing Live Settings UI
+# This is to troubleshoot purely skore_companion.py
 if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
-    #Dialog = QtWidgets.QDialog()
-    ui = Companion_Dialog()
-    #ui.setupUiDialog(Dialog)
-    #Dialog.show()
+    skore_companion = Companion_Dialog()
+    skore_companion.show()
     app.exec_()
 """
