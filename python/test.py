@@ -1,63 +1,152 @@
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QAction, QMainWindow, QInputDialog, QLineEdit, QFileDialog, QMessageBox, QLabel, QProgressBar
-from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import pyqtSlot
+# General Utility Libraries
 import sys
 import time
-from skore_program_controller import *
+import os
 
-class ProgressBarDialog(QtWidgets.QDialog):
+# File, Folder, and Directory Manipulation Library
+import ntpath
+import pathlib
+import glob
+from pathlib import Path
+from shutil import copyfile, move
+import shutil
 
-    def __init__(self):
-        super(QtWidgets.QDialog, self).__init__()
-        self.init_dialog()
+# Image Procressing Library
+import cv2
+import numpy as np
+import pyautogui
 
-    def init_dialog(self):
-        self.setObjectName("ProgressBarDialog")
-        self.resize(350,150)
-        print("Initializing Progress Bar Dialog")
-        self.setWindowTitle("Progress Bar")
-        self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
-        self.relocate()
+# GUI Automation Library
+import pywinauto
 
+from skore_program_controller import output_address, setting_read, rect_to_int, click_center_try, clean_temp_folder
 
-        self.progress = QProgressBar(self)
-        self.progress.setGeometry(60,40,270,25)
+def auto_anthemscore(user_input_address_anth, destination_address, file_type, file_conversion_user_control):
 
-        self.current_action_label = QtWidgets.QLabel(self)
-        self.current_action_label.setGeometry(QtCore.QRect(60,70,270,25))
-        self.current_action_label.setObjectName("current_action_label")
-        self.current_action_label.setText("Current Action: None")
+    [end_address, filename] = output_address(user_input_address_anth, destination_address, file_type)
 
-        #self.quit_pushButton = QPushButton("Quit",self)
-        #self.quit_pushButton.setGeometry(193,100,100,30)
+    if file_type == '.pdf':
+        end_address_mid, trash = output_address(user_input_address_anth, destination_address, '.mid')
+    else:
+        end_address_mid = end_address
 
-        print("Finished Initializing Progress Bar Dialog")
+    if file_conversion_user_control == False and file_type != '.pdf':
+        print("Easy")
+        os.system(r'AnthemScore -a ' + user_input_address_anth + ' -m ' + end_address)
+    else:
+        print("Difficult")
+        ant_app_exe_path = setting_read('ant_app_exe_path')
+        ant_app = pywinauto.application.Application()
+        ant_app.start(ant_app_exe_path)
+        print("Initializing AnthemScore")
 
-        #self.show()
+        while(True):
+            try:
+                w_handle = pywinauto.findwindows.find_windows(title='AnthemScore')[0]
+                window = ant_app.window(handle=w_handle)
+                break
+            except IndexError:
+                time.sleep(0.2)
 
-    def relocate(self):
-        # Relocates the ProgressBarDialog in the center of the fourth quadrant
-        # of the screen. This is to ensure that the ProgressBarDialog does not
-        # affect the image processing to click the buttons.
+        # Clicking on file menu
+        window.wait('enabled')
+        time.sleep(0.5)
+        window.maximize()
+        original_rect_dimensions = window.rectangle()
+        ant_dimensions = rect_to_int(original_rect_dimensions)
+        click_center_try('file_button_anthem', ant_dimensions)
+        click_center_try('open_button_anthem', ant_dimensions)
 
-        frameGm = self.frameGeometry()
-        screen = QApplication.desktop().screenNumber(QApplication.desktop().cursor().pos())
-        centerPoint = QApplication.desktop().screenGeometry(screen).center()
-        x_center = centerPoint.x()
-        y_center = centerPoint.y()
-        x_desired = int(x_center + x_center/2)
-        y_desired = int(y_center + y_center/2)
-        centerPoint.setX(x_desired)
-        centerPoint.setY(y_desired)
-        frameGm.moveCenter(centerPoint)
-        self.move(frameGm.topLeft())
-        return
+        # Creating a window variable for File Browser Dialog
+        while(True):
+            try:
+                w_open_handle = pywinauto.findwindows.find_windows(title="Select File")[0]
+                w_open_window = ant_app.window(handle=w_open_handle)
+                break
+            except IndexError:
+                time.sleep(0.2)
 
-"""
-#Initializing Live Settings UI
-if __name__ == "__main__":
-    app = QtWidgets.QApplication(sys.argv)
-    dialog = ProgressBarDialog()
-    app.exec_()
-"""
+        # Entering the user's input file
+        w_open_window.type_keys(user_input_address_anth)
+        w_open_window.type_keys("{ENTER}")
+
+        # Wait until the file has been processed
+        time.sleep(1)
+
+        # Creating a window variable for Select File Dialog
+        while(True):
+            try:
+                s_open_handle = pywinauto.findwindows.find_windows(title=u'Select File')[0]
+                s_open_window = ant_app.window(handle=s_open_handle)
+                break
+            except IndexError:
+                time.sleep(0.2)
+
+        # Selecting Save As option
+        original_rect_dimensions = s_open_window.rectangle()
+        ant_open_dimensions = rect_to_int(original_rect_dimensions)
+        click_center_try('save_as_button_anthem', ant_open_dimensions)
+
+        # Creating a window variable for Save As Dialog
+        while(True):
+            try:
+                s_handle = pywinauto.findwindows.find_windows(title=u'Save As')[0]
+                s_window = ant_app.window(handle=s_handle)
+                break
+            except IndexError:
+                time.sleep(0.2)
+
+        s_window.type_keys(end_address)
+        s_window.type_keys("{ENTER}")
+        time.sleep(2.5)
+
+        click_center_try('ok_button_anthem', ant_open_dimensions)
+
+        # Creating a window variable for Viewer Dialog
+        while(True):
+            try:
+                v_handle = pywinauto.findwindows.find_windows(title=u'Viewer')[0]
+                v_window = ant_app.window(handle=v_handle)
+                break
+            except IndexError:
+                time.sleep(1)
+
+        print("File Processing Done")
+        v_window.close()
+
+        # Now actually saving the transformed files
+        click_center_try('file_button_anthem', ant_dimensions)
+        click_center_try('save_as_button2_anthem', ant_dimensions)
+
+        # Creating a window variable for Save As Dialog
+        while(True):
+            try:
+                s2_handle = pywinauto.findwindows.find_windows(title=u'Save As')[0]
+                s2_window = ant_app.window(handle=s2_handle)
+                break
+            except IndexError:
+                time.sleep(0.2)
+
+        original_rect_dimensions = s2_window.rectangle()
+        ant_save_dimensions = rect_to_int(original_rect_dimensions)
+
+        # Selecting file type and saving the file
+        click_center_try('format_button_anthem', ant_save_dimensions)
+        if file_type == '.mid':
+            click_center_try('format_pdf_button_anthem', ant_save_dimensions)
+        elif file_type == '.pdf':
+            click_center_try('format_mid_button_anthem', ant_save_dimensions)
+        click_center_try('ok_button_anthem', ant_save_dimensions)
+
+        time.sleep(2)
+        ant_app.kill()
+
+    return end_address, end_address_mid
+
+file_name_test = r'C:\Users\daval\Documents\GitHub\SKORE\python\conversion_test\Original_MP3\OdeToJoy.mp3'
+destination_folder_test = r"C:\Users\daval\Documents\GitHub\SKORE\python\temp"
+file_type_test = '.mid'
+file_conversion_user_control_test = False
+
+clean_temp_folder()
+auto_anthemscore(file_name_test, destination_folder_test, file_type_test, file_conversion_user_control_test)

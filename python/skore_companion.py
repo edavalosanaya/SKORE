@@ -754,6 +754,10 @@ class Companion_Dialog(QtWidgets.QDialog):
         self.setObjectName("Dialog")
         self.resize(420, 250)
         self.setWindowTitle("SKORE Companion")
+        self.setStyleSheet("""
+            background-color: rgb(50,50,50);
+            color: white;
+            """)
         # Making SKORE Companion always ontop
         self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
         # Removing the close button

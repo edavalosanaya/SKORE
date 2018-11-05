@@ -802,6 +802,175 @@ def auto_xenoplay(user_input_address_xeno, destination_address):
 
 ################################################################################
 
+def auto_anthemscore(user_input_address_anth, destination_address, file_type, file_conversion_user_control):
+
+    progress_bar_values = [0,15,30,45,60,75,90,100]
+
+    # Obtaining the end address name
+    [end_address, filename] = output_address(user_input_address_anth, destination_address, file_type)
+
+    # Obtaining the resulting midi file location
+    if file_type == '.pdf':
+        end_address_mid, trash = output_address(user_input_address_anth, destination_address, '.mid')
+    else:
+        end_address_mid = end_address
+
+    # Determing the right path of conversion
+    if file_conversion_user_control == False and file_type != '.pdf':
+        progress_bar.current_action_label.setText("Initializing AnthemScore headless")
+        progress_bar.progress.setValue(progress_bar_values[0])
+        print("Easy")
+        #os.system(r'AnthemScore -a ' + user_input_address_anth + ' -m ' + end_address)
+        os.system("start \"\" cmd /c \"AnthemScore -a " + user_input_address_anth + " -m " + end_address)
+
+        # Waiting for the completion of the file conversion
+        output_file = Path(end_address)
+        progress_bar.current_action_label.setText("Waiting for output file conversion. Takes about a minute")
+        counter = 0
+        while(True):
+            if(output_file.is_file()):
+                time.sleep(0.1)
+                break
+            else:
+                time.sleep(0.5)
+                counter += 0.5
+                if counter == 100:
+                    counter = 90
+                progress_bar.progress.setValue(counter)
+    else:
+        print("Difficult")
+        ant_app_exe_path = setting_read('ant_app_exe_path')
+        ant_app = pywinauto.application.Application()
+        ant_app.start(ant_app_exe_path)
+        print("Initializing AnthemScore")
+        progress_bar.current_action_label.setText("Initializing AnthemScore GUI")
+        progress_bar.progress.setValue(progress_bar_values[0])
+
+        while(True):
+            try:
+                w_handle = pywinauto.findwindows.find_windows(title='AnthemScore')[0]
+                window = ant_app.window(handle=w_handle)
+                break
+            except IndexError:
+                time.sleep(0.2)
+
+        # Clicking on file menu
+        window.wait('enabled')
+        time.sleep(0.5)
+        window.maximize()
+        original_rect_dimensions = window.rectangle()
+        ant_dimensions = rect_to_int(original_rect_dimensions)
+        progress_bar.current_action_label.setText("Opening File Menu")
+        progress_bar.progress.setValue(progress_bar_values[1])
+        click_center_try('file_button_anthem', ant_dimensions)
+        click_center_try('open_button_anthem', ant_dimensions)
+
+        # Creating a window variable for File Browser Dialog
+        while(True):
+            try:
+                w_open_handle = pywinauto.findwindows.find_windows(title="Select File")[0]
+                w_open_window = ant_app.window(handle=w_open_handle)
+                break
+            except IndexError:
+                time.sleep(0.2)
+
+        # Entering the user's input file
+        progress_bar.current_action_label.setText("Entering Input File")
+        progress_bar.progress.setValue(progress_bar_values[2])
+        w_open_window.type_keys(user_input_address_anth)
+        w_open_window.type_keys("{ENTER}")
+
+        # Wait until the file has been processed
+        time.sleep(1)
+
+        # Creating a window variable for Select File Dialog
+        while(True):
+            try:
+                s_open_handle = pywinauto.findwindows.find_windows(title=u'Select File')[0]
+                s_open_window = ant_app.window(handle=s_open_handle)
+                break
+            except IndexError:
+                time.sleep(0.2)
+
+        # Selecting Save As option
+        original_rect_dimensions = s_open_window.rectangle()
+        ant_open_dimensions = rect_to_int(original_rect_dimensions)
+        click_center_try('save_as_button_anthem', ant_open_dimensions)
+
+        # Creating a window variable for Save As Dialog
+        while(True):
+            try:
+                s_handle = pywinauto.findwindows.find_windows(title=u'Save As')[0]
+                s_window = ant_app.window(handle=s_handle)
+                break
+            except IndexError:
+                time.sleep(0.2)
+
+        progress_bar.current_action_label.setText("Selecting Destination Location")
+        progress_bar.progress.setValue(progress_bar_values[3])
+        s_window.type_keys(end_address)
+        s_window.type_keys("{ENTER}")
+        time.sleep(2.5)
+
+        click_center_try('ok_button_anthem', ant_open_dimensions)
+        progress_bar.current_action_label.setText("Transcribing input file")
+        progress_bar.progress.setValue(progress_bar_values[4])
+
+        # Creating a window variable for Viewer Dialog
+        while(True):
+            try:
+                v_handle = pywinauto.findwindows.find_windows(title=u'Viewer')[0]
+                v_window = ant_app.window(handle=v_handle)
+                break
+            except IndexError:
+                time.sleep(1)
+
+        print("File Processing Done")
+        v_window.close()
+
+        if user_input_address_anth[-4:] != '.mid':
+
+            # Now actually saving the transformed files
+            progress_bar.current_action_label.setText("Saving other useful file types")
+            progress_bar.progress.setValue(progress_bar_values[5])
+            click_center_try('file_button_anthem', ant_dimensions)
+            click_center_try('save_as_button2_anthem', ant_dimensions)
+
+            # Creating a window variable for Save As Dialog
+            while(True):
+                try:
+                    s2_handle = pywinauto.findwindows.find_windows(title=u'Save As')[0]
+                    s2_window = ant_app.window(handle=s2_handle)
+                    break
+                except IndexError:
+                    time.sleep(0.2)
+
+            original_rect_dimensions = s2_window.rectangle()
+            ant_save_dimensions = rect_to_int(original_rect_dimensions)
+
+            # Selecting file type and saving the file
+            click_center_try('format_button_anthem', ant_save_dimensions)
+
+            if file_type == '.mid':
+                print("Clicked on pdf")
+                click_center_try('format_pdf_button_anthem', ant_save_dimensions)
+            elif file_type == '.pdf':
+                click_center_try('format_mid_button_anthem', ant_save_dimensions)
+                print("Clicked on mid")
+
+            click_center_try('ok_button_anthem', ant_save_dimensions)
+
+        progress_bar.current_action_label.setText("Closing AnthemScore")
+        progress_bar.progress.setValue(progress_bar_values[6])
+        time.sleep(2)
+        ant_app.kill()
+
+    progress_bar.current_action_label.setText("File Conversion Complete")
+    progress_bar.progress.setValue(progress_bar_values[7])
+    return end_address, end_address_mid
+
+################################################################################
+
 def start_red_dot_forever():
     # This function simply starts the red dot forever application
 
@@ -828,11 +997,17 @@ def mp3_to_pdf(mp3_input):
     # This function converts a .mp3 to .pdf
 
     global amazing_midi_tune
+    mp3_2_midi_converter_setting = setting_read('mp3_2_midi_converter')
+    file_conversion_user_control = eval(setting_read('file_conversion_user_control'))
 
     clean_temp_folder()
-    converted_wav_input = auto_audacity(mp3_input,temp_folder_path)
-    converted_mid_input = auto_amazing_midi(converted_wav_input, temp_folder_path, amazing_midi_tune)
-    converted_pdf_input = auto_midi_music_sheet(converted_mid_input, temp_folder_path)
+    if mp3_2_midi_converter_setting == 'amazingmidi':
+        converted_wav_input = auto_audacity(mp3_input,temp_folder_path)
+        converted_mid_input = auto_amazing_midi(converted_wav_input, temp_folder_path, amazing_midi_tune)
+        converted_pdf_input = auto_midi_music_sheet(converted_mid_input, temp_folder_path)
+    elif mp3_2_midi_converter_setting == 'anthemscore':
+        converted_pdf_input, converted_mid_input = auto_anthemscore(mp3_input, temp_folder_path, '.pdf', file_conversion_user_control)
+
     print("Overall .mp3 -> .pdf complete")
     return converted_mid_input
 
@@ -840,18 +1015,28 @@ def mp3_to_mid(mp3_input):
     # This function converts a .mp3 to .mid
 
     global amazing_midi_tune
+    mp3_2_midi_converter_setting = setting_read('mp3_2_midi_converter')
+    file_conversion_user_control = eval(setting_read('file_conversion_user_control'))
 
     clean_temp_folder()
-    converted_wav_input = auto_audacity(mp3_input, temp_folder_path)
-    converted_mid_input = auto_amazing_midi(converted_wav_input, temp_folder_path, amazing_midi_tune)
+    if mp3_2_midi_converter_setting == 'amazingmidi':
+        converted_wav_input = auto_audacity(mp3_input, temp_folder_path)
+        converted_mid_input = auto_amazing_midi(converted_wav_input, temp_folder_path, amazing_midi_tune)
+    elif mp3_2_midi_converter_setting == 'anthemscore':
+        converted_mid_input, trash = auto_anthemscore(mp3_input, temp_folder_path, '.mid', file_conversion_user_control)
     print("Overall .mp3 -> .mid complete")
     return converted_mid_input
 
 def mid_to_pdf(mid_input):
     # This function converts a .mid to .pdf
+    mp3_2_midi_converter_setting = setting_read('mp3_2_midi_converter')
+    file_conversion_user_control = eval(setting_read('file_conversion_user_control'))
 
     clean_temp_folder()
-    converted_pdf_input = auto_midi_music_sheet(mid_input, temp_folder_path)
+    if mp3_2_midi_converter_setting == 'amazingmidi':
+        converted_pdf_input = auto_midi_music_sheet(mid_input, temp_folder_path)
+    elif mp3_2_midi_converter_setting == 'anthemscore':
+        converted_pdf_input = auto_anthemscore(mid_input, temp_folder_path, '.pdf', file_conversion_user_control)
     print("Overall .mid -> .pdf complete")
     return mid_input
 

@@ -101,6 +101,10 @@ class SettingsDialog(QtWidgets.QDialog):
 
         self.resize(530, 679)
         self.setWindowTitle("SKORE Settings")
+        self.setStyleSheet("""
+            background-color: rgb(50,50,50);
+            color: white;
+            """)
         self.buttonBox = QtWidgets.QDialogButtonBox(self)
         self.buttonBox.setGeometry(QtCore.QRect(310, 630, 201, 32))
         self.buttonBox.setLayoutDirection(QtCore.Qt.RightToLeft)

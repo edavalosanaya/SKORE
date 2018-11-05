@@ -1,5 +1,7 @@
 These are the settings for the SKORE application
 Please do not change any of this value, unless you know what you are doing.
+General Settings:
+file_conversion_user_control=r"False"
 Audiveris Settings:
 audi_app_exe_path=r"C:\Users\daval\audiveris"
 AmazingMIDI Settings:
@@ -15,9 +17,9 @@ xeno_app_exe_path=r"C:\Program Files (x86)\xenoplay-0-4-src"
 PianoBooster Settings:
 pia_app_exe_path=r"C:\Program Files (x86)\Piano Booster\pianobooster.exe"
 AnthemScore Settings:
-ant_app_exe_path=r"None"
+ant_app_exe_path=r"C:\Program Files (x86)\AnthemScore\AnthemScore.exe"
 MP3_to_MIDI Settings:
-mp3_2_midi_converter=r"amazingmidi"
+mp3_2_midi_converter=r"anthemscore"
 Port Settings:
 arduino_com_port=r"COM3"
 piano_port=r"CASIO USB-MIDI 1"
@@ -37,4 +39,4 @@ time_per_tick=r"0.01"
 manual_final_chord_sustain_timing=r"50"
 increment_counter=r"10"
 Tutoring Settings:
-midi_file_location=r"C:\Users\daval\Documents\GitHub\SKORE\python\conversion_test\10_note_sample.mid"
+midi_file_location=r"C:\Users\daval\Downloads\BioshockSoundtrack.mid"

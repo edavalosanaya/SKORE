@@ -4,7 +4,7 @@ import os
 
 # PyQt5, GUI LIbrary
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QAction, QMainWindow, QInputDialog, QLineEdit, QFileDialog, QMessageBox, QLabel, QProgressBar
+from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QAction, QMainWindow, QInputDialog, QLineEdit, QFileDialog, QMessageBox, QLabel, QProgressBar, QStyleFactory
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot
 
@@ -44,6 +44,11 @@ class Skore(QtWidgets.QMainWindow):
     def setupUI(self):
         self.setObjectName("MainWindow")
         self.resize(916,530)
+        self.setStyleSheet("""
+            background-color: rgb(50,50,50);
+            color: white;
+            """)
+
         self.centralwidget = QtWidgets.QWidget(self)
         self.centralwidget.setObjectName("centralwidget")
 
@@ -340,13 +345,21 @@ class ProgressBarDialog(QtWidgets.QDialog):
         self.setWindowTitle("Progress Bar")
         self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
         self.relocate()
-
+        self.setStyleSheet("""
+            background-color: rgb(50,50,50);
+            color: white;
+            """)
 
         self.progress = QProgressBar(self)
-        self.progress.setGeometry(60,40,270,25)
+        self.progress.setGeometry(40,40,250,25)
+        self.progress.setStyleSheet("""
+        .QProgressBar {
+            color: red;
+        }
+        """)
 
         self.current_action_label = QtWidgets.QLabel(self)
-        self.current_action_label.setGeometry(QtCore.QRect(60,70,270,25))
+        self.current_action_label.setGeometry(QtCore.QRect(40,70,250,25))
         self.current_action_label.setObjectName("current_action_label")
         self.current_action_label.setText("Current Action: None")
 
@@ -381,6 +394,9 @@ class ProgressBarDialog(QtWidgets.QDialog):
 if __name__ == "__main__":
     import sys
     app = QtWidgets.QApplication(sys.argv)
+    list = QStyleFactory.keys()
+    #print(list)
+    app.setStyle(QStyleFactory.create(list[2])) #Fusion
     ui = Skore()
     ui.show()
     sys.exit(app.exec_())
