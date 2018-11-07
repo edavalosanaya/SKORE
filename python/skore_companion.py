@@ -34,8 +34,8 @@ comm_thread_delay = 0.001
 #coord_thread_delay = 0.05
 coord_thread_delay = 0.01
 click_thread_delay = 0.5
-button_thread_delay = 0.5
-tutor_thread_delay = 0.1
+button_thread_delay = 0.2
+tutor_thread_delay = 0.2
 
 
 # ClickThread and CoordinateThread Variables
@@ -67,6 +67,7 @@ piano_size = []
 # TutorThread Variables
 current_keyboard_state = []
 target_keyboard_state = []
+desired_notes_pressed = []
 sequence = []
 
 #chord_timing_tolerance = 10
@@ -105,8 +106,6 @@ class TutorThread(QThread):
 
     def run(self):
 
-        ################################MIDI FIlE SETUP#########################
-
         def midi_setup():
             # This fuction deletes pre-existing MIDI files and places the new desired MIDI
             # file into the cwd of tutor.py . Then it converts the midi information
@@ -144,6 +143,7 @@ class TutorThread(QThread):
 
             #Obtaining the note event info for the mid file
             sequence = midi_to_note_event_info(mid_file)
+            print(sequence)
             return 1
 
         def midi_to_note_event_info(mid_file):
@@ -168,25 +168,25 @@ class TutorThread(QThread):
 
         ##############################UTILITY FUNCTIONS#########################
 
-        def keyboard_equal(list1,list2):
-            # This function checks if all the elements in list1 are at least
-            # found in list2 returns 1 if yes, 0 for no.
+        def keyboard_valid():
+            #current_keyboard_state = []
+            #target_keyboard_state = []
+            #desired_notes_pressed = []
+            global desired_notes_pressed
 
-            # The goal of this function is to match the way PianoBooster accepts
-            # additional incorrect notes. I realized that PianoBooster has the
-            # tolerance of one wrong note per event. Meaning that if a event
-            # requires 3 notes to be played, PianoBooster would accept 4 notes but
-            # not 5.
+            print(current_keyboard_state, end = '')
+            print(target_keyboard_state, end = '')
+            print(desired_notes_pressed)
+            target_keyboard_state.sort()
+            desired_notes_pressed.sort()
 
-            if list1 == [] and list2 != []:
+            if target_keyboard_state == desired_notes_pressed and len(current_keyboard_state) <= len(desired_notes_pressed) + 1:
+                print("acceptable")
+                desired_notes_pressed = []
+                return 1
+
+            else:
                 return 0
-
-            for element in list1:
-                if element in list2:
-                    continue
-                else:
-                    return 0
-            return 1
 
         #############################TUTORING UTILITY FUNCTIONS#################
 
@@ -349,31 +349,25 @@ class TutorThread(QThread):
 
                         chord_event_skip = final_delay_location - event_counter
 
+                    if target_keyboard_state == []:
+                        continue
+
                     print("Target " + str(target_keyboard_state))
                     arduino_comm(target_keyboard_state)
 
-                    """
-                    while(counter < note_delay):
-                    #while(counter):
-                        if keyboard_equal(target_keyboard_state,current_keyboard_state):
-                            #print("Same")
-                            counter += increment_counter
-                            #counter -= increment_counter
-                            time.sleep(time_per_tick)
-                            continue
-                        #print("Not Same")
-                    """
                     while(True):
                         time.sleep(tutor_thread_delay)
-                        if keyboard_equal(target_keyboard_state, current_keyboard_state):
+                        if live_setting_change:
+                            print("HEY THINGS CHANGED")
+                        if playing_state == False:
+                            print("play_state OFF")
+                        elif keyboard_valid():
                             break
-
             # Turn off all notes when song is over
             arduino_comm([-1])
 
         ###############################MAIN RUN CODE############################
-
-        print("Tutor Thread Enabled")
+        #threading.Thread(target=piano_comm).start()
 
         midi_setup()
         tutor_beginner()
@@ -455,7 +449,7 @@ class CommThread(QThread):
                 arduino.write(blackkey_message)
                 print("Arduino Setup Complete")
                 # THIS IS AN ISSUE IN HOW LONG IT TAKES FOR THE ARDUINO TO BE READY
-                time.sleep(10)
+                time.sleep(5)
                 return 1
 
             except serial.serialutil.SerialException:
@@ -540,9 +534,15 @@ class CommThread(QThread):
                         if note_info[0] == 144: # Note ON event
                             #current_keyboard_state.append(note_info[1])
                             safe_change_current_keyboard_state(note_info[1],1)
+                            if note_info[1] in target_keyboard_state:
+                                if note_info[1] not in desired_notes_pressed:
+                                    desired_notes_pressed.append(note_info[1])
                         else: # Note OFF event
                             #current_keyboard_state.remove(note_info[1])
                             safe_change_current_keyboard_state(note_info[1],0)
+                            if note_info[1] in target_keyboard_state:
+                                if note_info[1] in desired_notes_pressed:
+                                    desired_notes_pressed.remove(note_info[1])
 
                         print('current_keyboard_state: ' + str(current_keyboard_state))
 
@@ -711,6 +711,7 @@ class ButtonThread(QThread):
 
         while(True):
             time.sleep(button_thread_delay)
+            #print('a')
 
             # Processing button history
             if len(button_history) != len(processed_button_history):
@@ -718,37 +719,40 @@ class ButtonThread(QThread):
                 processed_button_history.append(button_history[processed_index])
 
                 for index, item in enumerate(all_qwidgets_names):
+                    #print(item)
                     if item == processed_button_history[processed_index]:
-                        if index <= 2: # Skill Selection
-                            print("Skill Change: " + item)
-                            skill = str(item)
-                            live_setting_change = True
-
-                        elif index > 2 and index <= 5: # Hand Selection
-                            print("Hands Change: " + item)
-                            hands = str(item)
-                            live_setting_change = True
-
-                        elif index > 5 and index <= 7: # Song and Book Combo
-                            print("Song and Combo Boxes were pressed. Please do not change the song")
-
-                        elif index == 8: # Play Button
+                        if index == 0: # Play Button
                             print("Play Change: " + item)
                             playing_state = not playing_state
                             live_setting_change = True
 
-                        elif index == 9: # Restart Button
+                        elif index == 1: # Restart Button
                             print("Restart Detected")
                             playing_state = True
                             restart = True
                             live_setting_change = True
 
-                        elif index > 9 and index <= 11: # Spin Boxes
+                        elif index == 2 or index == 3: # Spin Boxes
                             print("Spin Buttons Pressed")
                             if message_box_active == 0:
                                 self.button_signal.emit(item)
                             else:
                                 print("QInputDialog in use")
+
+                        elif index >= 4 and index <= 6: # Skill Selection
+                            print("Skill Change: " + item)
+                            skill = str(item)
+                            live_setting_change = True
+
+                        elif index > 6 and index <= 9: # Hand Selection
+                            print("Hands Change: " + item)
+                            hands = str(item)
+                            live_setting_change = True
+
+                        elif index == 10 or index == 11: # Song and Book Combo
+                            print("Song and Combo Boxes were pressed. Please do not change the song")
+
+
                         else:
                             print("Current Button: " + item + " is not functional yet")
 
@@ -1194,28 +1198,16 @@ class Companion_Dialog(QtWidgets.QDialog):
         looping_bars_popup_button = main_qwidget.loopingBarsPopupButton
 
         # Creating list easily address each qwidget
-        """
-        all_qwidgets = [listen_button, follow_you_button, play_along_button, right_hand,
-                        both_hands, left_hands, song_combo_button, book_combo_button,
-                        play_button, play_from_the_start_button, speed_spin_button,
-                        transpose_spin_button, start_bar_spin_button,
-                        looping_bars_popup_button, save_bar_button, key_combo_button]
 
-        all_qwidgets_names = ['listen_button', 'follow_you_button', 'play_along_button', 'right_hand',
-                              'both_hands', 'left_hands', 'song_combo_button', 'book_combo_button',
-                              'play_button', 'play_from_the_start_button', 'speed_spin_button',
-                              'transpose_spin_button', 'start_bar_spin_button',
-                              'looping_bars_popup_button', 'save_bar_button', 'key_combo_button']
-        """
         all_qwidgets = [play_button, play_from_the_start_button, speed_spin_button,
                         transpose_spin_button, listen_button, follow_you_button,
-                        play_along_button, right_hand,both_hands, left_hands,
+                        play_along_button, right_hand, both_hands, left_hands,
                         song_combo_button, book_combo_button, start_bar_spin_button,
                         looping_bars_popup_button, save_bar_button, key_combo_button]
 
         all_qwidgets_names = ['play_button', 'play_from_the_start_button', 'speed_spin_button',
                         'transpose_spin_button', 'listen_button', 'follow_you_button',
-                        'play_along_button', 'right_hand,both_hands', 'left_hands',
+                        'play_along_button', 'right_hand', 'both_hands', 'left_hands',
                         'song_combo_button', 'book_combo_button', 'start_bar_spin_button',
                         'looping_bars_popup_button', 'save_bar_button', 'key_combo_button']
 
