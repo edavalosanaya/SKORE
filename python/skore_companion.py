@@ -29,6 +29,15 @@ from shutil import copyfile
 # SKORE Library
 from skore_program_controller import setting_read, click_center_try, setting_write, rect_to_int
 
+# General Delay Values
+comm_thread_delay = 0.001
+#coord_thread_delay = 0.05
+coord_thread_delay = 0.01
+click_thread_delay = 0.5
+button_thread_delay = 0.5
+tutor_thread_delay = 0.1
+
+
 # ClickThread and CoordinateThread Variables
 pia_app = []
 
@@ -343,6 +352,7 @@ class TutorThread(QThread):
                     print("Target " + str(target_keyboard_state))
                     arduino_comm(target_keyboard_state)
 
+                    """
                     while(counter < note_delay):
                     #while(counter):
                         if keyboard_equal(target_keyboard_state,current_keyboard_state):
@@ -352,9 +362,14 @@ class TutorThread(QThread):
                             time.sleep(time_per_tick)
                             continue
                         #print("Not Same")
+                    """
+                    while(True):
+                        time.sleep(tutor_thread_delay)
+                        if keyboard_equal(target_keyboard_state, current_keyboard_state):
+                            break
 
             # Turn off all notes when song is over
-            arduino_comm([])
+            arduino_comm([-1])
 
         ###############################MAIN RUN CODE############################
 
@@ -514,7 +529,7 @@ class CommThread(QThread):
 
             try:
                 while(True):
-
+                    time.sleep(comm_thread_delay)
                     message = midi_in.get_message()
 
                     if message:
@@ -590,7 +605,7 @@ class CoordinateThread(QThread):
         int_dimensions = [0,0,0,0]
 
         while(True):
-            time.sleep(0.1)
+            time.sleep(coord_thread_delay)
 
             #print('x_coord_history: ' + str(x_coord_history))
             #print('y_coord_history: ' + str(y_coord_history))
@@ -607,29 +622,25 @@ class CoordinateThread(QThread):
 
                 for widget in all_qwidgets:
 
+                    #print(str(widget))
+
                     # Obtaining the dimensions of the qwidgets
+                    """
                     try:
-                        dimensions = str(widget.rectangle())
+                        #dimensions = str(widget.rectangle())
+                        dimensions = widget.rectangle()
                     except pywinauto.findbestmatch.MatchError:
                         return
                     except pyqintypes.error:
                         return
+                    """
+                    dimensions = widget.rectangle()
 
-                    # Editing the values of the dimensions to integers
-                    dimensions = dimensions[1:-1]
-                    dimensions = dimensions.split(',')
-
-                    for dimension in dimensions:
-
-                        int_dimension = dimension.replace("L","")
-                        int_dimension = int_dimension.replace("T","")
-                        int_dimension = int_dimension.replace("R","")
-                        int_dimension = int_dimension.replace("B","")
-                        int_dimension = int(int_dimension)
-                        int_dimensions[dimensions.index(dimension)] = int_dimension
+                    #print(dimensions)
+                    #print(type(dimensions))
 
                     # Checking if the mouse click is within the integer coordinates
-                    if processed_x_coord_history[processed_index_coord] > int_dimensions[0] and processed_x_coord_history[processed_index_coord] < int_dimensions[2] and processed_y_coord_history[processed_index_coord] > int_dimensions[1] and processed_y_coord_history[processed_index_coord] < int_dimensions[3]:
+                    if processed_x_coord_history[processed_index_coord] > dimensions.left and processed_x_coord_history[processed_index_coord] < dimensions.right and processed_y_coord_history[processed_index_coord] > dimensions.top and processed_y_coord_history[processed_index_coord] < dimensions.bottom:
                         # Found the qwidget
                         #print("QWidget Pressed Detected: " + str(all_qwidgets_names[all_qwidgets.index(widget)]))
                         button = all_qwidgets_names[all_qwidgets.index(widget)]
@@ -654,13 +665,11 @@ class ClickThread(QThread):
 
         print("Click Tracking Thread Enabled")
 
-        global click_event
-
         state_left = win32api.GetKeyState(0x01)  # Left button down = 0 or 1. Button up = -127 or -128
         state_right = win32api.GetKeyState(0x02)  # Right button down = 0 or 1. Button up = -127 or -128
 
         while True:
-
+            time.sleep(click_thread_delay)
             # Checking if the mouse has been clicked and obtain its coordinates
             a = win32api.GetKeyState(0x01)
             #b = win32api.GetKeyState(0x02)
@@ -673,6 +682,8 @@ class ClickThread(QThread):
                     c = 1
                 else:
                     x_coord, y_coord = win32api.GetCursorPos()
+                    #print("x_coord: " + str(x_coord), end = " ")
+                    #print("y_coord: " + str(y_coord))
                     x_coord_history.append(x_coord)
                     y_coord_history.append(y_coord)
 
@@ -695,9 +706,13 @@ class ButtonThread(QThread):
         global button_history, processed_button_history, processed_index, message_box_active
         global skill, hands, speed, playing_state, restart, tranpose, live_setting_change
 
-        while(True):
-            time.sleep(0.1)
+        global button_history, x_coord_history, y_coord_history, processed_index_coord
+        global processed_x_coord_history, processed_y_coord_history
 
+        while(True):
+            time.sleep(button_thread_delay)
+
+            # Processing button history
             if len(button_history) != len(processed_button_history):
 
                 processed_button_history.append(button_history[processed_index])
@@ -705,10 +720,12 @@ class ButtonThread(QThread):
                 for index, item in enumerate(all_qwidgets_names):
                     if item == processed_button_history[processed_index]:
                         if index <= 2: # Skill Selection
+                            print("Skill Change: " + item)
                             skill = str(item)
                             live_setting_change = True
 
                         elif index > 2 and index <= 5: # Hand Selection
+                            print("Hands Change: " + item)
                             hands = str(item)
                             live_setting_change = True
 
@@ -716,6 +733,7 @@ class ButtonThread(QThread):
                             print("Song and Combo Boxes were pressed. Please do not change the song")
 
                         elif index == 8: # Play Button
+                            print("Play Change: " + item)
                             playing_state = not playing_state
                             live_setting_change = True
 
@@ -856,14 +874,15 @@ class Companion_Dialog(QtWidgets.QDialog):
         self.piano_booster_setup()
 
         # Initializing PianoBooster App Open Check MultiThreading
-        self.check_open_app_thread = AppOpenThread()
-        self.check_open_app_thread.app_close_signal.connect(self.close_all_thread)
-        self.check_open_app_thread.start()
+        #self.check_open_app_thread = AppOpenThread()
+        #self.check_open_app_thread.app_close_signal.connect(self.close_all_thread)
+        #self.check_open_app_thread.start()
 
         # Initializing CLick MultiThreading
         self.click_tracking_thread = ClickThread()
         #self.click_tracking_thread.click_signal.connect(self.determine_button)
         self.click_tracking_thread.start()
+
 
         # Initializing Coordinate MultiThreading
         self.coord_tracking_thread = CoordinateThread()
@@ -874,10 +893,12 @@ class Companion_Dialog(QtWidgets.QDialog):
         self.user_tracking_thread.button_signal.connect(self.create_message_box)
         self.user_tracking_thread.start()
 
+
         # Initializing Piano and Arduino Communication
         self.comm_thread = CommThread()
         self.comm_thread.comm_setup_signal.connect(self.start_tutoring_thread)
         self.comm_thread.start()
+
 
         # Timing Tab Initialization
         self.settings_timing_read()
@@ -960,7 +981,8 @@ class Companion_Dialog(QtWidgets.QDialog):
         if playing_state == True:
             flag = 1
             print("Stoping app")
-            all_qwidgets[8].click()
+            #all_qwidgets[8].click()
+            all_qwidgets[0].click()
             playing_state = False
             live_setting_change = True
 
@@ -982,7 +1004,8 @@ class Companion_Dialog(QtWidgets.QDialog):
 
         if flag == 1:
             print("Continuing the app")
-            all_qwidgets[8].click()
+            #all_qwidgets[8].click()
+            all_qwidgets[0].click()
             playing_state = True
             live_setting_change = True
 
@@ -1005,7 +1028,7 @@ class Companion_Dialog(QtWidgets.QDialog):
         self.click_tracking_thread.terminate()
         self.coord_tracking_thread.terminate()
         self.user_tracking_thread.terminate()
-        self.check_open_app_thread.terminate()
+        #self.check_open_app_thread.terminate()
         self.comm_thread.terminate()
 
         try:
@@ -1029,7 +1052,7 @@ class Companion_Dialog(QtWidgets.QDialog):
         self.click_tracking_thread.terminate()
         self.coord_tracking_thread.terminate()
         self.user_tracking_thread.terminate()
-        self.check_open_app_thread.terminate()
+        #self.check_open_app_thread.terminate()
         self.comm_thread.terminate()
 
         try:
@@ -1074,11 +1097,11 @@ class Companion_Dialog(QtWidgets.QDialog):
         processed_y_coord_history = []
         processed_index_coord = 0
 
-        setting_write('live_setting_change','0')
-        setting_write('mode','beginner')
-        setting_write('playing_state','0')
-        setting_write('hand','both_hands')
-        setting_write('skill','follow_you_button')
+        #setting_write('live_setting_change','0')
+        #setting_write('mode','beginner')
+        #setting_write('playing_state','0')
+        #setting_write('hand','both_hands')
+        #setting_write('skill','follow_you_button')
 
         return
 
@@ -1171,6 +1194,7 @@ class Companion_Dialog(QtWidgets.QDialog):
         looping_bars_popup_button = main_qwidget.loopingBarsPopupButton
 
         # Creating list easily address each qwidget
+        """
         all_qwidgets = [listen_button, follow_you_button, play_along_button, right_hand,
                         both_hands, left_hands, song_combo_button, book_combo_button,
                         play_button, play_from_the_start_button, speed_spin_button,
@@ -1182,6 +1206,18 @@ class Companion_Dialog(QtWidgets.QDialog):
                               'play_button', 'play_from_the_start_button', 'speed_spin_button',
                               'transpose_spin_button', 'start_bar_spin_button',
                               'looping_bars_popup_button', 'save_bar_button', 'key_combo_button']
+        """
+        all_qwidgets = [play_button, play_from_the_start_button, speed_spin_button,
+                        transpose_spin_button, listen_button, follow_you_button,
+                        play_along_button, right_hand,both_hands, left_hands,
+                        song_combo_button, book_combo_button, start_bar_spin_button,
+                        looping_bars_popup_button, save_bar_button, key_combo_button]
+
+        all_qwidgets_names = ['play_button', 'play_from_the_start_button', 'speed_spin_button',
+                        'transpose_spin_button', 'listen_button', 'follow_you_button',
+                        'play_along_button', 'right_hand,both_hands', 'left_hands',
+                        'song_combo_button', 'book_combo_button', 'start_bar_spin_button',
+                        'looping_bars_popup_button', 'save_bar_button', 'key_combo_button']
 
         delay = 0.4
 

@@ -57,6 +57,37 @@ amazing_midi_tune = misc_folder_path + '\\' + 'piano0.wav'
 
 ################################FUNCTIONS#######################################
 
+def red_dot_address_conversion(address,file_name):
+
+    complete_path = os.path.dirname(os.path.abspath(__file__))
+    print(complete_path)
+    complete_path_list = complete_path.split('\\')
+    print(complete_path_list)
+    this_pc_address = complete_path_list[0] + '\\' + complete_path_list[1] + '\\' + complete_path_list[2] + '\\'
+    print(this_pc_address)
+
+    root_path = str(address[0])
+    root_file_name = str(file_name[0])
+    root_path = root_path.split(' ')[1]
+    root_path = root_path.replace(" ", "")
+
+    print("Root Data")
+    print(root_path)
+    print(root_file_name)
+
+    if root_file_name.find('.') == -1:
+        root_file_name = root_file_name + '.mid'
+
+    if root_path[0] != 'C':
+        print("This PC address detected")
+        root_path = this_pc_address + root_path
+
+    complete_address = root_path + '\\' + root_file_name
+    print("Complete Address: ", end = '')
+    print(complete_address)
+
+    return complete_address
+
 def output_address(input_address, final_address, end_file_extension):
     # This function obtains the input_address of a file, and uses the final address
     # to create the address of the output of the file conversion, including extension
@@ -78,23 +109,17 @@ def rect_to_int(rect_dimensions):
 
     int_dimensions = [0,0,0,0]
 
-    dimensions = str(rect_dimensions)
-    dimensions = dimensions[1:-1]
-    dimensions = dimensions.split(',')
-
-    for dimension in dimensions:
-
-        int_dimension = dimension.replace("L","")
-        int_dimension = int_dimension.replace("T","")
-        int_dimension = int_dimension.replace("R","")
-        int_dimension = int_dimension.replace("B","")
-        int_dimension = int(int_dimension)
-        int_dimensions[dimensions.index(dimension)] = int_dimension
+    dimensions = rect_dimensions
 
     tolerance = 10
 
-    int_dimensions[2] = int_dimensions[2] - int_dimensions[0] + tolerance
-    int_dimensions[3] = int_dimensions[3] - int_dimensions[1] + tolerance
+    int_dimensions[0] = dimensions.left
+    int_dimensions[1] = dimensions.top
+    int_dimensions[2] = dimensions.right - dimensions.left + tolerance
+    int_dimensions[3] = dimensions.bottom - dimensions.top + tolerance
+
+    #int_dimensions[2] = int_dimensions[2] - int_dimensions[0] + tolerance
+    #int_dimensions[3] = int_dimensions[3] - int_dimensions[1] + tolerance
 
     #print(int_dimensions)
 
@@ -321,7 +346,7 @@ def is_pdf(file_path):
 
 #################################AUTO FUNCTIONS#################################
 
-def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address):
+def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address, file_conversion_user_control):
     # This function does the .wav to .mid file conversions
 
     if conversion_identifier == 'mp3_to_pdf':
@@ -352,7 +377,8 @@ def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address
     window.menu_item(u'&File->&Specify Tone File...').click()
 
     # Entering the tone file's address
-    t_handle = pywinauto.findwindows.find_windows(title='Specify Tone File')[0]
+    #t_handle = pywinauto.findwindows.find_windows(title='Specify Tone File')[0]
+    t_handle = pywinauto.findwindows.find_windows(parent=w_handle)[0]
     t_window = ama_app.window(handle=t_handle)
 
     t_window.type_keys(tone_address)
@@ -364,7 +390,8 @@ def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address
     window.menu_item(u'&File->&Specify Input File...').click()
 
     # Entering the user input file's address
-    i_handle = pywinauto.findwindows.find_windows(title='Specify Input File')[0]
+    #i_handle = pywinauto.findwindows.find_windows(title='Specify Input File')[0]
+    i_handle = pywinauto.findwindows.find_windows(parent=w_handle)[0]
     i_window = ama_app.window(handle=i_handle)
 
     i_window.type_keys(user_input_address_amaz)
@@ -376,7 +403,8 @@ def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address
     window.menu_item(u'&File->&Specify Output File...').click()
 
     # Entering the output file's end_address
-    o_handle = pywinauto.findwindows.find_windows(title='Specify Output File')[0]
+    #o_handle = pywinauto.findwindows.find_windows(title='Specify Output File')[0]
+    o_handle = pywinauto.findwindows.find_windows(parent=w_handle)[0]
     o_window = ama_app.window(handle=o_handle)
 
     o_window.type_keys(end_address)
@@ -390,8 +418,12 @@ def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address
     window.menu_item(u'&Transcribe->&Transcribe...').click()
 
     # Entering Transcribe Options
-    to_handle = pywinauto.findwindows.find_windows(title='Transcribe')[0]
+    #to_handle = pywinauto.findwindows.find_windows(title='Transcribe')[0]
+    to_handle = pywinauto.findwindows.find_windows(parent=w_handle)[0]
     to_window = ama_app.window(handle=to_handle)
+
+    # Need to ask the user if they wish to manually change the features of the
+    # conversion here
 
     to_window.type_keys('{ENTER}')
     progress_bar.current_action_label.setText("Transcribing WAV files into MIDI")
@@ -440,7 +472,8 @@ def auto_audacity(user_input_address_auda,destination_address):
     # Creating a window variable for File Browser
     while(True):
         try:
-            w_open_handle = pywinauto.findwindows.find_windows(title='Select one or more audio files...')[0]
+            #w_open_handle = pywinauto.findwindows.find_windows(title='Select one or more audio files...')[0]
+            w_open_handle = pywinauto.findwindows.find_windows(parent = w_handle)[0]
             w_open = aud_app.window(handle=w_open_handle)
             break
         except IndexError:
@@ -458,9 +491,11 @@ def auto_audacity(user_input_address_auda,destination_address):
 
     # Export the file
     window.menu_item('&File->Export Audio ...').click()
+
     while(True):
         try:
-            w_export_handle = pywinauto.findwindows.find_windows(title='Export Audio')[0]
+            #w_export_handle = pywinauto.findwindows.find_windows(title='Export Audio')[0]
+            w_export_handle = pywinauto.findwindows.find_windows(parent = w_handle)[0]
             w_export = aud_app.window(handle=w_export_handle)
             break
         except IndexError:
@@ -524,7 +559,8 @@ def auto_midi_music_sheet(user_input_address_midi,destination_address):
     # Entering the input file's address
     while(True):
         try:
-            o_handle = pywinauto.findwindows.find_windows(title='Open')[0]
+            #o_handle = pywinauto.findwindows.find_windows(title='Open')[0]
+            o_handle = pywinauto.findwindows.find_windows(parent=w_handle)[0]
             o_window = midi_app.window(handle=o_handle)
             break
         except IndexError:
@@ -545,7 +581,8 @@ def auto_midi_music_sheet(user_input_address_midi,destination_address):
 
     while(True):
         try:
-            s_handle = pywinauto.findwindows.find_windows(title='Save As')[0]
+            #s_handle = pywinauto.findwindows.find_windows(title='Save As')[0]
+            s_handle = pywinauto.findwindows.find_windows(parent=w_handle)[0]
             s_window = midi_app.window(handle=s_handle)
             break
         except IndexError:
@@ -746,7 +783,8 @@ def auto_xenoplay(user_input_address_xeno, destination_address):
     #time.sleep(1)
     while(True):
         try:
-            o_handle = pywinauto.findwindows.find_windows(title='Open')[0]
+            #o_handle = pywinauto.findwindows.find_windows(title='Open')[0]
+            o_handle = pywinauto.findwindows.find_windows(parent=w_handle)[0]
             o_window = xeno_app.window(handle=o_handle)
             break
         except IndexError:
@@ -778,7 +816,8 @@ def auto_xenoplay(user_input_address_xeno, destination_address):
     #time.sleep(1)
     while(True):
         try:
-            s_handle = pywinauto.findwindows.find_windows(title='Save')[0]
+            #s_handle = pywinauto.findwindows.find_windows(title='Save')[0]
+            s_handle = pywinauto.findwindows.find_windows(parent=w_handle)[0]
             s_window = xeno_app.window(handle=s_handle)
             break
         except IndexError:
@@ -821,11 +860,10 @@ def auto_anthemscore(user_input_address_anth, destination_address, file_type, fi
         progress_bar.progress.setValue(progress_bar_values[0])
         print("Easy")
         #os.system(r'AnthemScore -a ' + user_input_address_anth + ' -m ' + end_address)
-        os.system("start \"\" cmd /c \"AnthemScore -a " + user_input_address_anth + " -m " + end_address)
-
+        os.system("start \"\" cmd /c \"AnthemScore -a " + user_input_address_anth + " -m " + end_address + "\"")
         # Waiting for the completion of the file conversion
         output_file = Path(end_address)
-        progress_bar.current_action_label.setText("Waiting for output file conversion. Takes about a minute")
+        progress_bar.current_action_label.setText("Waiting for output file conversion.")
         counter = 0
         while(True):
             if(output_file.is_file()):
@@ -835,7 +873,7 @@ def auto_anthemscore(user_input_address_anth, destination_address, file_type, fi
                 time.sleep(0.5)
                 counter += 0.5
                 if counter == 100:
-                    counter = 90
+                    counter = 80
                 progress_bar.progress.setValue(counter)
     else:
         print("Difficult")
@@ -868,7 +906,8 @@ def auto_anthemscore(user_input_address_anth, destination_address, file_type, fi
         # Creating a window variable for File Browser Dialog
         while(True):
             try:
-                w_open_handle = pywinauto.findwindows.find_windows(title="Select File")[0]
+                #w_open_handle = pywinauto.findwindows.find_windows(title="Select File")[0]
+                w_open_handle = pywinauto.findwindows.find_windows(parent=w_handle)[0]
                 w_open_window = ant_app.window(handle=w_open_handle)
                 break
             except IndexError:
@@ -886,7 +925,8 @@ def auto_anthemscore(user_input_address_anth, destination_address, file_type, fi
         # Creating a window variable for Select File Dialog
         while(True):
             try:
-                s_open_handle = pywinauto.findwindows.find_windows(title=u'Select File')[0]
+                #s_open_handle = pywinauto.findwindows.find_windows(title=u'Select File')[0]
+                s_open_handle = pywinauto.findwindows.find_windows(parent=w_handle)[0]
                 s_open_window = ant_app.window(handle=s_open_handle)
                 break
             except IndexError:
@@ -900,7 +940,8 @@ def auto_anthemscore(user_input_address_anth, destination_address, file_type, fi
         # Creating a window variable for Save As Dialog
         while(True):
             try:
-                s_handle = pywinauto.findwindows.find_windows(title=u'Save As')[0]
+                #s_handle = pywinauto.findwindows.find_windows(title=u'Save As')[0]
+                s_handle = pywinauto.findwindows.find_windows(parent=w_handle)[0]
                 s_window = ant_app.window(handle=s_handle)
                 break
             except IndexError:
@@ -919,7 +960,8 @@ def auto_anthemscore(user_input_address_anth, destination_address, file_type, fi
         # Creating a window variable for Viewer Dialog
         while(True):
             try:
-                v_handle = pywinauto.findwindows.find_windows(title=u'Viewer')[0]
+                #v_handle = pywinauto.findwindows.find_windows(title=u'Viewer')[0]
+                v_handle = pywinauto.findwindows.find_windows(parent=w_handle)[0]
                 v_window = ant_app.window(handle=v_handle)
                 break
             except IndexError:
@@ -927,6 +969,9 @@ def auto_anthemscore(user_input_address_anth, destination_address, file_type, fi
 
         print("File Processing Done")
         v_window.close()
+
+        # Need to ask the user if they wish to manually change the features of the
+        # conversion here
 
         if user_input_address_anth[-4:] != '.mid':
 
@@ -939,7 +984,8 @@ def auto_anthemscore(user_input_address_anth, destination_address, file_type, fi
             # Creating a window variable for Save As Dialog
             while(True):
                 try:
-                    s2_handle = pywinauto.findwindows.find_windows(title=u'Save As')[0]
+                    #s2_handle = pywinauto.findwindows.find_windows(title=u'Save As')[0]
+                    s2_handle = pywinauto.findwindows.find_windows(parent=w_handle)[0]
                     s2_window = ant_app.window(handle=s2_handle)
                     break
                 except IndexError:
@@ -1003,7 +1049,7 @@ def mp3_to_pdf(mp3_input):
     clean_temp_folder()
     if mp3_2_midi_converter_setting == 'amazingmidi':
         converted_wav_input = auto_audacity(mp3_input,temp_folder_path)
-        converted_mid_input = auto_amazing_midi(converted_wav_input, temp_folder_path, amazing_midi_tune)
+        converted_mid_input = auto_amazing_midi(converted_wav_input, temp_folder_path, amazing_midi_tune, file_conversion_user_control)
         converted_pdf_input = auto_midi_music_sheet(converted_mid_input, temp_folder_path)
     elif mp3_2_midi_converter_setting == 'anthemscore':
         converted_pdf_input, converted_mid_input = auto_anthemscore(mp3_input, temp_folder_path, '.pdf', file_conversion_user_control)
@@ -1021,7 +1067,7 @@ def mp3_to_mid(mp3_input):
     clean_temp_folder()
     if mp3_2_midi_converter_setting == 'amazingmidi':
         converted_wav_input = auto_audacity(mp3_input, temp_folder_path)
-        converted_mid_input = auto_amazing_midi(converted_wav_input, temp_folder_path, amazing_midi_tune)
+        converted_mid_input = auto_amazing_midi(converted_wav_input, temp_folder_path, amazing_midi_tune, file_conversion_user_control)
     elif mp3_2_midi_converter_setting == 'anthemscore':
         converted_mid_input, trash = auto_anthemscore(mp3_input, temp_folder_path, '.mid', file_conversion_user_control)
     print("Overall .mp3 -> .mid complete")

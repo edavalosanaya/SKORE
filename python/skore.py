@@ -53,13 +53,11 @@ class Skore(QtWidgets.QMainWindow):
         self.centralwidget.setObjectName("centralwidget")
 
 ###############################Main Buttons#####################################
-
         #Upload Button
         self.uploadAudioFile_toolButton = QtWidgets.QToolButton(self.centralwidget)
         self.uploadAudioFile_toolButton.setGeometry(QtCore.QRect(20, 20, 421, 171))
         self.uploadAudioFile_toolButton.setObjectName("uploadAudioFile_toolButton")
         self.uploadAudioFile_toolButton.clicked.connect(self.upload_file)
-
 
         #Record Button
         self.record_toolButton = QtWidgets.QToolButton(self.centralwidget)
@@ -152,6 +150,8 @@ class Skore(QtWidgets.QMainWindow):
         self.saveGeneratedFiles_pushButton.setText(_translate("MainWindow", "Save Generated Files"))
 
     def closeEvent(self, event):
+        # Closes any open threads and additional GUIs
+
         try:
             self.skore_companion_dialog.close()
             print("skore_copanion_dialog closure successful")
@@ -170,14 +170,28 @@ class Skore(QtWidgets.QMainWindow):
         except:
             print("dialog closure failed")
 
+        try:
+            self.red_dot_thread.terminate()
+            print("Red Dot Thread termination successful")
+        except:
+            print("Red Dot Thread termination failed")
         return
 
 ################################################################################
 
     def open_red_dot_forever(self):
-        # This function start red dot forever
+        # This function start red dot forever thread
 
-        start_red_dot_forever()
+        self.red_dot_thread = RedDotThread()
+        self.red_dot_thread.start()
+        self.red_dot_thread.red_dot_signal.connect(self.red_dot_forever_translate)
+
+        return
+
+    def red_dot_forever_translate(self):
+
+        self.retranslateUi()
+
         return
 
     def open_pianobooster(self):
@@ -291,7 +305,7 @@ class Skore(QtWidgets.QMainWindow):
         # This file dialog is used to obtain the file location of the .mid, .mp3,
         # and .pdf file.
 
-        fileName, _ = QFileDialog.getOpenFileName(caption = "Select Audio File", filter = "MIDI files (*.mid);;MP3 Files (*.mp3);;PDF files (*.pdf)")
+        fileName, _ = QFileDialog.getOpenFileName(caption = "Select Audio File", filter = "All Supported Files (*.mid *.mp3 *.pdf);;All Files (*.*);;MIDI Files(*.mid);;MP3 Files(*.mp3);;PDF Files (*.pdf)")
 
         if fileName:
             file_dialog_output = str(fileName)
@@ -344,6 +358,7 @@ class ProgressBarDialog(QtWidgets.QDialog):
         print("Initializing Progress Bar Dialog")
         self.setWindowTitle("Progress Bar")
         self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
+        self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
         self.relocate()
         self.setStyleSheet("""
             background-color: rgb(50,50,50);
@@ -386,6 +401,97 @@ class ProgressBarDialog(QtWidgets.QDialog):
         centerPoint.setY(y_desired)
         frameGm.moveCenter(centerPoint)
         self.move(frameGm.topLeft())
+        return
+
+################################################################################
+
+class RedDotThread(QThread):
+    # This thread checks and determines the address given for the midi file
+    # recorded by Red Dot Forever. It successfully changes the upload_file
+    # variable and other necessary changes to account for any changes.
+
+    red_dot_signal = QtCore.pyqtSignal()
+
+    def __init__(self):
+        QThread.__init__(self)
+
+    def run(self):
+
+        global mid_file_obtained_path, upload_file_path, mid_file_obtained_event
+        address_list = []
+        filename_list = []
+        s_handle = []
+
+        red_app = pywinauto.application.Application()
+        red_app_exe_path = setting_read('red_app_exe_path')
+        red_app.start(red_app_exe_path)
+        print("Initialized Red Dot Forever")
+
+        while(True):
+            try:
+                w_handle = pywinauto.findwindows.find_windows(title="Red Dot Forever")[0]
+                window = red_app.window(handle=w_handle)
+                break
+            except IndexError:
+                time.sleep(0.2)
+
+
+        while(True):
+            try:
+                #s_handle = pywinauto.findwindows.find_windows(title="Save As")[0]
+                s_handle = pywinauto.findwindows.find_windows(parent=w_handle)[0]
+                s_window = red_app.window(handle=s_handle)
+                #print("Handle Found: " + str(s_handle))
+            except IndexError:
+                s_handle = []
+                #print("waiting")
+
+            if s_handle != []:
+                toolbarwindow = s_window.Toolbar4
+                edit = s_window.Edit
+                while(True):
+                    try:
+                        address_list = toolbarwindow.texts()
+                        #print(text[0])
+                        filename_list = edit.texts()
+                        #print(text2)
+                    except:
+                        break
+
+                # User is Saving!
+                #print("Address: " + str(text))
+                #print("File Name: " + str(text2))
+
+            # Checking if the Red Dot Forever application is running
+            processes = [p.name() for p in psutil.process_iter()]
+
+            for process in processes:
+                if process == 'reddot.exe':
+                    # Red Dot Forever is running
+                    break
+
+            if process != 'reddot.exe':
+                print("Red Dot Forever Closed")
+                break
+
+        if address_list == [] or filename_list == []:
+            return
+
+        print("Final Data")
+        print("Address: " + str(address_list))
+        print("File Name: " + str(filename_list))
+        red_dot_address = red_dot_address_conversion(address_list,filename_list)
+
+        output_file = Path(red_dot_address)
+        if(output_file.is_file()):
+            upload_file_path = red_dot_address
+            mid_file_obtained_path = upload_file_path
+            mid_file_obtained_event = 1
+            self.red_dot_signal.emit()
+
+        else:
+            print("red dot midi file not found")
+
         return
 
 #################################MAIN CODE######################################

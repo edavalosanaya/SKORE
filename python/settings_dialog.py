@@ -31,6 +31,7 @@ app_exe_setting_label = ['audi_app_exe_path','ama_app_exe_path','aud_app_exe_pat
 
 # Tutoring Tab Variables
 mp3_2_midi_choice = []
+file_conversion_choice = []
 color_lineedit = ['whitekey_r','whitekey_g','whitekey_b','blackkey_r','blackkey_g','blackkey_b']
 color_values = ['','','','','','']
 timing_lineedit = ['time_per_tick','increment_counter','chord_timing_tolerance','manual_final_chord_sustain_timing']
@@ -123,99 +124,157 @@ class SettingsDialog(QtWidgets.QDialog):
         self.path_tab = QtWidgets.QWidget()
         self.path_tab.setObjectName("path_tab")
 
-        self.pianobooster_pushButton = QtWidgets.QPushButton(self.path_tab)
-        self.pianobooster_pushButton.setGeometry(QtCore.QRect(400, 270, 93, 31))
-        self.pianobooster_pushButton.setObjectName("pianobooster_pushButton")
-        self.midiSheetMusic_lineEdit = QtWidgets.QLineEdit(self.path_tab)
-        self.midiSheetMusic_lineEdit.setGeometry(QtCore.QRect(10, 330, 381, 31))
-        self.midiSheetMusic_lineEdit.setObjectName("midiSheetMusic_lineEdit")
-        self.amazingmidi_lineEdit = QtWidgets.QLineEdit(self.path_tab)
-        self.amazingmidi_lineEdit.setGeometry(QtCore.QRect(10, 150, 381, 31))
-        self.amazingmidi_lineEdit.setObjectName("amazingmidi_lineEdit")
-        self.audiveris_label = QtWidgets.QLabel(self.path_tab)
-        self.audiveris_label.setGeometry(QtCore.QRect(10, 70, 101, 16))
-        self.audiveris_label.setObjectName("audiveris_label")
-        self.midiSheetMusic_pushButton = QtWidgets.QPushButton(self.path_tab)
-        self.midiSheetMusic_pushButton.setGeometry(QtCore.QRect(400, 330, 93, 31))
-        self.midiSheetMusic_pushButton.setObjectName("midiSheetMusic_pushButton")
-        self.audiveris_lineEdit = QtWidgets.QLineEdit(self.path_tab)
-        self.audiveris_lineEdit.setGeometry(QtCore.QRect(10, 90, 381, 31))
-        self.audiveris_lineEdit.setObjectName("audiveris_lineEdit")
-        self.reddotforever_lineEdit = QtWidgets.QLineEdit(self.path_tab)
-        self.reddotforever_lineEdit.setGeometry(QtCore.QRect(10, 210, 381, 31))
-        self.reddotforever_lineEdit.setObjectName("reddotforever_lineEdit")
-        self.audiveris_pushButton = QtWidgets.QPushButton(self.path_tab)
-        self.audiveris_pushButton.setGeometry(QtCore.QRect(400, 90, 93, 31))
-        self.audiveris_pushButton.setObjectName("audiveris_pushButton")
-        self.xenoplay_label = QtWidgets.QLabel(self.path_tab)
-        self.xenoplay_label.setGeometry(QtCore.QRect(10, 370, 121, 16))
-        self.xenoplay_label.setObjectName("xenoplay_label")
-        self.reddotforever_label = QtWidgets.QLabel(self.path_tab)
-        self.reddotforever_label.setGeometry(QtCore.QRect(10, 190, 131, 16))
-        self.reddotforever_label.setObjectName("reddotforever_label")
-        self.amazingmidi_label = QtWidgets.QLabel(self.path_tab)
-        self.amazingmidi_label.setGeometry(QtCore.QRect(10, 130, 121, 16))
-        self.amazingmidi_label.setObjectName("amazingmidi_label")
-        self.audacity_label = QtWidgets.QLabel(self.path_tab)
-        self.audacity_label.setGeometry(QtCore.QRect(10, 430, 191, 16))
-        self.audacity_label.setObjectName("audacity_label")
-        self.xenoplay_pushButton = QtWidgets.QPushButton(self.path_tab)
-        self.xenoplay_pushButton.setGeometry(QtCore.QRect(400, 390, 93, 31))
-        self.xenoplay_pushButton.setObjectName("xenoplay_pushButton")
-        self.reddotforever_pushButton = QtWidgets.QPushButton(self.path_tab)
-        self.reddotforever_pushButton.setGeometry(QtCore.QRect(400, 210, 93, 31))
-        self.reddotforever_pushButton.setObjectName("reddotforever_pushButton")
-        self.xenoplay_lineEdit = QtWidgets.QLineEdit(self.path_tab)
-        self.xenoplay_lineEdit.setGeometry(QtCore.QRect(10, 390, 381, 31))
-        self.xenoplay_lineEdit.setObjectName("xenoplay_lineEdit")
-        self.audacity_lineEdit = QtWidgets.QLineEdit(self.path_tab)
-        self.audacity_lineEdit.setGeometry(QtCore.QRect(10, 450, 381, 31))
-        self.audacity_lineEdit.setObjectName("audacity_lineEdit")
-        self.pianobooster_label = QtWidgets.QLabel(self.path_tab)
-        self.pianobooster_label.setGeometry(QtCore.QRect(10, 250, 121, 16))
-        self.pianobooster_label.setObjectName("pianobooster_label")
+        self.configurePath_label = QtWidgets.QLabel(self.path_tab)
+        self.configurePath_label.setGeometry(QtCore.QRect(10, 10, 231, 20))
+        self.configurePath_label.setObjectName("configurePath_label")
         self.path_line = QtWidgets.QFrame(self.path_tab)
-        self.path_line.setGeometry(QtCore.QRect(10, 30, 481, 20))
+        self.path_line.setGeometry(QtCore.QRect(10, 30, 481, 10))
         self.path_line.setFrameShape(QtWidgets.QFrame.HLine)
         self.path_line.setFrameShadow(QtWidgets.QFrame.Sunken)
         self.path_line.setObjectName("path_line")
-        self.amazingmidi_pushButton = QtWidgets.QPushButton(self.path_tab)
-        self.amazingmidi_pushButton.setGeometry(QtCore.QRect(400, 150, 93, 31))
-        self.amazingmidi_pushButton.setObjectName("amazingmidi_pushButton")
-        self.pianobooster_lineEdit = QtWidgets.QLineEdit(self.path_tab)
-        self.pianobooster_lineEdit.setGeometry(QtCore.QRect(10, 270, 381, 31))
-        self.pianobooster_lineEdit.setObjectName("pianobooster_lineEdit")
-        self.audacity_pushButton = QtWidgets.QPushButton(self.path_tab)
-        self.audacity_pushButton.setGeometry(QtCore.QRect(400, 450, 93, 31))
-        self.audacity_pushButton.setObjectName("audacity_pushButton")
-        self.midisheetmusic_label = QtWidgets.QLabel(self.path_tab)
-        self.midisheetmusic_label.setGeometry(QtCore.QRect(10, 310, 141, 16))
-        self.midisheetmusic_label.setObjectName("midisheetmusic_label")
-        self.configurePath_label = QtWidgets.QLabel(self.path_tab)
-        self.configurePath_label.setGeometry(QtCore.QRect(10, 20, 231, 16))
-        self.configurePath_label.setObjectName("configurePath_label")
-        self.anthemscore_label = QtWidgets.QLabel(self.path_tab)
-        self.anthemscore_label.setGeometry(QtCore.QRect(10, 490, 191, 16))
-        self.anthemscore_label.setObjectName("anthemscore_label")
-        self.anthemscore_pushButton = QtWidgets.QPushButton(self.path_tab)
-        self.anthemscore_pushButton.setGeometry(QtCore.QRect(400, 510, 93, 31))
-        self.anthemscore_pushButton.setObjectName("anthemscore_pushButton")
-        self.anthemscore_lineEdit = QtWidgets.QLineEdit(self.path_tab)
-        self.anthemscore_lineEdit.setGeometry(QtCore.QRect(10, 510, 381, 31))
-        self.anthemscore_lineEdit.setObjectName("anthemscore_lineEdit")
 
-        #Mp3 to Midi Converter Selection
+        label_lineEdit_diff = 20
+        lineEdit_label_diff = 40
+        audi_label_y = 40
+        audi_linedEdit_y = audi_label_y + label_lineEdit_diff
+
+        self.audiveris_label = QtWidgets.QLabel(self.path_tab)
+        self.audiveris_label.setGeometry(QtCore.QRect(10, audi_label_y, 101, 16))
+        self.audiveris_label.setObjectName("audiveris_label")
+        self.audiveris_lineEdit = QtWidgets.QLineEdit(self.path_tab)
+        self.audiveris_lineEdit.setGeometry(QtCore.QRect(10, audi_linedEdit_y, 381, 31))
+        self.audiveris_lineEdit.setObjectName("audiveris_lineEdit")
+        self.audiveris_pushButton = QtWidgets.QPushButton(self.path_tab)
+        self.audiveris_pushButton.setGeometry(QtCore.QRect(400, audi_linedEdit_y, 93, 31))
+        self.audiveris_pushButton.setObjectName("audiveris_pushButton")
+
+        ama_label_y = audi_linedEdit_y + lineEdit_label_diff
+        ama_linedEdit_y = ama_label_y + label_lineEdit_diff
+
+        self.amazingmidi_label = QtWidgets.QLabel(self.path_tab)
+        self.amazingmidi_label.setGeometry(QtCore.QRect(10, ama_label_y, 121, 16))
+        self.amazingmidi_label.setObjectName("amazingmidi_label")
+        self.amazingmidi_lineEdit = QtWidgets.QLineEdit(self.path_tab)
+        self.amazingmidi_lineEdit.setGeometry(QtCore.QRect(10, ama_linedEdit_y, 381, 31))
+        self.amazingmidi_lineEdit.setObjectName("amazingmidi_lineEdit")
+        self.amazingmidi_pushButton = QtWidgets.QPushButton(self.path_tab)
+        self.amazingmidi_pushButton.setGeometry(QtCore.QRect(400, ama_linedEdit_y, 93, 31))
+        self.amazingmidi_pushButton.setObjectName('amazingmidi_pushButton')
+
+        red_label_y = ama_linedEdit_y + lineEdit_label_diff
+        red_linedEdit_y = red_label_y + label_lineEdit_diff
+
+        self.reddotforever_label = QtWidgets.QLabel(self.path_tab)
+        self.reddotforever_label.setGeometry(QtCore.QRect(10, red_label_y, 131, 16))
+        self.reddotforever_label.setObjectName("reddotforever_label")
+        self.reddotforever_lineEdit = QtWidgets.QLineEdit(self.path_tab)
+        self.reddotforever_lineEdit.setGeometry(QtCore.QRect(10, red_linedEdit_y, 381, 31))
+        self.reddotforever_lineEdit.setObjectName("reddotforever_lineEdit")
+        self.reddotforever_pushButton = QtWidgets.QPushButton(self.path_tab)
+        self.reddotforever_pushButton.setGeometry(QtCore.QRect(400, red_linedEdit_y, 93, 31))
+        self.reddotforever_pushButton.setObjectName("reddotforever_pushButton")
+
+        pia_label_y = red_linedEdit_y + lineEdit_label_diff
+        pia_linedEdit_y = pia_label_y + label_lineEdit_diff
+
+        self.pianobooster_label = QtWidgets.QLabel(self.path_tab)
+        self.pianobooster_label.setGeometry(QtCore.QRect(10, pia_label_y, 121, 16))
+        self.pianobooster_label.setObjectName("pianobooster_label")
+        self.pianobooster_lineEdit = QtWidgets.QLineEdit(self.path_tab)
+        self.pianobooster_lineEdit.setGeometry(QtCore.QRect(10, pia_linedEdit_y, 381, 31))
+        self.pianobooster_lineEdit.setObjectName("pianobooster_lineEdit")
+        self.pianobooster_pushButton = QtWidgets.QPushButton(self.path_tab)
+        self.pianobooster_pushButton.setGeometry(QtCore.QRect(400, pia_linedEdit_y, 93, 31))
+        self.pianobooster_pushButton.setObjectName("pianobooster_pushButton")
+
+        midi_label_y = pia_linedEdit_y + lineEdit_label_diff
+        midi_linedEdit_y = midi_label_y + label_lineEdit_diff
+
+        self.midisheetmusic_label = QtWidgets.QLabel(self.path_tab)
+        self.midisheetmusic_label.setGeometry(QtCore.QRect(10, midi_label_y, 141, 16))
+        self.midisheetmusic_label.setObjectName("midisheetmusic_label")
+        self.midiSheetMusic_lineEdit = QtWidgets.QLineEdit(self.path_tab)
+        self.midiSheetMusic_lineEdit.setGeometry(QtCore.QRect(10, midi_linedEdit_y, 381, 31))
+        self.midiSheetMusic_lineEdit.setObjectName("midiSheetMusic_lineEdit")
+        self.midiSheetMusic_pushButton = QtWidgets.QPushButton(self.path_tab)
+        self.midiSheetMusic_pushButton.setGeometry(QtCore.QRect(400, midi_linedEdit_y, 93, 31))
+        self.midiSheetMusic_pushButton.setObjectName("midiSheetMusic_pushButton")
+
+        xeno_label_y = midi_linedEdit_y + lineEdit_label_diff
+        xeno_linedEdit_y = xeno_label_y + label_lineEdit_diff
+
+        self.xenoplay_label = QtWidgets.QLabel(self.path_tab)
+        self.xenoplay_label.setGeometry(QtCore.QRect(10, xeno_label_y, 121, 16))
+        self.xenoplay_label.setObjectName("xenoplay_label")
+        self.xenoplay_lineEdit = QtWidgets.QLineEdit(self.path_tab)
+        self.xenoplay_lineEdit.setGeometry(QtCore.QRect(10, xeno_linedEdit_y, 381, 31))
+        self.xenoplay_lineEdit.setObjectName("xenoplay_lineEdit")
+        self.xenoplay_pushButton = QtWidgets.QPushButton(self.path_tab)
+        self.xenoplay_pushButton.setGeometry(QtCore.QRect(400, xeno_linedEdit_y, 93, 31))
+        self.xenoplay_pushButton.setObjectName("xenoplay_pushButton")
+
+        audi_label_y = xeno_linedEdit_y + lineEdit_label_diff
+        audi_linedEdit_y = audi_label_y + label_lineEdit_diff
+
+        self.audacity_label = QtWidgets.QLabel(self.path_tab)
+        self.audacity_label.setGeometry(QtCore.QRect(10, audi_label_y, 191, 16))
+        self.audacity_label.setObjectName("audacity_label")
+        self.audacity_lineEdit = QtWidgets.QLineEdit(self.path_tab)
+        self.audacity_lineEdit.setGeometry(QtCore.QRect(10, audi_linedEdit_y, 381, 31))
+        self.audacity_lineEdit.setObjectName("audacity_lineEdit")
+        self.audacity_pushButton = QtWidgets.QPushButton(self.path_tab)
+        self.audacity_pushButton.setGeometry(QtCore.QRect(400, audi_linedEdit_y, 93, 31))
+        self.audacity_pushButton.setObjectName("audacity_pushButton")
+
+        ant_label_y = audi_linedEdit_y + lineEdit_label_diff
+        ant_lineEdit_y = ant_label_y + label_lineEdit_diff
+
+        self.anthemscore_label = QtWidgets.QLabel(self.path_tab)
+        self.anthemscore_label.setGeometry(QtCore.QRect(10, ant_label_y, 191, 16))
+        self.anthemscore_label.setObjectName("anthemscore_label")
+        self.anthemscore_lineEdit = QtWidgets.QLineEdit(self.path_tab)
+        self.anthemscore_lineEdit.setGeometry(QtCore.QRect(10, ant_lineEdit_y, 381, 31))
+        self.anthemscore_lineEdit.setObjectName("anthemscore_lineEdit")
+        self.anthemscore_pushButton = QtWidgets.QPushButton(self.path_tab)
+        self.anthemscore_pushButton.setGeometry(QtCore.QRect(400, ant_lineEdit_y, 93, 31))
+        self.anthemscore_pushButton.setObjectName("anthemscore_pushButton")
+
+        # Mp3 to Midi Converter Selection
+        radio_buttons_y = ant_lineEdit_y + 40
         self.mp3_2_midi_converter_label = QtWidgets.QLabel(self.path_tab)
-        self.mp3_2_midi_converter_label.setGeometry(QtCore.QRect(10, 550, 141, 16))
+        self.mp3_2_midi_converter_label.setGeometry(QtCore.QRect(10, radio_buttons_y, 141, 16))
         self.mp3_2_midi_converter_label.setObjectName("mp3_2_midi_converter_label")
         self.amazingmidi_radioButton = QtWidgets.QRadioButton(self.path_tab)
-        self.amazingmidi_radioButton.setGeometry(QtCore.QRect(230, 550, 111, 20))
+        self.amazingmidi_radioButton.setGeometry(QtCore.QRect(230, radio_buttons_y, 111, 20))
         self.amazingmidi_radioButton.setObjectName("amazingmidi_radioButton")
         self.anthemscore_radioButton = QtWidgets.QRadioButton(self.path_tab)
-        self.anthemscore_radioButton.setGeometry(QtCore.QRect(390, 550, 111, 20))
+        self.anthemscore_radioButton.setGeometry(QtCore.QRect(390, radio_buttons_y, 111, 20))
         self.anthemscore_radioButton.setObjectName("anthemscore_radioButton")
 
-        #Button Browsing Addition
+        # File Conversion User Control
+        radio_buttons2_y = radio_buttons_y + 35
+        self.file_conversion_label = QtWidgets.QLabel(self.path_tab)
+        self.file_conversion_label.setGeometry(QtCore.QRect(10, radio_buttons2_y, 180, 16))
+        self.file_conversion_label.setObjectName("file_conversion_label")
+        self.yes_file_conversion_radioButton = QtWidgets.QRadioButton(self.path_tab)
+        self.yes_file_conversion_radioButton.setGeometry(QtCore.QRect(230, radio_buttons2_y, 111, 20))
+        self.yes_file_conversion_radioButton.setObjectName('yes_file_conversion_radioButton')
+        self.no_file_conversion_radioButton = QtWidgets.QRadioButton(self.path_tab)
+        self.no_file_conversion_radioButton.setGeometry(QtCore.QRect(390, radio_buttons2_y, 111, 20))
+        self.no_file_conversion_radioButton.setObjectName("no_file_conversion_radioButton")
+
+        # RadioButton Groups
+        # This is to separate the radioButtons to ensure that they are paired correctly
+        self.mp3_2_midi_converter_group = QButtonGroup()
+        self.mp3_2_midi_converter_group.setExclusive(True)
+        self.mp3_2_midi_converter_group.addButton(self.amazingmidi_radioButton)
+        self.mp3_2_midi_converter_group.addButton(self.anthemscore_radioButton)
+        self.file_conversion_group = QButtonGroup()
+        self.file_conversion_group.setExclusive(True)
+        self.file_conversion_group.addButton(self.yes_file_conversion_radioButton)
+        self.file_conversion_group.addButton(self.no_file_conversion_radioButton)
+
+        # Button Browsing Addition
         self.browse_button_group = QButtonGroup()
         self.browse_button_group.setExclusive(True)
         self.browse_button_group.addButton(self.audiveris_pushButton)
@@ -418,12 +477,18 @@ class SettingsDialog(QtWidgets.QDialog):
         self.update_paths()
 
         # Tutoring Tab Initalization
+        self.settings_file_conversion_choice()
+        self.update_file_conversion_choice()
+
         self.settings_mp3_2_midi_choice()
         self.update_mp3_2_midi_choice()
+
         self.settings_color_read()
         self.update_color_values()
+
         self.settings_timing_read()
         self.update_timing_values()
+
         self.settings_combobox_read()
         self.update_combobox_values()
 
@@ -563,6 +628,43 @@ class SettingsDialog(QtWidgets.QDialog):
                 print("Settings Changed: AnthemScore Converter has been selected")
                 setting_write("mp3_2_midi_converter", "anthemscore")
 
+    def settings_file_conversion_choice(self):
+        # This function reads the settings regarding if the user wishes to partake
+        # in the file conversion process
+
+        global file_conversion_choice
+
+        file_conversion_choice = setting_read('file_conversion_user_control')
+        return
+
+    def update_file_conversion_choice(self):
+        # This function sets the state of the radioButtons to indicate if the
+        # file conversion user control is enabled or disabled
+
+        if file_conversion_choice == 'True':
+            #print("True")
+            self.yes_file_conversion_radioButton.setChecked(True)
+            self.no_file_conversion_radioButton.setChecked(False)
+        elif file_conversion_choice == 'False':
+            #print("False")
+            self.yes_file_conversion_radioButton.setChecked(False)
+            self.no_file_conversion_radioButton.setChecked(True)
+        return
+
+    def apply_file_conversion_choice(self):
+        # This function applies any changes indicated by the user
+
+        self.settings_file_conversion_choice()
+
+        if self.yes_file_conversion_radioButton.isChecked():
+            if file_conversion_choice != 'True':
+                print("Settings Changed: File Conversion User Control Enabled")
+                setting_write('file_conversion_user_control','True')
+        elif self.no_file_conversion_radioButton.isChecked():
+            if file_conversion_choice != 'False':
+                print("Settings Changed: File Conversion User Control Disabled")
+                setting_write('file_conversion_user_control','False')
+        return
 
 ##############################TUTORING TAB FUNCTIONS############################
 
@@ -737,6 +839,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.apply_color_values()
         self.apply_timing_values()
         self.apply_combobox_values()
+        self.apply_file_conversion_choice()
 
         return
 
@@ -766,6 +869,9 @@ class SettingsDialog(QtWidgets.QDialog):
         self.mp3_2_midi_converter_label.setText(_translate("Dialog", "MP3 to MIDI Converter:"))
         self.amazingmidi_radioButton.setText(_translate("Dialog", "AmazingMIDI"))
         self.anthemscore_radioButton.setText(_translate("Dialog", "AnthemScore"))
+        self.file_conversion_label.setText(_translate("Dialog","File Conversion User Control:"))
+        self.yes_file_conversion_radioButton.setText(_translate("Dialog","Enabled"))
+        self.no_file_conversion_radioButton.setText(_translate("Dialog","Disabled"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.path_tab), _translate("Dialog", "Path Settings"))
         self.timingsettings_label.setText(_translate("Dialog", "Timing Settings"))
         self.colorsettings_label.setText(_translate("Dialog", "Color Settings"))

@@ -1,152 +1,110 @@
-# General Utility Libraries
+from PyQt5 import QtCore, QtGui, QtWidgets
+from PyQt5.QtWidgets import QWidget, QApplication, QFrame, QPushButton
+from PyQt5.QtCore import QRect, QPropertyAnimation
 import sys
-import time
-import os
 
-# File, Folder, and Directory Manipulation Library
-import ntpath
-import pathlib
-import glob
-from pathlib import Path
-from shutil import copyfile, move
-import shutil
+"""
+class Example(QWidget):
 
-# Image Procressing Library
-import cv2
-import numpy as np
-import pyautogui
+    def __init__(self):
+        super().__init__()
 
-# GUI Automation Library
-import pywinauto
 
-from skore_program_controller import output_address, setting_read, rect_to_int, click_center_try, clean_temp_folder
+        self.initUI()
 
-def auto_anthemscore(user_input_address_anth, destination_address, file_type, file_conversion_user_control):
+    def initUI(self):
 
-    [end_address, filename] = output_address(user_input_address_anth, destination_address, file_type)
+        self.button = QPushButton("Start", self)
+        self.button.clicked.connect(self.doAnim)
+        self.button.move(30, 30)
 
-    if file_type == '.pdf':
-        end_address_mid, trash = output_address(user_input_address_anth, destination_address, '.mid')
-    else:
-        end_address_mid = end_address
+        self.frame = QFrame(self)
+        self.frame.setFrameStyle(QFrame.Panel | QFrame.Raised)
+        self.frame.setGeometry(150, 30, 100, 100)
 
-    if file_conversion_user_control == False and file_type != '.pdf':
-        print("Easy")
-        os.system(r'AnthemScore -a ' + user_input_address_anth + ' -m ' + end_address)
-    else:
-        print("Difficult")
-        ant_app_exe_path = setting_read('ant_app_exe_path')
-        ant_app = pywinauto.application.Application()
-        ant_app.start(ant_app_exe_path)
-        print("Initializing AnthemScore")
+        self.setGeometry(300, 300, 380, 300)
+        self.setWindowTitle('Animation')
+        self.show()
 
-        while(True):
-            try:
-                w_handle = pywinauto.findwindows.find_windows(title='AnthemScore')[0]
-                window = ant_app.window(handle=w_handle)
-                break
-            except IndexError:
-                time.sleep(0.2)
 
-        # Clicking on file menu
-        window.wait('enabled')
-        time.sleep(0.5)
-        window.maximize()
-        original_rect_dimensions = window.rectangle()
-        ant_dimensions = rect_to_int(original_rect_dimensions)
-        click_center_try('file_button_anthem', ant_dimensions)
-        click_center_try('open_button_anthem', ant_dimensions)
+    def doAnim(self):
 
-        # Creating a window variable for File Browser Dialog
-        while(True):
-            try:
-                w_open_handle = pywinauto.findwindows.find_windows(title="Select File")[0]
-                w_open_window = ant_app.window(handle=w_open_handle)
-                break
-            except IndexError:
-                time.sleep(0.2)
+        effect = QtWidgets.QGraphicsColorizeEffect(self)
+        self.button.setGraphicsEffect(effect)
 
-        # Entering the user's input file
-        w_open_window.type_keys(user_input_address_anth)
-        w_open_window.type_keys("{ENTER}")
+        self.animation = QtCore.QPropertyAnimation(effect, b'color')
+        self.animation.setStartValue(QtGui.QColor(50,50,50))
+        self.animation.setKeyValueAt(0.5,QtGui.QColor(0,255,0))
+        self.animation.setEndValue(QtGui.QColor(50,50,50))
 
-        # Wait until the file has been processed
-        time.sleep(1)
+        #self.animation.setLoopCount(5)
+        #self.animation.setDuration('infinite')
+        self.animation.start()
 
-        # Creating a window variable for Select File Dialog
-        while(True):
-            try:
-                s_open_handle = pywinauto.findwindows.find_windows(title=u'Select File')[0]
-                s_open_window = ant_app.window(handle=s_open_handle)
-                break
-            except IndexError:
-                time.sleep(0.2)
+if __name__ == "__main__":
 
-        # Selecting Save As option
-        original_rect_dimensions = s_open_window.rectangle()
-        ant_open_dimensions = rect_to_int(original_rect_dimensions)
-        click_center_try('save_as_button_anthem', ant_open_dimensions)
+    app = QApplication([])
+    ex = Example()
+    ex.show()
+    app.exec_()
+"""
 
-        # Creating a window variable for Save As Dialog
-        while(True):
-            try:
-                s_handle = pywinauto.findwindows.find_windows(title=u'Save As')[0]
-                s_window = ant_app.window(handle=s_handle)
-                break
-            except IndexError:
-                time.sleep(0.2)
+from PyQt5.QtWidgets import *
+from PyQt5.QtGui import *
+from PyQt5.QtCore import *
 
-        s_window.type_keys(end_address)
-        s_window.type_keys("{ENTER}")
-        time.sleep(2.5)
+class BlinkButton(QPushButton):
+    def __init__(self, *args, **kwargs):
+        QPushButton.__init__(self, *args, **kwargs)
+        self.default_color = self.getColor()
 
-        click_center_try('ok_button_anthem', ant_open_dimensions)
+    def getColor(self):
+        return self.palette().color(QPalette.Button)
 
-        # Creating a window variable for Viewer Dialog
-        while(True):
-            try:
-                v_handle = pywinauto.findwindows.find_windows(title=u'Viewer')[0]
-                v_window = ant_app.window(handle=v_handle)
-                break
-            except IndexError:
-                time.sleep(1)
+    def setColor(self, value):
+        if value == self.getColor():
+            return
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), value)
+        self.setAutoFillBackground(True)
+        self.setPalette(palette)
 
-        print("File Processing Done")
-        v_window.close()
+    def reset_color(self):
+        self.setColor(self.default_color)
 
-        # Now actually saving the transformed files
-        click_center_try('file_button_anthem', ant_dimensions)
-        click_center_try('save_as_button2_anthem', ant_dimensions)
+    color = pyqtProperty(QColor, getColor, setColor)
 
-        # Creating a window variable for Save As Dialog
-        while(True):
-            try:
-                s2_handle = pywinauto.findwindows.find_windows(title=u'Save As')[0]
-                s2_window = ant_app.window(handle=s2_handle)
-                break
-            except IndexError:
-                time.sleep(0.2)
 
-        original_rect_dimensions = s2_window.rectangle()
-        ant_save_dimensions = rect_to_int(original_rect_dimensions)
+class Widget(QWidget):
 
-        # Selecting file type and saving the file
-        click_center_try('format_button_anthem', ant_save_dimensions)
-        if file_type == '.mid':
-            click_center_try('format_pdf_button_anthem', ant_save_dimensions)
-        elif file_type == '.pdf':
-            click_center_try('format_mid_button_anthem', ant_save_dimensions)
-        click_center_try('ok_button_anthem', ant_save_dimensions)
+    def __init__(self):
+        super(Widget, self).__init__()
 
-        time.sleep(2)
-        ant_app.kill()
+        self.resize(300,200)
+        layout = QVBoxLayout(self)
 
-    return end_address, end_address_mid
+        self.button_stop = BlinkButton("Stop")
+        layout.addWidget(self.button_stop)
 
-file_name_test = r'C:\Users\daval\Documents\GitHub\SKORE\python\conversion_test\Original_MP3\OdeToJoy.mp3'
-destination_folder_test = r"C:\Users\daval\Documents\GitHub\SKORE\python\temp"
-file_type_test = '.mid'
-file_conversion_user_control_test = False
+        self.button_start = QPushButton("Start", self)
+        layout.addWidget(self.button_start)
 
-clean_temp_folder()
-auto_anthemscore(file_name_test, destination_folder_test, file_type_test, file_conversion_user_control_test)
+        self.animation = QPropertyAnimation(self.button_stop, b"color", self)
+        self.animation.setDuration(1000)
+        self.animation.setLoopCount(100)
+        self.animation.setStartValue(self.button_stop.default_color)
+        self.animation.setEndValue(self.button_stop.default_color)
+        self.animation.setKeyValueAt(0.1, QColor(0,255,0))
+
+        self.button_start.clicked.connect(self.animation.start)
+        self.button_stop.clicked.connect(self.stop)
+
+    def stop(self):
+        self.animation.stop()
+        self.button_stop.reset_color()
+
+if __name__ == "__main__":
+    app = QApplication([])
+    w = Widget()
+    w.show()
+    app.exec_()
