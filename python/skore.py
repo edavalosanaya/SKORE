@@ -4,9 +4,9 @@ import os
 
 # PyQt5, GUI LIbrary
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QAction, QMainWindow, QInputDialog, QLineEdit, QFileDialog, QMessageBox, QLabel, QProgressBar, QStyleFactory
-from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import pyqtSlot
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import *
 
 # Importing the Settings Dialog (CAUSES ERROR)
 from settings_dialog import *
@@ -18,7 +18,8 @@ sys.coinit_flags = 2
 
 # SKORE Library
 from skore_program_controller import *
-from skore_companion import *
+#from skore_companion import *
+from skore_glass import *
 
 ################################VARIABLES#######################################
 #File Information
@@ -27,6 +28,8 @@ save_folder_path = []
 upload_file_name = []
 upload_file_type = []
 mid_file_obtained_path = []
+animation_group = []
+blink_button_group = []
 
 #Event Information
 file_conversion_event = 0
@@ -42,6 +45,9 @@ class Skore(QtWidgets.QMainWindow):
         self.setupUI()
 
     def setupUI(self):
+
+        global animation_group, blink_button_group
+
         self.setObjectName("MainWindow")
         self.resize(916,530)
         self.setStyleSheet("""
@@ -54,16 +60,20 @@ class Skore(QtWidgets.QMainWindow):
 
 ###############################Main Buttons#####################################
         #Upload Button
-        self.uploadAudioFile_toolButton = QtWidgets.QToolButton(self.centralwidget)
+        #self.uploadAudioFile_toolButton = QtWidgets.QToolButton(self.centralwidget)
+        self.uploadAudioFile_toolButton = BlinkButton("Upload File", self.centralwidget)
         self.uploadAudioFile_toolButton.setGeometry(QtCore.QRect(20, 20, 421, 171))
         self.uploadAudioFile_toolButton.setObjectName("uploadAudioFile_toolButton")
         self.uploadAudioFile_toolButton.clicked.connect(self.upload_file)
+        self.uploadAudioFile_animation = BlinkAnimation(self.uploadAudioFile_toolButton, b'color', self)
 
         #Record Button
-        self.record_toolButton = QtWidgets.QToolButton(self.centralwidget)
+        #self.record_toolButton = QtWidgets.QToolButton(self.centralwidget)
+        self.record_toolButton = BlinkButton("Record", self.centralwidget)
         self.record_toolButton.setGeometry(QtCore.QRect(470, 20, 421, 171))
         self.record_toolButton.setObjectName("record_toolButton")
         self.record_toolButton.clicked.connect(self.open_red_dot_forever)
+        self.record_animation = BlinkAnimation(self.record_toolButton, b'color', self)
 
         #Settings Button
         self.settings_toolButton = QtWidgets.QToolButton(self.centralwidget)
@@ -74,33 +84,39 @@ class Skore(QtWidgets.QMainWindow):
 #############################Tutoring Button####################################
 
         #Tutor Button
-        self.tutor_pushButton = QtWidgets.QPushButton(self.centralwidget)
+        #self.tutor_pushButton = QtWidgets.QPushButton(self.centralwidget)
+        self.tutor_pushButton = BlinkButton("Tutoring", self.centralwidget)
         self.tutor_pushButton.setGeometry(QtCore.QRect(20, 330, 421, 171))
         self.tutor_pushButton.setObjectName("tutor_pushButton")
-        self.tutor_pushButton.setText("Tutoring")
+        #self.tutor_pushButton.setText("Tutoring")
         self.tutor_pushButton.clicked.connect(self.open_pianobooster)
-
+        self.tutor_animation = BlinkAnimation(self.tutor_pushButton, b'color', self)
 
 ##########################Conversion Buttons####################################
 
         #Generate Music Sheet Button
-        self.generateMusicSheet_pushButton = QtWidgets.QPushButton(self.centralwidget)
+        #self.generateMusicSheet_pushButton = QtWidgets.QPushButton(self.centralwidget)
+        self.generateMusicSheet_pushButton = BlinkButton("Generate Music Sheet (and MIDI File)",self.centralwidget)
         self.generateMusicSheet_pushButton.setGeometry(QtCore.QRect(470, 330, 421, 51))
         self.generateMusicSheet_pushButton.setObjectName("generateMusicSheet_pushButton")
         self.generateMusicSheet_pushButton.clicked.connect(self.generateMusicSheet)
-
+        self.generateMusicSheet_animation = BlinkAnimation(self.generateMusicSheet_pushButton, b'color', self)
 
         #Generate MID Button
-        self.generateMIDFile_pushButton = QtWidgets.QPushButton(self.centralwidget)
+        #self.generateMIDFile_pushButton = QtWidgets.QPushButton(self.centralwidget)
+        self.generateMIDFile_pushButton = BlinkButton("Generate MIDI File", self.centralwidget)
         self.generateMIDFile_pushButton.setGeometry(QtCore.QRect(470, 390, 421, 51))
         self.generateMIDFile_pushButton.setObjectName("generateMIDFile_pushButton")
         self.generateMIDFile_pushButton.clicked.connect(self.generateMIDFile)
+        self.generateMIDFile_animation = BlinkAnimation(self.generateMIDFile_pushButton, b'color', self)
 
         #Save Generated
-        self.saveGeneratedFiles_pushButton = QtWidgets.QPushButton(self.centralwidget)
+        #self.saveGeneratedFiles_pushButton = QtWidgets.QPushButton(self.centralwidget)
+        self.saveGeneratedFiles_pushButton = BlinkButton("Save Generated Files", self.centralwidget)
         self.saveGeneratedFiles_pushButton.setGeometry(QtCore.QRect(470, 450, 421, 51))
         self.saveGeneratedFiles_pushButton.setObjectName("saveGeneratedFiles_pushButton")
         self.saveGeneratedFiles_pushButton.clicked.connect(self.saveGeneratedFiles)
+        self.saveGeneratedFiles_animation = BlinkAnimation(self.saveGeneratedFiles_pushButton, b'color', self)
 
 ############################Misc Buttons and Objects############################
 
@@ -126,7 +142,17 @@ class Skore(QtWidgets.QMainWindow):
 
         self.progress_bar = ProgressBarDialog()
         self.progress_bar.show()
-        #self.generateMIDFile_pushButton.clicked.connect(self.open_progress_bar)
+
+        self.uploadAudioFile_animation.start()
+        self.record_animation.start()
+
+        animation_group = [self.uploadAudioFile_animation, self.generateMusicSheet_animation,
+                            self.generateMIDFile_animation, self.saveGeneratedFiles_animation,
+                            self.tutor_animation, self.record_animation]
+
+        blink_button_group = [self.uploadAudioFile_toolButton, self.generateMusicSheet_pushButton,
+                                self.generateMIDFile_pushButton, self.saveGeneratedFiles_pushButton,
+                                self.tutor_pushButton, self.record_toolButton]
 
 ################################################################################
 
@@ -135,10 +161,10 @@ class Skore(QtWidgets.QMainWindow):
 
         _translate = QtCore.QCoreApplication.translate
         self.setWindowTitle('SKORE')
-        self.uploadAudioFile_toolButton.setText(_translate("MainWindow", "Upload audio file"))
-        self.record_toolButton.setText(_translate("MainWindow", "Record"))
+        #self.uploadAudioFile_toolButton.setText(_translate("MainWindow", "Upload audio file"))
+        #self.record_toolButton.setText(_translate("MainWindow", "Record"))
         self.settings_toolButton.setText(_translate("MainWindow", "Settings"))
-        self.generateMusicSheet_pushButton.setText(_translate("MainWindow", "Generate Music Sheet (and MIDI file)"))
+        #self.generateMusicSheet_pushButton.setText(_translate("MainWindow", "Generate Music Sheet (and MIDI file)"))
         self.textBrowser.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
 "p, li { white-space: pre-wrap; }\n"
@@ -146,17 +172,18 @@ class Skore(QtWidgets.QMainWindow):
 "<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">To open previous files, access the files from the output folder within app_control folder. </p>\n"
 "<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">Uploaded File: " + str(upload_file_path) + " </p>\n"
 "<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">MIDI File Location: " + str(mid_file_obtained_path) + "</p></body></html>"))
-        self.generateMIDFile_pushButton.setText(_translate("MainWindow", "Generate MIDI File"))
-        self.saveGeneratedFiles_pushButton.setText(_translate("MainWindow", "Save Generated Files"))
+        #self.generateMIDFile_pushButton.setText(_translate("MainWindow", "Generate MIDI File"))
+        #self.saveGeneratedFiles_pushButton.setText(_translate("MainWindow", "Save Generated Files"))
 
     def closeEvent(self, event):
         # Closes any open threads and additional GUIs
 
         try:
-            self.skore_companion_dialog.close()
-            print("skore_copanion_dialog closure successful")
+            #self.skore_companion_dialog.close()
+            self.skore_glass_overlay.close()
+            print("skore_glass_overlay closure successful")
         except:
-            print("skore_copanion_dialog closure failed")
+            print("skore_glass_overlay closure failed")
 
         try:
             self.progress_bar.close()
@@ -165,7 +192,7 @@ class Skore(QtWidgets.QMainWindow):
             print("progress_bar closure failed")
 
         try:
-            self.dialog.close()
+            self.settings_dialog.close()
             print("progress_bar closure successful")
         except:
             print("dialog closure failed")
@@ -181,7 +208,7 @@ class Skore(QtWidgets.QMainWindow):
 
     def open_red_dot_forever(self):
         # This function start red dot forever thread
-
+        self.stop_all_animation()
         self.red_dot_thread = RedDotThread()
         self.red_dot_thread.start()
         self.red_dot_thread.red_dot_signal.connect(self.red_dot_forever_translate)
@@ -190,6 +217,10 @@ class Skore(QtWidgets.QMainWindow):
 
     def red_dot_forever_translate(self):
 
+        # MIDI File Recorded!
+        self.stop_all_animation()
+        self.tutor_animation.start()
+        self.generateMusicSheet_animation.start()
         self.retranslateUi()
 
         return
@@ -202,8 +233,10 @@ class Skore(QtWidgets.QMainWindow):
             QMessageBox.about(self, "MIDI File Needed", "Please upload or generate a MIDI file before tutoring.")
             return
 
-        self.skore_companion_dialog = Companion_Dialog()
-        self.skore_companion_dialog.show()
+        #self.skore_companion_dialog = Companion_Dialog()
+        #self.skore_companion_dialog.show()
+        self.skore_glass_overlay = TransparentGui()
+        self.skore_glass_overlay.show()
 
         return
 
@@ -218,13 +251,25 @@ class Skore(QtWidgets.QMainWindow):
         upload_file_type = os.path.splitext(os.path.basename(upload_file_path))[1]
 
         if(upload_file_path != ''):
+
+            self.stop_all_animation()
+
             if(is_mid(upload_file_path)):
                 # Obtaining mid file location
                 mid_file_obtained_event = 1
                 mid_file_obtained_path = upload_file_path
+                self.tutor_animation.start()
+                self.generateMusicSheet_animation.start()
             else:
                 mid_file_obtained_event = 0
                 mid_file_obtained_path = []
+
+            if(is_pdf(upload_file_path)):
+                self.generateMIDFile_animation.start()
+            elif(is_mp3(upload_file_path)):
+                self.generateMIDFile_animation.start()
+                self.generateMusicSheet_animation.start()
+
             setting_write('midi_file_location', mid_file_obtained_path)
             #self.retranslateUi(MainWindow)
             self.retranslateUi()
@@ -242,11 +287,17 @@ class Skore(QtWidgets.QMainWindow):
                 QMessageBox.about(self, "Invalid Conversion", "Cannot convert .pdf to .pdf")
                 return
             # Obtaining mid file location
+            self.stop_all_animation()
             file_conversion_event = 1
             mid_file_obtained_event = 1
             mid_file_obtained_path = input_to_pdf(upload_file_path, self.progress_bar)
             setting_write('midi_file_location',mid_file_obtained_path)
+
+            self.saveGeneratedFiles_animation.start()
+            self.tutor_animation.start()
+
             self.retranslateUi()
+
 
         else:
             print("No file uploaded")
@@ -264,10 +315,19 @@ class Skore(QtWidgets.QMainWindow):
                 QMessageBox.about(self, "Invalid Conversion", "Cannot convert .mid to .mid")
                 return
             # Obtaining mid file location
+            self.stop_all_animation()
             file_conversion_event = 1
             mid_file_obtained_event = 1
             mid_file_obtained_path = input_to_mid(upload_file_path, self.progress_bar)
             setting_write('midi_file_location',mid_file_obtained_path)
+
+            if(is_pdf(upload_file_path)):
+                self.saveGeneratedFiles_animation.start()
+                self.tutor_animation.start()
+            elif(is_mp3(upload_file_path)):
+                self.saveGeneratedFiles_animation.start()
+                self.tutor_animation.start()
+                self.generateMusicSheet_animation.start()
             self.retranslateUi()
 
         else:
@@ -288,13 +348,21 @@ class Skore(QtWidgets.QMainWindow):
                 print(save_folder_path)
                 file_conversion_event = 0
 
+                self.stop_all_animation()
+
                 # Obtaining mid file location
                 file = temp_to_folder(destination_folder = save_folder_path, filename = user_given_filename)
+
                 if file != []:
                     mid_file_obtained_path = file
                     setting_write('midi_file_location',mid_file_obtained_path)
                     print(mid_file_obtained_path)
                     self.retranslateUi()
+                    self.tutor_animation.start()
+
+                if is_mid(upload_file_path):
+                    self.tutor_animation.start()
+
         else:
             QMessageBox.about(self, "No Conversion Present", "Please upload and convert a file before saving it.")
         return
@@ -334,9 +402,18 @@ class Skore(QtWidgets.QMainWindow):
     def settingsDialog(self):
         # This function opens the settings dialog
 
-        self.dialog = SettingsDialog()
-        self.dialog.show()
+        self.settings_dialog = SettingsDialog()
+        self.settings_dialog.show()
 
+        return
+
+    def stop_all_animation(self):
+
+        for animation in animation_group:
+            animation.stop()
+
+        for blink_button in blink_button_group:
+            blink_button.reset_color()
         return
 
 ################################################################################
@@ -486,6 +563,7 @@ class RedDotThread(QThread):
         if(output_file.is_file()):
             upload_file_path = red_dot_address
             mid_file_obtained_path = upload_file_path
+            setting_write('midi_file_location', mid_file_obtained_path)
             mid_file_obtained_event = 1
             self.red_dot_signal.emit()
 
@@ -493,6 +571,53 @@ class RedDotThread(QThread):
             print("red dot midi file not found")
 
         return
+
+################################################################################
+
+class BlinkButton(QPushButton):
+    def __init__(self, *args, **kwargs):
+        QPushButton.__init__(self, *args, **kwargs)
+        self.default_color = self.getColor()
+
+    def getColor(self):
+        #return self.palette().color(QPalette.Button)
+        #return self.palette().color(QColor(50,50,50))
+        return QColor(50,50,50)
+
+    def setColor(self, value):
+        if value == self.getColor():
+            return
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), value)
+        self.setFlat(True)
+        self.setAutoFillBackground(True)
+        self.setPalette(palette)
+
+    def reset_color(self):
+        palette = self.palette()
+        palette.setColor(self.backgroundRole(), self.default_color)
+        self.setPalette(palette)
+        self.setFlat(False)
+
+    color = pyqtProperty(QColor, getColor, setColor)
+
+################################################################################
+
+class BlinkAnimation(QPropertyAnimation):
+
+    qwidget = []
+
+    def __init__(self, *args, **kwargs):
+        QPropertyAnimation.__init__(self, *args, **kwargs)
+
+        global qwidget
+        qwidget = args[0]
+
+        self.setDuration(3000)
+        self.setLoopCount(-1) # Run infinitely
+        self.setStartValue(qwidget.default_color)
+        self.setEndValue(qwidget.default_color)
+        self.setKeyValueAt(0.5, QColor(10,200,30))
 
 #################################MAIN CODE######################################
 # This starts the application

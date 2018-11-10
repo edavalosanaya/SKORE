@@ -21,9 +21,9 @@ import pywinauto
 
 # PyQt5, GUI LIbrary
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QApplication, QWidget, QPushButton, QAction, QMainWindow, QInputDialog, QLineEdit, QFileDialog, QMessageBox, QLabel
-from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import pyqtSlot
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
+from PyQt5.QtCore import *
 
 ##############################CONSTANTS#########################################
 
@@ -424,8 +424,29 @@ def auto_amazing_midi(user_input_address_amaz, destination_address, tone_address
 
     # Need to ask the user if they wish to manually change the features of the
     # conversion here
+    if file_conversion_user_control == True:
+        progress_bar.current_action_label.setText("Waiting for User's Filter Selection")
+        user_notification_mgbox = QMessageBox()
+        user_notification_mgbox.setParent(None)
+        user_notification_mgbox.setWindowTitle("Filter Control")
+        user_notification_mgbox.setText("Please select the desired filtering and continue. Close this before pressing start.")
+        user_notification_mgbox.setWindowFlag(Qt.WindowStaysOnTopHint)
+        user_notification_mgbox.exec_()
+        time.sleep(0.3)
 
-    to_window.type_keys('{ENTER}')
+        while(True):
+            try:
+                to_handle = pywinauto.findwindows.find_windows(title='Transcribe')[0]
+                #to_handle = pywinauto.findwindows.find_window(parent=w_handle)[0]
+                time.sleep(0.4)
+            except:
+                break
+
+        print("Transcribe Window Closed")
+
+    else:
+        to_window.type_keys('{ENTER}')
+
     progress_bar.current_action_label.setText("Transcribing WAV files into MIDI")
     progress_bar.progress.setValue(progress_bar_values[4])
 
@@ -848,6 +869,8 @@ def auto_anthemscore(user_input_address_anth, destination_address, file_type, fi
     # Obtaining the end address name
     [end_address, filename] = output_address(user_input_address_anth, destination_address, file_type)
 
+    end_address_xml, trash = output_address(user_input_address_anth, destination_address, '.xml')
+
     # Obtaining the resulting midi file location
     if file_type == '.pdf':
         end_address_mid, trash = output_address(user_input_address_anth, destination_address, '.mid')
@@ -929,8 +952,22 @@ def auto_anthemscore(user_input_address_anth, destination_address, file_type, fi
                 s_open_handle = pywinauto.findwindows.find_windows(parent=w_handle)[0]
                 s_open_window = ant_app.window(handle=s_open_handle)
                 break
-            except IndexError:
-                time.sleep(0.2)
+            except:
+                try:
+                    s_open_handle = pywinauto.findwindows.find_windows(parent=w_open_handle)[0]
+                    s_open_window = ant_app.window(handle=s_open_handle)
+                    break
+                except:
+                    try:
+                        s_open_handle = pywinauto.findwindows.find_windows(title=u'Select File')[0]
+                        s_open_window = ant_app.window(handle=s_open_handle)
+                        break
+                    except:
+                        time.sleep(0.2)
+
+
+            #except IndexError:
+                #time.sleep(0.2)
 
         # Selecting Save As option
         original_rect_dimensions = s_open_window.rectangle()
@@ -944,12 +981,23 @@ def auto_anthemscore(user_input_address_anth, destination_address, file_type, fi
                 s_handle = pywinauto.findwindows.find_windows(parent=w_handle)[0]
                 s_window = ant_app.window(handle=s_handle)
                 break
-            except IndexError:
-                time.sleep(0.2)
+            except:
+                try:
+                    s_handle = pywinauto.findwindows.find_windows(parent=w_handle)[0]
+                    s_window = ant_app.window(handle=s_handle)
+                    break
+                except:
+                    try:
+                        s_handle = pywinauto.findwindows.find_windows(title=u'Save As')[0]
+                        s_window = ant_app.window(handle=s_handle)
+                        break
+                    except:
+                        time.sleep(0.2)
 
         progress_bar.current_action_label.setText("Selecting Destination Location")
         progress_bar.progress.setValue(progress_bar_values[3])
-        s_window.type_keys(end_address)
+        #s_window.type_keys(end_address)
+        s_window.type_keys(end_address_xml)
         s_window.type_keys("{ENTER}")
         time.sleep(2.5)
 
@@ -972,6 +1020,15 @@ def auto_anthemscore(user_input_address_anth, destination_address, file_type, fi
 
         # Need to ask the user if they wish to manually change the features of the
         # conversion here
+        if file_conversion_user_control == True:
+            progress_bar.current_action_label.setText("Waiting for User Control Completion")
+            user_notification_mgbox = QMessageBox()
+            user_notification_mgbox.setParent(None)
+            user_notification_mgbox.setWindowTitle("Filter Control")
+            user_notification_mgbox.setText("Once finish utilizing AnthemScore, press [Ok]")
+            user_notification_mgbox.setWindowFlag(Qt.WindowStaysOnTopHint)
+            user_notification_mgbox.exec_()
+            time.sleep(0.3)
 
         if user_input_address_anth[-4:] != '.mid':
 
@@ -988,8 +1045,13 @@ def auto_anthemscore(user_input_address_anth, destination_address, file_type, fi
                     s2_handle = pywinauto.findwindows.find_windows(parent=w_handle)[0]
                     s2_window = ant_app.window(handle=s2_handle)
                     break
-                except IndexError:
-                    time.sleep(0.2)
+                except:
+                    try:
+                        s2_handle = pywinauto.findwindows.find_windows(title=u'Save As')[0]
+                        s2_window = ant_app.window(handle=s2_handle)
+                        break
+                    except:
+                        time.sleep(0.2)
 
             original_rect_dimensions = s2_window.rectangle()
             ant_save_dimensions = rect_to_int(original_rect_dimensions)
@@ -997,6 +1059,7 @@ def auto_anthemscore(user_input_address_anth, destination_address, file_type, fi
             # Selecting file type and saving the file
             click_center_try('format_button_anthem', ant_save_dimensions)
 
+            """
             if file_type == '.mid':
                 print("Clicked on pdf")
                 click_center_try('format_pdf_button_anthem', ant_save_dimensions)
@@ -1005,10 +1068,41 @@ def auto_anthemscore(user_input_address_anth, destination_address, file_type, fi
                 print("Clicked on mid")
 
             click_center_try('ok_button_anthem', ant_save_dimensions)
+            """
+
+            click_center_try('format_pdf_button_anthem', ant_save_dimensions)
+            click_center_try('ok_button_anthem', ant_save_dimensions)
+
+            time.sleep(0.5)
+            click_center_try('file_button_anthem', ant_dimensions)
+            click_center_try('save_as_button2_anthem', ant_dimensions)
+
+            # Creating a window variable for Save As Dialog
+            while(True):
+                try:
+                    #s2_handle = pywinauto.findwindows.find_windows(title=u'Save As')[0]
+                    s2_handle = pywinauto.findwindows.find_windows(parent=w_handle)[0]
+                    s2_window = ant_app.window(handle=s2_handle)
+                    break
+                except:
+                    try:
+                        s2_handle = pywinauto.findwindows.find_windows(title=u'Save As')[0]
+                        s2_window = ant_app.window(handle=s2_handle)
+                        break
+                    except:
+                        time.sleep(0.2)
+
+            original_rect_dimensions = s2_window.rectangle()
+            ant_save_dimensions = rect_to_int(original_rect_dimensions)
+            click_center_try('format_button_anthem', ant_save_dimensions)
+            click_center_try('format_mid_button_anthem', ant_save_dimensions)
+            click_center_try('ok_button_anthem', ant_save_dimensions)
+
+
 
         progress_bar.current_action_label.setText("Closing AnthemScore")
         progress_bar.progress.setValue(progress_bar_values[6])
-        time.sleep(2)
+        time.sleep(5)
         ant_app.kill()
 
     progress_bar.current_action_label.setText("File Conversion Complete")
