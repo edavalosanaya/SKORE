@@ -79,7 +79,9 @@ arduino_keyboard = []
 arduino = []
 
 ############################LIVE TUTORING VARIABLES#############################
-skill = []
+skill ='follow_you_button'
+current_mode = 'beginner'
+reset_flag = 0
 hands = []
 speed = []
 tranpose = []
@@ -88,6 +90,7 @@ playing_state = False
 restart = False
 mode = []
 live_setting_change = False
+end_of_song_flag = 0
 
 #####################################PYQT5######################################
 
@@ -199,17 +202,8 @@ class TutorThread(QThread):
         ##############################UTILITY FUNCTIONS#########################
 
         def keyboard_valid():
-            #current_keyboard_state = []
-            #target_keyboard_state = []
-            #desired_notes_pressed = []
-            #global desired_notes_pressed, acceptable_current_state
 
-            print(current_keyboard_state, end = '')
-            #print(desired_notes_pressed, end = '')
-            print(target_keyboard_state, end = '')
-            print(right_notes, end = '')
-            print(wrong_notes)
-
+            global right_notes
             acceptable = 1
 
             for note in target_keyboard_state:
@@ -218,18 +212,11 @@ class TutorThread(QThread):
                     break
 
             if acceptable and len(wrong_notes) <= 1:
+                right_notes = []
                 print("acceptable")
                 return 1
 
             return 0
-
-            #if target_keyboard_state == desired_notes_pressed and len(current_keyboard_state) <= len(desired_notes_pressed) + 1:
-            #    print("acceptable")
-            #    desired_notes_pressed = []
-            #    return 1
-
-            #else:
-            #    return 0
 
         #############################TUTORING UTILITY FUNCTIONS#################
 
@@ -240,6 +227,8 @@ class TutorThread(QThread):
 
             final_delay_location = inital_delay_location
             for_counter = 0
+        #    print(inital_delay_location)
+        #    print(chord_timing_tolerance)
 
             if int(sequence[inital_delay_location][2:]) <= chord_timing_tolerance:
 
@@ -303,36 +292,35 @@ class TutorThread(QThread):
         def arduino_comm(notes):
             # This function sends the information about which notes need to be added and
             # removed from the LED Rod.
+            global arduino_keyboard
+
+            print("Arduino Comm Notes: " + str(notes))
 
             notes_to_add = []
             notes_to_remove = []
 
             time.sleep(0.001)
-
-            for note in notes:
-                if note not in arduino_keyboard:
-                    #print(note)
-                    notes_to_add.append(note)
-                    arduino_keyboard.append(note)
+            print("Arduino Keyboard Pre-Communication: " + str(arduino_keyboard))
 
             if notes == []:
-                temp_keyboard = []
-
-                for note in arduino_keyboard:
-                    notes_to_remove.append(note)
-                    temp_keyboard.append(note)
-
-                for note in temp_keyboard:
-                    arduino_keyboard.remove(note)
+                notes_to_send = arduino_keyboard
+                arduino_keyboard = []
             else:
-                for note in arduino_keyboard:
+                for note in notes: # For Turning on a note
+                    if note not in arduino_keyboard:
+                        notes_to_add.append(note)
+                        arduino_keyboard.append(note)
+
+                for note in arduino_keyboard: # for turning off a note
                     if note not in notes:
                         notes_to_remove.append(note)
                         arduino_keyboard.remove(note)
 
+                notes_to_send = notes_to_add + notes_to_remove
+
             # All transmitted notes are contain within the same string
             transmitted_string = ''
-            notes_to_send = notes_to_add + notes_to_remove
+            print('notes_to_send: ' + str(notes_to_send))
 
             for note in notes_to_send:
                 transmitted_string += str(note) + ','
@@ -341,16 +329,137 @@ class TutorThread(QThread):
             print("transmitted_string to Arduino: " + transmitted_string)
 
             b = transmitted_string.encode('utf-8')
+            #print(b)
             #b2 = bytes(transmitted_string, 'utf-8')
             arduino.write(b)
+
+            print("Post-Communication: " + str(arduino_keyboard))
 
             return
 
         #################################TUTOR FUNCTIONS########################
 
+        def resetting_tutor():
+            #Resetting all variables for song to restart
+            global restart,temp_keyboard,notes,current_keyboard_state,right_notes,wrong_notes,sequence,for_counter
+            global playing_state,event_counter,final_delay_location,chord_event_skip,live_setting_change,target_keyboard_state
+            global end_of_song_flag
+
+            restart = False
+
+            if end_of_song_flag != 1:
+                arduino_comm([])
+                end_of_song_flag = 0
+                print('end of song flag'+ str(end_of_song_flag))
+
+
+            #sequence = []
+            #temp_keyboard = []
+            #notes = []
+            #current_keyboard_state = []
+            target_keyboard_state = []
+            ###
+            right_notes = []
+            wrong_notes = []
+            event_counter = -1
+            ###
+            #for_counter = 0
+            #final_delay_location = 0
+            #chord_event_skip = 0
+            ###
+            playing_state = True # resetting acts as play button as well
+            live_setting_change = False
+            #reset_flag = 0
+
+
+            return
+
         def tutor_beginner():
             # This is practically the tutoring code for Beginner Mode
 
+            global target_keyboard_state, playing_state, end_of_song_flag, right_notes
+            global wrong_notes, restart, arduino_keyboard
+
+            target_keyboard_state = []
+            right_notes = []
+            wrong_notes = []
+            arduino_keyboard = []
+
+            event_counter = -1
+            final_delay_location = 0
+            chord_event_skip = 0
+            end_of_song_flag = 0
+
+            for event in sequence:
+                event_counter += 1
+                #counter = 0
+
+                if chord_event_skip != 0:
+                    # This ensures that the sequence is taken all the way to the sustain
+                    # of the chord rather than duplicating the chords' data processing.
+                    chord_event_skip -= 1
+                    continue
+
+                if event[0] == '1':
+                    safe_change_target_keyboard_state(int(event[2:]), 1)
+
+                if event[0] == 'D':
+
+                    note_delay = int(event[2:])
+                    final_delay_location = chord_detection(event_counter)
+
+                    if final_delay_location != event_counter:
+                        #print("Chord Detected")
+                        notes, note_delay = get_chord_notes(event_counter, final_delay_location)
+#for chord
+                        for note in notes:
+                            if note[0] == '1':
+                                safe_change_target_keyboard_state(int(note[2:]),1)
+                                #target_keyboard_state.append(int(event[2:]))
+                            else:
+                                safe_change_target_keyboard_state(int(note[2:]),0)
+                                #target_keyboard_state.remove(int(event[2:]))
+
+                        chord_event_skip = final_delay_location - event_counter
+
+                    if target_keyboard_state == []:
+                        continue
+
+                    print("Target " + str(target_keyboard_state))
+                    arduino_comm(target_keyboard_state)
+
+                    while(True):
+                        time.sleep(tutor_thread_delay)
+                        #if live_setting_change:
+                        #    print("HEY THINGS CHANGED")
+
+                        if restart == True or current_mode != 'beginner':
+                            restart = False
+                            arduino_comm([])
+                            #resetting_tutor()
+                            return
+
+                        if playing_state == False:
+                            #print("paused")
+                            pass
+
+                        elif keyboard_valid() and skill == 'follow_you_button':
+                            target_keyboard_state = []
+                            break
+
+                    #    elif skill in ('listen_button','play_along_button'):
+                    #        time.sleep(1) #time variable dependent on piano booster speed setting and delay of note
+                    #        target_keyboard_state = []
+                    #        break
+
+            # Turn off all notes when song is over
+            arduino_comm([])
+            playing_state = False
+            end_of_song_flag = 1
+            print('end of song flag= ' + str(end_of_song_flag))
+
+        def tutor_intermediate():
+            #similar to beginner, expect while(true) loop
             global target_keyboard_state
 
             event_counter = -1
@@ -359,7 +468,7 @@ class TutorThread(QThread):
 
             for event in sequence:
                 event_counter += 1
-                counter = 0
+                #counter = 0
 
                 if chord_event_skip != 0:
                     # This ensures that the sequence is taken all the way to the sustain
@@ -394,29 +503,61 @@ class TutorThread(QThread):
 
                         chord_event_skip = final_delay_location - event_counter
 
+
+                    note_delay = note_delay*100/speed # relationship between speed and delay
                     if target_keyboard_state == []:
                         continue
 
                     print("Target " + str(target_keyboard_state))
                     arduino_comm(target_keyboard_state)
 
+
                     while(True):
                         time.sleep(tutor_thread_delay)
                         #if live_setting_change:
                         #    print("HEY THINGS CHANGED")
+
+                        if restart == True or current_mode != 'intermediate':
+                            resetting_tutor()
+                            return
+
                         if playing_state == False:
-                            print("play_state OFF")
-                        elif keyboard_valid():
+                            print("paused")
+
+                        elif skill == 'play_along_button':
+                            time.sleep(note_delay)
                             target_keyboard_state = []
                             break
-            # Turn off all notes when song is over
-            arduino_comm([-1])
+
+                    #    elif skill in ('listen_button','play_along_button'):
+                    #        time.sleep(1) #time variable dependent on piano booster speed setting and delay of note
+                    #        target_keyboard_state = []
+                    #        break
+
+
+
+        def tutor_expert():
+            print('expert')
 
         ###############################MAIN RUN CODE############################
         #threading.Thread(target=piano_comm).start()
+        global restart
 
         midi_setup()
-        tutor_beginner()
+
+        while (True):
+            if current_mode == 'beginner':
+                tutor_beginner()
+            elif current_mode == 'intermediate':
+                tutor_intermediate()
+            elif current_mode == 'expert':
+                tutor_expert()
+
+            while(not playing_state):
+                #print("completion of tutoring mode")
+                time.sleep(0.2)
+
+            restart = False
 
         return
 
@@ -626,6 +767,7 @@ class TransparentGui(QMainWindow):
         self.setWindowFlags(self.windowFlags() | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint )
         #self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
         self.setWindowState(QtCore.Qt.WindowMaximized)
+
         self.piano_booster_setup()
         self.setupTransparentUI()
         self.setupVisibleUI()
@@ -856,25 +998,28 @@ class TransparentGui(QMainWindow):
     def beginner_mode_setting(self):
         # This function selects the tutoring mode to beginner
 
-        global current_mode
+        global current_mode, live_setting_change
 
         current_mode = 'beginner'
+        live_setting_change = True
         return
 
     def intermediate_mode_setting(self):
         # This function selects the tutoring mode to intermediate
 
-        global current_mode
+        global current_mode,live_setting_change
 
         current_mode = 'intermediate'
+        live_setting_change = True
         return
 
     def expert_mode_setting(self):
         # This function selects the tutoring mode to expert
 
-        global current_mode
+        global current_mode,live_setting_change
 
         current_mode = 'expert'
+        live_setting_change = True
         return
 
     def settings_timing_read(self):
@@ -931,6 +1076,7 @@ class TransparentGui(QMainWindow):
             print("Playing State: " + str(playing_state))
 
         elif button_name == 'restart_button':
+            #reset_flag = 1
             playing_state = True
             restart = True
             live_setting_change = True
