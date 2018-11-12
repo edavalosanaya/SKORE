@@ -2,6 +2,7 @@
 import sys
 import time
 import os
+from statistics import mode
 
 # File, Folder, and Directory Manipulation Library
 import ntpath
@@ -130,6 +131,7 @@ def click_center(button, dimensions):
     # buttons within the screenshot. The screenshot will then be cropped to only
     # include the application that is being clicked
 
+    """
     image = pyautogui.screenshot(region=dimensions)
 
     image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
@@ -154,6 +156,53 @@ def click_center(button, dimensions):
     pywinauto.mouse.click(button="left",coords=(file_button_center_coords[0],file_button_center_coords[1]))
     os.remove('gui_screenshot.png')
     time.sleep(0.1)
+    """
+
+    image = pyautogui.screenshot(region=dimensions)
+    x_coord_list = []
+    y_coord_list = []
+
+    image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+    cv2.imwrite('gui_screenshot.png', image)
+    img = cv2.imread('gui_screenshot.png', 0)
+    template = cv2.imread(templates_folder_path + '\\' + button + '.png', 0)
+
+    w, h = template.shape[::-1]
+
+    methods = ['cv2.TM_CCOEFF', 'cv2.TM_CCOEFF_NORMED', 'cv2.TM_CCORR',
+            'cv2.TM_CCORR_NORMED', 'cv2.TM_SQDIFF', 'cv2.TM_SQDIFF_NORMED']
+
+    desirable_methods = ['cv2.TM_CCOEFF', 'cv2.TM_CCOEFF_NORMED','cv2.TM_CCORR_NORMED']
+
+    for method in desirable_methods:
+        method = eval(method)
+        res = cv2.matchTemplate(img, template, method)
+        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+
+        top_left = max_loc
+        bottom_right = (top_left[0] + w, top_left[1] + h)
+
+        top_left = [top_left[0] + dimensions[0], top_left[1] + dimensions[1]]
+        bottom_right = (top_left[0] + w, top_left[1] + h)
+
+        file_button_center_coords = [ int((top_left[0]+bottom_right[0])/2) , int((top_left[1]+bottom_right[1])/2) ]
+
+        #print(file_button_center_coords)
+        x_coord_list.append(file_button_center_coords[0])
+        y_coord_list.append(file_button_center_coords[1])
+
+    try:
+        x_coord_mode = mode(x_coord_list)
+        y_coord_mode = mode(y_coord_list)
+    except statistics.StatisticsError:
+        x_coord_mode = x_coord_list[0]
+        y_coord_mode = x_coord_list[0]
+
+    #pywinauto.mouse.click(button="left",coords=(file_button_center_coords[0],file_button_center_coords[1]))
+    pywinauto.mouse.click(button="left",coords=(x_coord_mode,y_coord_mode))
+    os.remove('gui_screenshot.png')
+    time.sleep(0.1)
+
     return
 
 def click_center_try(button, dimensions):
@@ -1058,20 +1107,10 @@ def auto_anthemscore(user_input_address_anth, destination_address, file_type, fi
 
             # Selecting file type and saving the file
             click_center_try('format_button_anthem', ant_save_dimensions)
-
-            """
-            if file_type == '.mid':
-                print("Clicked on pdf")
-                click_center_try('format_pdf_button_anthem', ant_save_dimensions)
-            elif file_type == '.pdf':
-                click_center_try('format_mid_button_anthem', ant_save_dimensions)
-                print("Clicked on mid")
-
-            click_center_try('ok_button_anthem', ant_save_dimensions)
-            """
-
             click_center_try('format_pdf_button_anthem', ant_save_dimensions)
+            time.sleep(0.5)
             click_center_try('ok_button_anthem', ant_save_dimensions)
+
 
             time.sleep(0.5)
             click_center_try('file_button_anthem', ant_dimensions)
@@ -1096,9 +1135,10 @@ def auto_anthemscore(user_input_address_anth, destination_address, file_type, fi
             ant_save_dimensions = rect_to_int(original_rect_dimensions)
             click_center_try('format_button_anthem', ant_save_dimensions)
             click_center_try('format_mid_button_anthem', ant_save_dimensions)
+            time.sleep(1)
+            original_rect_dimensions = s2_window.rectangle()
+            ant_save_dimensions = rect_to_int(original_rect_dimensions)
             click_center_try('ok_button_anthem', ant_save_dimensions)
-
-
 
         progress_bar.current_action_label.setText("Closing AnthemScore")
         progress_bar.progress.setValue(progress_bar_values[6])
