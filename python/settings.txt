@@ -21,16 +21,16 @@ ant_app_exe_path=r"C:\Program Files (x86)\AnthemScore\AnthemScore.exe"
 MP3_to_MIDI Settings:
 mp3_2_midi_converter=r"amazingmidi"
 Port Settings:
-arduino_com_port=r"COM3"
+arduino_com_port=r"COM5"
 piano_port=r"CASIO USB-MIDI 1"
-piano_size=r"S"
+piano_size=r"M"
 Color Settings:
-whitekey_r=r"101"
-whitekey_g=r"255"
-whitekey_b=r"101"
+whitekey_r=r"255"
+whitekey_g=r"25"
+whitekey_b=r"5"
 whitekey_brightness=r"0"
-blackkey_r=r"80"
-blackkey_g=r"188"
+blackkey_r=r"239"
+blackkey_g=r"15"
 blackkey_b=r"255"
 blackkey_brightness=r"0"
 Timing Settings:
@@ -39,4 +39,12 @@ time_per_tick=r"0.01"
 manual_final_chord_sustain_timing=r"50"
 increment_counter=r"10"
 Tutoring Settings:
+<<<<<<< HEAD
 midi_file_location=r"C:\Users\daval\Documents\GitHub\SKORE\python\conversion_test\sample1.mid"
+=======
+<<<<<<< HEAD
+midi_file_location=r"C:\Users\ZBos\Documents\GitHub\SKORE\python\conversion_test\ultra_low_simple.mid"
+=======
+midi_file_location=r"C:\Users\daval\Documents\GitHub\SKORE\python\conversion_test\ultra_low_simple.mid"
+>>>>>>> 7ce123720ca364e70072f171b5622d697cccda10
+>>>>>>> 3df16f4d66ccb7d64a9085f41c81e7a36f594350
