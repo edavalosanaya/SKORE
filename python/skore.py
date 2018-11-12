@@ -246,11 +246,12 @@ class Skore(QtWidgets.QMainWindow):
         global upload_file_path, upload_file_name, upload_file_type
         global mid_file_obtained_event, mid_file_obtained_path
 
-        upload_file_path = self.openFileNameDialog_UserInput()
-        upload_file_name = os.path.splitext(os.path.basename(upload_file_path))[0]
-        upload_file_type = os.path.splitext(os.path.basename(upload_file_path))[1]
+        temp_upload_file_path = self.openFileNameDialog_UserInput()
 
-        if(upload_file_path != ''):
+        if temp_upload_file_path:
+            upload_file_path = temp_upload_file_path
+            upload_file_name = os.path.splitext(os.path.basename(upload_file_path))[0]
+            upload_file_type = os.path.splitext(os.path.basename(upload_file_path))[1]
 
             self.stop_all_animation()
 
@@ -260,15 +261,15 @@ class Skore(QtWidgets.QMainWindow):
                 mid_file_obtained_path = upload_file_path
                 self.tutor_animation.start()
                 self.generateMusicSheet_animation.start()
-            else:
+            elif(is_pdf(upload_file_path)):
+                self.generateMIDFile_animation.start()
                 mid_file_obtained_event = 0
                 mid_file_obtained_path = []
-
-            if(is_pdf(upload_file_path)):
-                self.generateMIDFile_animation.start()
             elif(is_mp3(upload_file_path)):
                 self.generateMIDFile_animation.start()
                 self.generateMusicSheet_animation.start()
+                mid_file_obtained_event = 0
+                mid_file_obtained_path = []
 
             setting_write('midi_file_location', mid_file_obtained_path)
             #self.retranslateUi(MainWindow)
@@ -309,6 +310,7 @@ class Skore(QtWidgets.QMainWindow):
         # user has actually uploaded a file and if the conversion is valid.
 
         global file_conversion_event, mid_file_obtained_event, mid_file_obtained_path
+        mp3_2_midi_converter = setting_read('mp3_2_midi_converter')
 
         if(upload_file_path):
             if(is_mid(upload_file_path)):
@@ -325,9 +327,13 @@ class Skore(QtWidgets.QMainWindow):
                 self.saveGeneratedFiles_animation.start()
                 self.tutor_animation.start()
             elif(is_mp3(upload_file_path)):
-                self.saveGeneratedFiles_animation.start()
-                self.tutor_animation.start()
-                self.generateMusicSheet_animation.start()
+                if mp3_2_midi_converter == 'amazingmidi':
+                    self.saveGeneratedFiles_animation.start()
+                    self.tutor_animation.start()
+                    self.generateMusicSheet_animation.start()
+                elif mp3_2_midi_converter == 'anthemscore':
+                    self.tutor_animation.start()
+                    self.generateMusicSheet_animation.start()
             self.retranslateUi()
 
         else:

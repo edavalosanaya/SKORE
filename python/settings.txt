@@ -39,4 +39,8 @@ time_per_tick=r"0.01"
 manual_final_chord_sustain_timing=r"50"
 increment_counter=r"10"
 Tutoring Settings:
+<<<<<<< HEAD
 midi_file_location=r"C:\Users\ZBos\Documents\GitHub\SKORE\python\conversion_test\ultra_low_simple.mid"
+=======
+midi_file_location=r"C:\Users\daval\Documents\GitHub\SKORE\python\conversion_test\ultra_low_simple.mid"
+>>>>>>> 7ce123720ca364e70072f171b5622d697cccda10
