@@ -35,6 +35,9 @@ conversion_identifier = []
 
 # Determing the address of the entire SKORE system
 complete_path = os.path.dirname(os.path.abspath(__file__))
+if complete_path == '' or complete_path.find('SKORE') == -1:
+        complete_path = os.path.dirname(sys.argv[0])
+
 skore_index = complete_path.find('SKORE') + len('SKORE')
 skore_path = complete_path[0:skore_index+1]
 
@@ -60,8 +63,8 @@ amazing_midi_tune = misc_folder_path + '\\' + 'piano0.wav'
 
 def red_dot_address_conversion(address,file_name):
 
-    complete_path = os.path.dirname(os.path.abspath(__file__))
-    print(complete_path)
+    global complete_path
+
     complete_path_list = complete_path.split('\\')
     print(complete_path_list)
     this_pc_address = complete_path_list[0] + '\\' + complete_path_list[1] + '\\' + complete_path_list[2] + '\\'
@@ -194,9 +197,9 @@ def click_center(button, dimensions):
     try:
         x_coord_mode = mode(x_coord_list)
         y_coord_mode = mode(y_coord_list)
-    except statistics.StatisticsError:
+    except:
         x_coord_mode = x_coord_list[0]
-        y_coord_mode = x_coord_list[0]
+        y_coord_mode = y_coord_list[0]
 
     #pywinauto.mouse.click(button="left",coords=(file_button_center_coords[0],file_button_center_coords[1]))
     pywinauto.mouse.click(button="left",coords=(x_coord_mode,y_coord_mode))

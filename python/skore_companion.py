@@ -114,7 +114,9 @@ class TutorThread(QThread):
             global sequence
             mid_file = []
 
-            cwd_path = os.path.dirname(os.path.abspath(__file__))
+
+            #cwd_path = os.path.dirname(os.path.abspath(__file__))
+            cwd_path = os.path.dirname(sys.argv[0])
             files = glob.glob(cwd_path + '\*')
 
             for file in files:

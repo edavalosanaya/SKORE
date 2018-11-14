@@ -235,8 +235,12 @@ class Skore(QtWidgets.QMainWindow):
 
         #self.skore_companion_dialog = Companion_Dialog()
         #self.skore_companion_dialog.show()
+        self.progress_bar.current_action_label.setText("Initializing SKORE Glass")
+        self.progress_bar.progress.setValue(50)
         self.skore_glass_overlay = TransparentGui()
         self.skore_glass_overlay.show()
+        self.progress_bar.current_action_label.setText("SKORE Glass Enabled")
+        self.progress_bar.progress.setValue(100)
 
         return
 
@@ -254,6 +258,8 @@ class Skore(QtWidgets.QMainWindow):
             upload_file_type = os.path.splitext(os.path.basename(upload_file_path))[1]
 
             self.stop_all_animation()
+
+            print(upload_file_path)
 
             if(is_mid(upload_file_path)):
                 # Obtaining mid file location
@@ -457,9 +463,9 @@ class ProgressBarDialog(QtWidgets.QDialog):
         """)
 
         self.current_action_label = QtWidgets.QLabel(self)
-        self.current_action_label.setGeometry(QtCore.QRect(40,70,250,25))
+        self.current_action_label.setGeometry(QtCore.QRect(40,70,300,25))
         self.current_action_label.setObjectName("current_action_label")
-        self.current_action_label.setText("Current Action: None")
+        self.current_action_label.setText("Please wait while we calibrate ... The Nozzle")
 
         #self.quit_pushButton = QPushButton("Quit",self)
         #self.quit_pushButton.setGeometry(193,100,100,30)

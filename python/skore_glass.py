@@ -1,5 +1,6 @@
 # General Utility
 import win32api
+import win32con
 import psutil
 import time
 import inspect
@@ -39,7 +40,7 @@ comm_thread_delay = 0.001
 #click_thread_delay = 0.5
 #button_thread_delay = 0.2
 tutor_thread_delay = 0.1
-app_close_delay = 7
+app_close_delay = 1
 
 # Setup Variables
 pia_app = []
@@ -111,6 +112,7 @@ class AppOpenThread(QThread):
         while(True):
             time.sleep(app_close_delay)
 
+            """
             # Checking if the pianobooster application is running
             processes = [p.name() for p in psutil.process_iter()]
 
@@ -124,6 +126,11 @@ class AppOpenThread(QThread):
                 print("PianoBooster Application Closure Detection")
                 time.sleep(1)
                 self.app_close_signal.emit()
+            """
+            if pia_app.is_process_running() == False:
+                print("PianoBooster Application Closure Detection")
+                self.app_close_signal.emit()
+
                 break
 
 ################################################################################
@@ -148,6 +155,9 @@ class TutorThread(QThread):
             mid_file = []
 
             cwd_path = os.path.dirname(os.path.abspath(__file__))
+            if cwd_path == '' or cwd_path.find('SKORE') == -1:
+                cwd_path = os.path.dirname(sys.argv[0])
+
             files = glob.glob(cwd_path + '\*')
 
             for file in files:
@@ -626,6 +636,7 @@ class CommThread(QThread):
                 print("BlackKey Colors: " + str(blackkey_transmitted_string))
 
                 #time.sleep(5)
+                """
                 time.sleep(2)
                 arduino.write(piano_size.encode('utf-8'))
                 time.sleep(1)
@@ -637,6 +648,25 @@ class CommThread(QThread):
                 print("Arduino Setup Complete")
                 # THIS IS AN ISSUE IN HOW LONG IT TAKES FOR THE ARDUINO TO BE READY
                 time.sleep(5)
+                """
+
+                if piano_size == 'S':
+                    arduino.write(b'61,')
+                elif piano_size == 'M':
+                    arduino.write(b'76,')
+                elif piano_size == 'L':
+                    arduino.write(b'88,')
+
+                time.sleep(1)
+                whitekey_message = whitekey_transmitted_string.encode('utf-8')
+                arduino.write(whitekey_message)
+                time.sleep(1)
+                blackkey_message = blackkey_transmitted_string.encode('utf-8')
+                arduino.write(blackkey_message)
+                print("Arduino Setup Complete")
+                # THIS IS AN ISSUE IN HOW LONG IT TAKES FOR THE ARDUINO TO BE READY
+                time.sleep(5)
+
                 return 1
 
             except serial.serialutil.SerialException:
@@ -748,10 +778,44 @@ class TransparentButton(QPushButton):
 
     def __init__(self, *args, **kwargs):
         QPushButton.__init__(self, *args, **kwargs)
+        self.button_state = 'enabled'
+
         op=QGraphicsOpacityEffect(self)
         op.setOpacity(0.01)
         self.setGraphicsEffect(op)
         self.setAutoFillBackground(True)
+        #self.setStyleSheet("""
+        #    background-color: rgb(50,50,50);
+        #    border: none;""")
+        #ist = QStyleFactory.keys()
+        #self.setStyle(QStyleFactory.create(list[0])) #window
+
+class DisabledButton(QPushButton):
+
+    def __init__(self, *args, **kwargs):
+        QPushButton.__init__(self, *args, **kwargs)
+        self.button_state = 'disabled'
+        self.setStyleSheet("""
+            background-color: rgb(240,240,240);
+            border: none;""")
+        list = QStyleFactory.keys()
+        self.setStyle(QStyleFactory.create(list[0])) #window
+
+class CoordinateButton(QPushButton):
+
+    def __init__(self, *args, **kwargs):
+        QPushButton.__init__(self, *args, **kwargs)
+        self.button_state = 'enabled'
+
+        op=QGraphicsOpacityEffect(self)
+        op.setOpacity(0.01)
+        self.setGraphicsEffect(op)
+        self.setAutoFillBackground(True)
+        #self.setStyleSheet("""
+        #    background-color: rgb(250,50,50);
+        #    border: none;""")
+        #list = QStyleFactory.keys()
+        #self.setStyle(QStyleFactory.create(list[0])) #window
 
 class TransparentGui(QMainWindow):
 
@@ -770,6 +834,7 @@ class TransparentGui(QMainWindow):
 
         self.piano_booster_setup()
         self.setupTransparentUI()
+        self.setupMenuBar()
         self.setupVisibleUI()
         self.setupThread()
 
@@ -778,28 +843,54 @@ class TransparentGui(QMainWindow):
         global local_button_list
 
         #self.book_combo_button = QPushButton(self)
-        self.book_combo_button = TransparentButton(self)
-        self.song_combo_button = TransparentButton(self)
+        #self.book_combo_button = TransparentButton(self)
+        #self.song_combo_button = TransparentButton(self)
+        self.book_combo_button = DisabledButton(self)
+        self.song_combo_button = DisabledButton(self)
+
         self.listen_button = TransparentButton(self)
-        self.follow_you_button = TransparentButton(self)
-        self.play_along_button = TransparentButton(self)
+
+        #self.follow_you_button = TransparentButton(self)
+        #self.play_along_button = TransparentButton(self)
+
+        self.follow_you_button = DisabledButton(self)
+        self.play_along_button = DisabledButton(self)
+
         self.restart_button = TransparentButton(self)
         self.play_button = TransparentButton(self)
         self.speed_spin_button = TransparentButton(self)
         self.transpose_spin_button = TransparentButton(self)
-        self.looping_bars_popup_button = TransparentButton(self)
-        self.start_bar_spin_button = TransparentButton(self)
+
+        #self.looping_bars_popup_button = TransparentButton(self)
+        #self.start_bar_spin_button = TransparentButton(self)
+
+        self.looping_bars_popup_button = DisabledButton(self)
+        self.start_bar_spin_button = DisabledButton(self)
+
+
         self.menubar_button = TransparentButton(self)
-        self.parts_selection_button = TransparentButton(self)
-        self.parts_mute_button = TransparentButton(self)
-        self.parts_slider_button = TransparentButton(self)
+
+        #self.parts_selection_button = TransparentButton(self)
+        #self.parts_mute_button = TransparentButton(self)
+        #self.parts_slider_button = TransparentButton(self)
+
+        self.parts_selection_button = DisabledButton(self)
+        self.parts_mute_button = DisabledButton(self)
+        self.parts_slider_button = DisabledButton(self)
+
         self.right_hand_button = TransparentButton(self)
         self.both_hands_button = TransparentButton(self)
         self.left_hand_button = TransparentButton(self)
-        self.slider_hand = TransparentButton(self)
+
+        #self.slider_hand = TransparentButton(self)
+
+        self.slider_hand = DisabledButton(self)
+
         self.key_combo_button = TransparentButton(self)
         self.major_button = TransparentButton(self)
-        self.save_bar_button = TransparentButton(self)
+        #self.save_bar_button = TransparentButton(self)
+
+        self.save_bar_button = DisabledButton(self)
 
         self.book_combo_button.setObjectName('book_combo_button')
         self.song_combo_button.setObjectName('song_combo_button')
@@ -987,12 +1078,58 @@ class TransparentGui(QMainWindow):
 
         return
 
+    def setupMenuBar(self):
+
+        self.view_menubar_button = CoordinateButton(self)
+        self.song_menubar_button = CoordinateButton(self)
+        self.setup_menubar_button = CoordinateButton(self)
+        self.help_menubar_button = CoordinateButton(self)
+
+        self.view_menubar_button.setObjectName('view_menubar_button')
+        self.song_menubar_button.setObjectName('song_menubar_button')
+        self.setup_menubar_button.setObjectName('setup_menubar_button')
+        self.help_menubar_button.setObjectName('help_menubar_button')
+
+        self.menubar_buttonGroup = QButtonGroup()
+        self.menubar_buttonGroup.setExclusive(True)
+        self.menubar_buttonGroup.addButton(self.view_menubar_button)
+        self.menubar_buttonGroup.addButton(self.song_menubar_button)
+        self.menubar_buttonGroup.addButton(self.setup_menubar_button)
+        self.menubar_buttonGroup.addButton(self.help_menubar_button)
+
+        menubar_button_list = [self.view_menubar_button, self.song_menubar_button,
+                                self.setup_menubar_button, self.help_menubar_button]
+
+        self.menubar_button_set_geometry()
+        self.menubar_buttonGroup.buttonClicked.connect(self.menubar_click)
+
+        return
+
     def local_button_set_geometry(self):
         for i in range(len(local_button_list)):
-            #print('i: ' + str(i))
+
+            if str(local_button_list[i].objectName()) == 'menubar_button':
+                #print('menubar_button detectd')
+                dimensions = all_qwidgets[i].rectangle()
+                width = int((dimensions.right - dimensions.left)*0.02)
+                #print(width)
+                local_button_list[i].setGeometry(QRect(dimensions.left, dimensions.top, width, dimensions.bottom - dimensions.top))
+                continue
+
             dimensions = all_qwidgets[i].rectangle()
             local_button_list[i].setGeometry(QRect(dimensions.left, dimensions.top, dimensions.right - dimensions.left, dimensions.bottom - dimensions.top))
 
+        return
+
+    def menubar_button_set_geometry(self):
+        dimensions = self.menubar_button.geometry()
+        self.view_menubar_button.setGeometry(dimensions.right() + 1, dimensions.top(), dimensions.width() + 7, dimensions.height())
+        dimensions = self.view_menubar_button.geometry()
+        self.song_menubar_button.setGeometry(dimensions.right() + 1, dimensions.top(), dimensions.width() + 4, dimensions.height())
+        dimensions = self.song_menubar_button.geometry()
+        self.setup_menubar_button.setGeometry(dimensions.right() + 1, dimensions.top(), dimensions.width() + 4, dimensions.height())
+        dimensions = self.setup_menubar_button.geometry()
+        self.help_menubar_button.setGeometry(dimensions.right() + 1, dimensions.top(), dimensions.width() + 4, dimensions.height())
         return
 
     def beginner_mode_setting(self):
@@ -1065,6 +1202,9 @@ class TransparentGui(QMainWindow):
         button_name = str(button.objectName())
         button_attribute = getattr(self,button_name)
 
+        if button_attribute.button_state == 'disabled':
+            return
+
         for index,qwidget in enumerate(local_button_list):
             if qwidget == button_attribute:
                 desired_index = index
@@ -1105,6 +1245,22 @@ class TransparentGui(QMainWindow):
                 print("QInputDialog in use")
         else:
             all_qwidgets[desired_index].click()
+
+    def menubar_click(self, button):
+        button_name = str(button.objectName())
+        #print(button_name)
+        x_coord, y_coord = win32api.GetCursorPos()
+        print(x_coord,',',y_coord)
+
+        self.hide()
+        self.click(x_coord,y_coord)
+        self.click(x_coord,y_coord)
+        time.sleep(0.01)
+        #pywinauto.mouse.click(button="left",coords=(x_coord,y_coord))
+        #pywinauto.mouse.click(button="left",coords=(x_coord,y_coord))
+        self.show()
+
+        return
 
     @pyqtSlot('QString', 'int')
     def create_message_box(self, item, desired_index):
@@ -1335,6 +1491,16 @@ class TransparentGui(QMainWindow):
             all_qwidgets_names.append(self.retrieve_name(all_qwidgets[i])[0])
 
         delay = 0.4
+        listen_button.click()
+        both_hands_button.click()
+        speed_spin_button.click_input()
+        speed_spin_button.type_keys('^a {DEL}110')
+
+        """
+        #print(pia_app.top_window().descendants(control_type="MenuBar"))
+        #print(pia_app.print_control_identifiers)
+        #pia_app.print_control_identifiers()
+        #main_qwidget.print_control_identifiers()
 
         # Opening the .mid file
         time.sleep(delay)
@@ -1360,7 +1526,14 @@ class TransparentGui(QMainWindow):
         #click_center_try('book_song_buttons_pia', unique_int_dimensions)
         #click_center_try('flag_button_pia', unique_int_dimensions)
         #click_center_try('part_button_pia', unique_int_dimensions)
+        """
 
+        return
+
+    def click(self,x,y):
+        win32api.SetCursorPos((x,y))
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN,x,y,0,0)
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP,x,y,0,0)
         return
 
 ################################################################################
