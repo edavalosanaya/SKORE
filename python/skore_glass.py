@@ -39,8 +39,8 @@ comm_thread_delay = 0.001
 #coord_thread_delay = 0.01
 #click_thread_delay = 0.5
 #button_thread_delay = 0.2
-tutor_thread_delay = 0.1
-app_close_delay = 1
+tutor_thread_delay = 0.05
+app_close_delay = 2
 
 # Setup Variables
 pia_app = []
@@ -68,7 +68,8 @@ sequence = []
 
 #chord_timing_tolerance = 10
 #time_per_tick = 0.00001
-chord_timing_tolerance = float(setting_read('chord_timing_tolerance'))
+first_chord_timing_tolerance = float(setting_read('chord_timing_tolerance'))
+second_chord_timing_tolerance = float(10)
 time_per_tick = float(setting_read('time_per_tick'))
 increment_counter = int(setting_read("increment_counter"))
 
@@ -78,6 +79,7 @@ timeBeginPeriod(1)
 # Arduino Variables (within TutorThread)
 arduino_keyboard = []
 arduino = []
+keyboard_shift = 0
 
 ############################LIVE TUTORING VARIABLES#############################
 skill ='follow_you_button'
@@ -240,14 +242,14 @@ class TutorThread(QThread):
         #    print(inital_delay_location)
         #    print(chord_timing_tolerance)
 
-            if int(sequence[inital_delay_location][2:]) <= chord_timing_tolerance:
+            if int(sequence[inital_delay_location][2:]) <= first_chord_timing_tolerance:
 
                 for event in sequence[inital_delay_location: ]:
 
                     if event[0] == 'D':
                         #print("Delay Detected")
 
-                        if int(event[2:]) >= chord_timing_tolerance:
+                        if int(event[2:]) >= second_chord_timing_tolerance:
                             #print("End of Chord Detected")
                             break
 
@@ -302,7 +304,7 @@ class TutorThread(QThread):
         def arduino_comm(notes):
             # This function sends the information about which notes need to be added and
             # removed from the LED Rod.
-            global arduino_keyboard
+            global arduino_keyboard, keyboard_shift
 
             print("Arduino Comm Notes: " + str(notes))
 
@@ -318,25 +320,36 @@ class TutorThread(QThread):
             else:
                 for note in notes: # For Turning on a note
                     if note not in arduino_keyboard:
+                        print("Note Added: " + str(note))
                         notes_to_add.append(note)
                         arduino_keyboard.append(note)
 
                 for note in arduino_keyboard: # for turning off a note
                     if note not in notes:
+                        print("Note Remove: " + str(note))
                         notes_to_remove.append(note)
-                        arduino_keyboard.remove(note)
+
+                for note in notes_to_remove:
+                    arduino_keyboard.remove(note)
+
+                print("notes_to_add: " + str(notes_to_add))
+                print("notes_to_remove: " + str(notes_to_remove))
 
                 notes_to_send = notes_to_add + notes_to_remove
 
             # All transmitted notes are contain within the same string
             transmitted_string = ''
-            print('notes_to_send: ' + str(notes_to_send))
+            non_shifted_string = ''
 
             for note in notes_to_send:
-                transmitted_string += str(note) + ','
+                shifted_note = note - keyboard_shift + 1
+                transmitted_string += str(shifted_note) + ','
+                non_shifted_string += str(note) + ','
 
             #transmitted_string = transmitted_string[:-1] # to remove last note's comma
-            print("transmitted_string to Arduino: " + transmitted_string)
+            #print("transmitted_string to Arduino: " + transmitted_string)
+            print("non_shifted_string to Arduino: " + non_shifted_string)
+
 
             b = transmitted_string.encode('utf-8')
             #print(b)
@@ -457,6 +470,7 @@ class TutorThread(QThread):
                             target_keyboard_state = []
                             break
 
+                    arduino_comm([])
                     #    elif skill in ('listen_button','play_along_button'):
                     #        time.sleep(1) #time variable dependent on piano booster speed setting and delay of note
                     #        target_keyboard_state = []
@@ -592,12 +606,23 @@ class CommThread(QThread):
 
             global arduino
             global piano_size
+            global keyboard_shift
 
             whitekey = []
             blackkey = []
             whitekey_transmitted_string = ''
             blackkey_transmitted_string = ''
             piano_size = setting_read('piano_size') + ','
+
+            if piano_size == 'S,':
+                keyboard_shift = 36
+                size_message = '61,'
+            elif piano_size == 'M,':
+                keyboard_shift = 36
+                size_message = '76,'
+            elif piano_size == 'L,':
+                keyboard_shift = 36
+                size_message = '88,'
 
             # Closing, if applicable, the arduino port
             if arduino != []:
@@ -635,37 +660,13 @@ class CommThread(QThread):
                 print("WhiteKey Colors: " + str(whitekey_transmitted_string))
                 print("BlackKey Colors: " + str(blackkey_transmitted_string))
 
-                #time.sleep(5)
-                """
+                setup_transmitted_string = size_message + whitekey_transmitted_string + blackkey_transmitted_string
+                setup_transmitted_string = setup_transmitted_string.replace(' ','')
+
                 time.sleep(2)
-                arduino.write(piano_size.encode('utf-8'))
-                time.sleep(1)
-                whitekey_message = whitekey_transmitted_string.encode('utf-8')
-                arduino.write(whitekey_message)
-                time.sleep(1)
-                blackkey_message = blackkey_transmitted_string.encode('utf-8')
-                arduino.write(blackkey_message)
-                print("Arduino Setup Complete")
-                # THIS IS AN ISSUE IN HOW LONG IT TAKES FOR THE ARDUINO TO BE READY
-                time.sleep(5)
-                """
-
-                if piano_size == 'S':
-                    arduino.write(b'61,')
-                elif piano_size == 'M':
-                    arduino.write(b'76,')
-                elif piano_size == 'L':
-                    arduino.write(b'88,')
-
-                time.sleep(1)
-                whitekey_message = whitekey_transmitted_string.encode('utf-8')
-                arduino.write(whitekey_message)
-                time.sleep(1)
-                blackkey_message = blackkey_transmitted_string.encode('utf-8')
-                arduino.write(blackkey_message)
-                print("Arduino Setup Complete")
-                # THIS IS AN ISSUE IN HOW LONG IT TAKES FOR THE ARDUINO TO BE READY
-                time.sleep(5)
+                print("Setup String:" + setup_transmitted_string)
+                arduino.write(setup_transmitted_string.encode('utf-8'))
+                time.sleep(2)
 
                 return 1
 
@@ -1363,6 +1364,12 @@ class TransparentGui(QMainWindow):
         except AttributeError:
             print("Failure in Comms is acknowledge")
 
+        try:
+            arduino.close()
+        except:
+            print("Failure in arduino.close()")
+
+
         self.close()
 
         return
@@ -1491,16 +1498,12 @@ class TransparentGui(QMainWindow):
             all_qwidgets_names.append(self.retrieve_name(all_qwidgets[i])[0])
 
         delay = 0.4
-        listen_button.click()
+        #listen_button.click()
+        follow_you_button.click()
         both_hands_button.click()
         speed_spin_button.click_input()
-        speed_spin_button.type_keys('^a {DEL}110')
+        speed_spin_button.type_keys('^a {DEL}100')
 
-        """
-        #print(pia_app.top_window().descendants(control_type="MenuBar"))
-        #print(pia_app.print_control_identifiers)
-        #pia_app.print_control_identifiers()
-        #main_qwidget.print_control_identifiers()
 
         # Opening the .mid file
         time.sleep(delay)
@@ -1526,7 +1529,7 @@ class TransparentGui(QMainWindow):
         #click_center_try('book_song_buttons_pia', unique_int_dimensions)
         #click_center_try('flag_button_pia', unique_int_dimensions)
         #click_center_try('part_button_pia', unique_int_dimensions)
-        """
+
 
         return
 
