@@ -35,11 +35,7 @@ sys.coinit_flags = 2
 
 # General Delay Values
 comm_thread_delay = 0.001
-#coord_thread_delay = 0.05
-#coord_thread_delay = 0.01
-#click_thread_delay = 0.5
-#button_thread_delay = 0.2
-tutor_thread_delay = 0.05
+tutor_thread_delay = 0.01
 app_close_delay = 2
 
 # Setup Variables
@@ -66,10 +62,7 @@ right_notes = []
 
 sequence = []
 
-#chord_timing_tolerance = 10
-#time_per_tick = 0.00001
-first_chord_timing_tolerance = float(setting_read('chord_timing_tolerance'))
-second_chord_timing_tolerance = float(10)
+chord_timing_tolerance = float(setting_read('chord_timing_tolerance'))
 time_per_tick = float(setting_read('time_per_tick'))
 increment_counter = int(setting_read("increment_counter"))
 
@@ -114,21 +107,6 @@ class AppOpenThread(QThread):
         while(True):
             time.sleep(app_close_delay)
 
-            """
-            # Checking if the pianobooster application is running
-            processes = [p.name() for p in psutil.process_iter()]
-
-            for process in processes:
-                if process == 'pianobooster.exe':
-                    # PianoBooster is running
-                    break
-
-            if process != 'pianobooster.exe':
-                # if the PianoBooster is not running, end mouse tracking
-                print("PianoBooster Application Closure Detection")
-                time.sleep(1)
-                self.app_close_signal.emit()
-            """
             if pia_app.is_process_running() == False:
                 print("PianoBooster Application Closure Detection")
                 self.app_close_signal.emit()
@@ -147,6 +125,8 @@ class TutorThread(QThread):
         QThread.__init__(self)
 
     def run(self):
+
+        ################################MIDI FUNCTIONS##########################
 
         def midi_setup():
             # This fuction deletes pre-existing MIDI files and places the new desired MIDI
@@ -186,9 +166,9 @@ class TutorThread(QThread):
                 print("No midi file within the cwd: " + str(cwd_path))
                 return 0
 
-            #Obtaining the note event info for the mid file
+            # Obtaining the note event info for the mid file
             sequence = midi_to_note_event_info(mid_file)
-            print(sequence)
+            #print(sequence)
             return 1
 
         def midi_to_note_event_info(mid_file):
@@ -214,6 +194,9 @@ class TutorThread(QThread):
         ##############################UTILITY FUNCTIONS#########################
 
         def keyboard_valid():
+            # This functions follows the confirmation system of PianoBooster
+            # which determines if the keys pressed are acceptable compared to the
+            # target keyboard configuration
 
             global right_notes
             acceptable = 1
@@ -225,7 +208,7 @@ class TutorThread(QThread):
 
             if acceptable and len(wrong_notes) <= 1:
                 right_notes = []
-                print("acceptable")
+                #print("acceptable")
                 return 1
 
             return 0
@@ -238,22 +221,22 @@ class TutorThread(QThread):
             # it means that the inital delay is not a chord.
 
             final_delay_location = inital_delay_location
+            total_delay_value = int(sequence[inital_delay_location][2:])
             for_counter = 0
-        #    print(inital_delay_location)
-        #    print(chord_timing_tolerance)
 
-            if int(sequence[inital_delay_location][2:]) <= first_chord_timing_tolerance:
+            if int(sequence[inital_delay_location][2:]) <= chord_timing_tolerance:
 
                 for event in sequence[inital_delay_location: ]:
 
                     if event[0] == 'D':
                         #print("Delay Detected")
 
-                        if int(event[2:]) >= second_chord_timing_tolerance:
+                        if int(event[2:]) >= chord_timing_tolerance:
                             #print("End of Chord Detected")
                             break
 
                         else:
+                            total_delay_value += int(event[2:])
                             for_counter += 1
                             continue
                     else:
@@ -261,10 +244,10 @@ class TutorThread(QThread):
                         continue
             else:
                 #print("Not a chord")
-                return inital_delay_location
+                return inital_delay_location, total_delay_value
 
             final_delay_location += for_counter
-            return final_delay_location
+            return final_delay_location, total_delay_value
 
         def get_chord_notes(inital_delay_location,final_delay_location):
             # This functions obtains the notes within the inital and final delay locations
@@ -304,6 +287,7 @@ class TutorThread(QThread):
         def arduino_comm(notes):
             # This function sends the information about which notes need to be added and
             # removed from the LED Rod.
+
             global arduino_keyboard, keyboard_shift
 
             print("Arduino Comm Notes: " + str(notes))
@@ -317,6 +301,9 @@ class TutorThread(QThread):
             if notes == []:
                 notes_to_send = arduino_keyboard
                 arduino_keyboard = []
+                #arduino.write(b'*')
+                #return
+
             else:
                 for note in notes: # For Turning on a note
                     if note not in arduino_keyboard:
@@ -336,6 +323,7 @@ class TutorThread(QThread):
                 print("notes_to_remove: " + str(notes_to_remove))
 
                 notes_to_send = notes_to_add + notes_to_remove
+                notes_to_send.sort()
 
             # All transmitted notes are contain within the same string
             transmitted_string = ''
@@ -346,9 +334,13 @@ class TutorThread(QThread):
                 transmitted_string += str(shifted_note) + ','
                 non_shifted_string += str(note) + ','
 
+            transmitted_string = ',' + transmitted_string
+            non_shifted_string = ',' + non_shifted_string
+
             #transmitted_string = transmitted_string[:-1] # to remove last note's comma
             #print("transmitted_string to Arduino: " + transmitted_string)
             print("non_shifted_string to Arduino: " + non_shifted_string)
+            print("shifted_string to Arduino: " + transmitted_string)
 
 
             b = transmitted_string.encode('utf-8')
@@ -363,7 +355,8 @@ class TutorThread(QThread):
         #################################TUTOR FUNCTIONS########################
 
         def resetting_tutor():
-            #Resetting all variables for song to restart
+            # Resetting all variables for song to restart
+
             global restart,temp_keyboard,notes,current_keyboard_state,right_notes,wrong_notes,sequence,for_counter
             global playing_state,event_counter,final_delay_location,chord_event_skip,live_setting_change,target_keyboard_state
             global end_of_song_flag
@@ -392,8 +385,6 @@ class TutorThread(QThread):
             ###
             playing_state = True # resetting acts as play button as well
             live_setting_change = False
-            #reset_flag = 0
-
 
             return
 
@@ -429,7 +420,7 @@ class TutorThread(QThread):
                 if event[0] == 'D':
 
                     note_delay = int(event[2:])
-                    final_delay_location = chord_detection(event_counter)
+                    final_delay_location, total_delay_value = chord_detection(event_counter)
 
                     if final_delay_location != event_counter:
                         #print("Chord Detected")
@@ -453,8 +444,6 @@ class TutorThread(QThread):
 
                     while(True):
                         time.sleep(tutor_thread_delay)
-                        #if live_setting_change:
-                        #    print("HEY THINGS CHANGED")
 
                         if restart == True or current_mode != 'beginner':
                             restart = False
@@ -462,19 +451,11 @@ class TutorThread(QThread):
                             #resetting_tutor()
                             return
 
-                        if playing_state == False:
-                            #print("paused")
-                            pass
-
-                        elif keyboard_valid() and skill == 'follow_you_button':
+                        if keyboard_valid() and playing_state:
                             target_keyboard_state = []
                             break
 
                     arduino_comm([])
-                    #    elif skill in ('listen_button','play_along_button'):
-                    #        time.sleep(1) #time variable dependent on piano booster speed setting and delay of note
-                    #        target_keyboard_state = []
-                    #        break
 
             # Turn off all notes when song is over
             arduino_comm([])
@@ -483,88 +464,14 @@ class TutorThread(QThread):
             print('end of song flag= ' + str(end_of_song_flag))
 
         def tutor_intermediate():
-            #similar to beginner, expect while(true) loop
-            global target_keyboard_state
-
-            event_counter = -1
-            final_delay_location = 0
-            chord_event_skip = 0
-
-            for event in sequence:
-                event_counter += 1
-                #counter = 0
-
-                if chord_event_skip != 0:
-                    # This ensures that the sequence is taken all the way to the sustain
-                    # of the chord rather than duplicating the chords' data processing.
-
-                    chord_event_skip -= 1
-                    continue
-
-                if event[0] == '1':
-                    safe_change_target_keyboard_state(int(event[2:]), 1)
-                    #target_keyboard_state.append(int(event[2:]))
-                #if event[0] == '0':
-                #    safe_change_target_keyboard_state(int(event[2:]), 0)
-                    #target_keyboard_state.remove(int(event[2:]))
-
-                if event[0] == 'D':
-
-                    note_delay = int(event[2:])
-                    final_delay_location = chord_detection(event_counter)
-
-                    if final_delay_location != event_counter:
-                        #print("Chord Detected")
-                        notes, note_delay = get_chord_notes(event_counter, final_delay_location)
-
-                        for note in notes:
-                            if note[0] == '1':
-                                safe_change_target_keyboard_state(int(note[2:]),1)
-                                #target_keyboard_state.append(int(event[2:]))
-                            else:
-                                safe_change_target_keyboard_state(int(note[2:]),0)
-                                #target_keyboard_state.remove(int(event[2:]))
-
-                        chord_event_skip = final_delay_location - event_counter
-
-
-                    note_delay = note_delay*100/speed # relationship between speed and delay
-                    if target_keyboard_state == []:
-                        continue
-
-                    print("Target " + str(target_keyboard_state))
-                    arduino_comm(target_keyboard_state)
-
-
-                    while(True):
-                        time.sleep(tutor_thread_delay)
-                        #if live_setting_change:
-                        #    print("HEY THINGS CHANGED")
-
-                        if restart == True or current_mode != 'intermediate':
-                            resetting_tutor()
-                            return
-
-                        if playing_state == False:
-                            print("paused")
-
-                        elif skill == 'play_along_button':
-                            time.sleep(note_delay)
-                            target_keyboard_state = []
-                            break
-
-                    #    elif skill in ('listen_button','play_along_button'):
-                    #        time.sleep(1) #time variable dependent on piano booster speed setting and delay of note
-                    #        target_keyboard_state = []
-                    #        break
-
-
+            print("intermediate")
+            return
 
         def tutor_expert():
             print('expert')
 
         ###############################MAIN RUN CODE############################
-        #threading.Thread(target=piano_comm).start()
+
         global restart
 
         midi_setup()
@@ -599,6 +506,8 @@ class CommThread(QThread):
         QThread.__init__(self)
 
     def run(self):
+
+        ############################COMM SETUP FUNCTION#########################
 
         def arduino_setup():
             # This functions sets up the communication between Python and the Arduino.
@@ -714,6 +623,8 @@ class CommThread(QThread):
 
             return 0
 
+        #############################UTILITY FUNCTIONS##########################
+
         def safe_change_current_keyboard_state(pitch, state):
             # This function safely removes or adds the pitch to the
             # current_keyboard_state variable
@@ -729,6 +640,8 @@ class CommThread(QThread):
                 current_keyboard_state.remove(pitch)
 
             return
+
+        #############################MAIN CODE##################################
 
         print("Piano and Arduino Communication Thread Enabled")
 
@@ -758,6 +671,7 @@ class CommThread(QThread):
                             else:
                                 if note_info[1] not in wrong_notes:
                                     wrong_notes.append(note_info[1])
+
                         else: # Note OFF event
                             #current_keyboard_state.remove(note_info[1])
                             safe_change_current_keyboard_state(note_info[1],0)
@@ -776,6 +690,7 @@ class CommThread(QThread):
 ################################################################################
 
 class TransparentButton(QPushButton):
+    # This class is custom version of QPushButton that is transparent
 
     def __init__(self, *args, **kwargs):
         QPushButton.__init__(self, *args, **kwargs)
@@ -785,13 +700,10 @@ class TransparentButton(QPushButton):
         op.setOpacity(0.01)
         self.setGraphicsEffect(op)
         self.setAutoFillBackground(True)
-        #self.setStyleSheet("""
-        #    background-color: rgb(50,50,50);
-        #    border: none;""")
-        #ist = QStyleFactory.keys()
-        #self.setStyle(QStyleFactory.create(list[0])) #window
 
 class DisabledButton(QPushButton):
+    # This class is custom version of QPushButton that is not transparent, and not
+    # enabled for the user's usability
 
     def __init__(self, *args, **kwargs):
         QPushButton.__init__(self, *args, **kwargs)
@@ -800,9 +712,11 @@ class DisabledButton(QPushButton):
             background-color: rgb(240,240,240);
             border: none;""")
         list = QStyleFactory.keys()
-        self.setStyle(QStyleFactory.create(list[0])) #window
+        self.setStyle(QStyleFactory.create(list[0]))
 
 class CoordinateButton(QPushButton):
+    # This class is custom version of QPushButton that is set by calculated
+    # coordinates rather than button-to-button matching
 
     def __init__(self, *args, **kwargs):
         QPushButton.__init__(self, *args, **kwargs)
@@ -812,13 +726,11 @@ class CoordinateButton(QPushButton):
         op.setOpacity(0.01)
         self.setGraphicsEffect(op)
         self.setAutoFillBackground(True)
-        #self.setStyleSheet("""
-        #    background-color: rgb(250,50,50);
-        #    border: none;""")
-        #list = QStyleFactory.keys()
-        #self.setStyle(QStyleFactory.create(list[0])) #window
 
-class TransparentGui(QMainWindow):
+class SkoreGlassGui(QMainWindow):
+    # This class creates the transparent GUI overlay that rests ontop of PianoBooster.
+    # It initalizises PianoBooster, the communication systems, and buttons that
+    # manipulate PianoBooster
 
     button_signal = QtCore.pyqtSignal('QString', 'int')
     local_button_list = []
@@ -840,6 +752,7 @@ class TransparentGui(QMainWindow):
         self.setupThread()
 
     def setupTransparentUI(self):
+        # This functions sets up all the transparent GUI
 
         global local_button_list
 
@@ -958,6 +871,7 @@ class TransparentGui(QMainWindow):
         self.button_signal.connect(self.create_message_box)
 
     def setupVisibleUI(self):
+        # This functions sets up all the visible GUI
 
         self.setStyleSheet("""
             background-color: rgb(50,50,50);
@@ -1066,6 +980,8 @@ class TransparentGui(QMainWindow):
         return
 
     def setupThread(self):
+        # This functions initalizes the communication threads between PianoBooster,
+        # the piano, and the arduino.
 
         # Initializing PianoBooster App Open Check MultiThreading
         self.check_open_app_thread = AppOpenThread()
@@ -1080,6 +996,9 @@ class TransparentGui(QMainWindow):
         return
 
     def setupMenuBar(self):
+        # This function assigns the coordinates to the CoordinateButton class, which
+        # have to be calculated. This is because the menubar buttons QRect object
+        # was not obtainable with pywinauto.
 
         self.view_menubar_button = CoordinateButton(self)
         self.song_menubar_button = CoordinateButton(self)
@@ -1107,13 +1026,13 @@ class TransparentGui(QMainWindow):
         return
 
     def local_button_set_geometry(self):
-        for i in range(len(local_button_list)):
+        # This function assigns the corresponding transparent buttons to the
+        # visible pianobooster buttons that are intended to be keep enabled.
 
+        for i in range(len(local_button_list)):
             if str(local_button_list[i].objectName()) == 'menubar_button':
-                #print('menubar_button detectd')
                 dimensions = all_qwidgets[i].rectangle()
                 width = int((dimensions.right - dimensions.left)*0.02)
-                #print(width)
                 local_button_list[i].setGeometry(QRect(dimensions.left, dimensions.top, width, dimensions.bottom - dimensions.top))
                 continue
 
@@ -1123,6 +1042,9 @@ class TransparentGui(QMainWindow):
         return
 
     def menubar_button_set_geometry(self):
+        # This funciton calculates and set the geometry of the menubar buttons,
+        # which have a subclass decided for them, called CoordinateButton
+
         dimensions = self.menubar_button.geometry()
         self.view_menubar_button.setGeometry(dimensions.right() + 1, dimensions.top(), dimensions.width() + 7, dimensions.height())
         dimensions = self.view_menubar_button.geometry()
@@ -1196,6 +1118,8 @@ class TransparentGui(QMainWindow):
         return
 
     def button_click(self, button):
+        # This function clicks on the corresponding PianoBooster button once
+        # a transparent and enabled button
 
         global skill, hands, speed, tranpose, start_bar_value, playing_state
         global restart, live_setting_change
@@ -1217,18 +1141,18 @@ class TransparentGui(QMainWindow):
             print("Playing State: " + str(playing_state))
 
         elif button_name == 'restart_button':
-            #reset_flag = 1
             playing_state = True
             restart = True
             live_setting_change = True
             print("Restart Pressed")
 
-        elif button_name == 'follow_you_button':
+        elif button_name == 'listen_button':
             skill = button_name
             live_setting_change = True
             print(button_name + " pressed")
 
-        elif button_name == 'listen_button':
+        """
+        elif button_name == 'follow_you_button':
             skill = button_name
             live_setting_change = True
             print(button_name + " pressed")
@@ -1237,7 +1161,7 @@ class TransparentGui(QMainWindow):
             skill = button_name
             live_setting_change = True
             print(button_name + " pressed")
-
+        """
 
         if button_name == 'speed_spin_button' or button_name == 'transpose_spin_button' or button_name == 'start_bar_spin_button':
             if message_box_active == 0:
@@ -1248,8 +1172,10 @@ class TransparentGui(QMainWindow):
             all_qwidgets[desired_index].click()
 
     def menubar_click(self, button):
+        # This function clicks on the assigned buttons that are the coordinate
+        # buttons.
+
         button_name = str(button.objectName())
-        #print(button_name)
         x_coord, y_coord = win32api.GetCursorPos()
         print(x_coord,',',y_coord)
 
@@ -1257,8 +1183,6 @@ class TransparentGui(QMainWindow):
         self.click(x_coord,y_coord)
         self.click(x_coord,y_coord)
         time.sleep(0.01)
-        #pywinauto.mouse.click(button="left",coords=(x_coord,y_coord))
-        #pywinauto.mouse.click(button="left",coords=(x_coord,y_coord))
         self.show()
 
         return
@@ -1268,8 +1192,8 @@ class TransparentGui(QMainWindow):
         # This function creates a QInputDialog box for the user to input
         # multivalue information, such as speed and tranpose
 
-        global speed, tranpose, message_box_active
-        global playing_state, speed, tranpose, live_setting_change, start_bar_value
+        global speed, tranpose, message_box_active, playing_state, speed, tranpose
+        global live_setting_change, start_bar_value
 
         flag = 0
         unacceptable_value_flag = 0
@@ -1278,13 +1202,13 @@ class TransparentGui(QMainWindow):
         if playing_state == True:
             flag = 1
             print("Stoping app")
-            #all_qwidgets[8].click()
-            all_qwidgets[6].click()
+            all_qwidgets[6].click() # play button
             playing_state = False
             live_setting_change = True
 
         # Asking user for value of spin button
         message_box_active = 1
+
         if item == 'speed_spin_button':
             num, ok = QInputDialog.getInt(self, item + "Pressed", "Enter the value [20 - 200] for " + item)
             if num > 200 or num < 20:
@@ -1310,7 +1234,7 @@ class TransparentGui(QMainWindow):
                 start_bar_value = num
                 live_setting_change = True
 
-
+            # manually pressed the spin button and places the value
             self.hide()
             all_qwidgets[desired_index].click_input()
             all_qwidgets[desired_index].type_keys('^a {DEL}' + str(num))
@@ -1323,7 +1247,7 @@ class TransparentGui(QMainWindow):
         if flag == 1:
             print("Continuing the app")
             #all_qwidgets[8].click()
-            all_qwidgets[6].click()
+            all_qwidgets[6].click() # play button
             playing_state = True
             live_setting_change = True
 
@@ -1346,10 +1270,6 @@ class TransparentGui(QMainWindow):
         print("SKORE application closes SKORE companion detected")
 
         print("Terminating all threads")
-        #self.click_tracking_thread.terminate()
-        #self.coord_tracking_thread.terminate()
-        #self.user_tracking_thread.terminate()
-        #self.check_open_app_thread.terminate()
         self.comm_thread.terminate()
 
         try:
@@ -1357,24 +1277,27 @@ class TransparentGui(QMainWindow):
         except AttributeError:
             print("Failure in Comms is acknowledge")
 
+        # Closing communication ports
+        print("Closing all Communication Ports")
         try:
-        #pia_app.kill()
             midi_in.close_port()
             midi_out.close_port()
+            print("midi ports closed")
         except AttributeError:
             print("Failure in Comms is acknowledge")
 
         try:
             arduino.close()
+            print("arduino port closed")
         except:
             print("Failure in arduino.close()")
 
-
         self.close()
-
         return
 
     def retrieve_name(self, var):
+        # This function returns the actual name of the variable called var
+
         callers_local_vars = inspect.currentframe().f_back.f_locals.items()
         return [var_name for var_name, var_val in callers_local_vars if var_val is var]
 
@@ -1534,6 +1457,8 @@ class TransparentGui(QMainWindow):
         return
 
     def click(self,x,y):
+        # This function manually clicks on a set of x and y coordinates
+
         win32api.SetCursorPos((x,y))
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN,x,y,0,0)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP,x,y,0,0)
@@ -1545,7 +1470,7 @@ class TransparentGui(QMainWindow):
 app = QApplication(sys.argv)
 list = QStyleFactory.keys()
 app.setStyle(QStyleFactory.create(list[2])) #Fusion
-window = TransparentGui()
+window = SkoreGlassGui()
 window.show()
 sys.exit(app.exec_())
 """

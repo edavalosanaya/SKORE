@@ -237,7 +237,7 @@ class Skore(QtWidgets.QMainWindow):
         #self.skore_companion_dialog.show()
         self.progress_bar.current_action_label.setText("Initializing SKORE Glass")
         self.progress_bar.progress.setValue(50)
-        self.skore_glass_overlay = TransparentGui()
+        self.skore_glass_overlay = SkoreGlassGui()
         self.skore_glass_overlay.show()
         self.progress_bar.current_action_label.setText("SKORE Glass Enabled")
         self.progress_bar.progress.setValue(100)
