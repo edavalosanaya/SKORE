@@ -20,7 +20,7 @@ import pyautogui
 # GUI Automation Library
 import pywinauto
 
-# PyQt5, GUI LIbrary
+# PyQt5, GUI Library
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *

@@ -48,6 +48,7 @@ class Skore(QtWidgets.QMainWindow):
 
         global animation_group, blink_button_group
 
+        self.setWindowTitle('SKORE')
         self.setObjectName("MainWindow")
         self.resize(916,530)
         self.setStyleSheet("""
@@ -160,7 +161,6 @@ class Skore(QtWidgets.QMainWindow):
         # This function applies all the text changes in the main SKORE app.
 
         _translate = QtCore.QCoreApplication.translate
-        self.setWindowTitle('SKORE')
         #self.uploadAudioFile_toolButton.setText(_translate("MainWindow", "Upload audio file"))
         #self.record_toolButton.setText(_translate("MainWindow", "Record"))
         self.settings_toolButton.setText(_translate("MainWindow", "Settings"))

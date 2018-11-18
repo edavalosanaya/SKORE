@@ -1,7 +1,7 @@
 These are the settings for the SKORE application
 Please do not change any of this value, unless you know what you are doing.
 General Settings:
-file_conversion_user_control=r"False"
+file_conversion_user_control=r"True"
 Audiveris Settings:
 audi_app_exe_path=r"C:\Users\daval\audiveris"
 AmazingMIDI Settings:
@@ -39,4 +39,4 @@ time_per_tick=r"0.01"
 manual_final_chord_sustain_timing=r"50"
 increment_counter=r"10"
 Tutoring Settings:
-midi_file_location=r"C:\Users\daval\Documents\GitHub\SKORE\python\conversion_test\hard_test.mid"
+midi_file_location=r"C:\Users\daval\Documents\GitHub\SKORE\python\temp\OdeToJoy.mid"

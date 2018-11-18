@@ -1,4 +1,4 @@
-Development Team: Ashkan A., Zachary B., and Eduardo Davalos
+Development Team: Ashkan A., Zachary B., and Eduardo D.
 SKORE (Smart Keyboard Operated by Robotic Educator)
 Expected time for project and proper documentation completion: March 2019
 
@@ -27,10 +27,12 @@ along.
 notes, this way the user test their knowledge of the piece.
 
 Installation:
-Note: this application, so far, only works on Windows 10.
+Note: pdf to midi file conversion is only functional with an Intel Processor
+Windows 10 computer. Other features of the application theoretically function in
+Linux and Mac as well, but they have not been tested in those operation systems yet.
 
 For this application to function please install the following programs:
--Audiveris (Will require 64-bit OS and Intel Processor) [difficult installation]
+-Audiveris (Will require 64-bit OS and Intel Processor) [difficult installation] (v5.1.0:0bf682689)
     +https://github.com/audiveris
     -Java JDK version 8
         +http://www.oracle.com/technetwork/java/javase/downloads/index.html
@@ -38,20 +40,22 @@ For this application to function please install the following programs:
         +https://gradle.org/
     -Tesseract OCR
         +https://github.com/tesseract-ocr/tesseract
--Audacity
-    +https://www.audacityteam.org/download/
--Red Dot Forever
+-Audacity (v2.1.0)
+    +https://sourceforge.net/projects/audacity/files/latest/download
+-Red Dot Forever (v1.04)
     +https://sourceforge.net/projects/reddot/files/latest/download
--MidiSheetMusic-2.6
+-MidiSheetMusic-2.6 (v2-6)
     +http://midisheetmusic.com/download.html
--AmazingMIDI
+-AmazingMIDI (v1.70)
     +http://www.pluto.dti.ne.jp/~araki/amazingmidi/
 -AnthemScore(Optional, not free)
     +https://www.lunaverus.com/
--Xenoplay (aka Xenoage Player)
+-Xenoplay [aka Xenoage Player] (v0.4.2007.06.26)
     +https://sourceforge.net/projects/xenoplay/
--PianoBooster
+-PianoBooster (v0.6.4)
     +http://pianobooster.sourceforge.net/screenshots.html
+-LoopBe1 (v1.6)
+    +https://www.nerds.de/en/download.html
 -Python 3.6.6
     -pip
         +Windows Installation:https://github.com/BurntSushi/nfldb/wiki/Python-&-pip-Windows-installation
