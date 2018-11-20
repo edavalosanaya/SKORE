@@ -206,6 +206,15 @@ class SetupSkore(QtWidgets.QMainWindow):
         self.retranslateUi()
         QtCore.QMetaObject.connectSlotsByName(self)
 
+        # Creating Initial State
+        self.amazingmidi_checkBox.setChecked(True)
+        self.audacity_checkBox.setChecked(True)
+        self.loopbe1_checkBox.setChecked(True)
+        self.midi_sheet_music_checkBox.setChecked(True)
+        self.pianobooster_checkBox.setChecked(True)
+        self.red_dot_forever_checkBox.setChecked(True)
+        self.xenoplay_checkBox.setChecked(True)
+
         self.show()
 
     def install_applications(self):
@@ -311,13 +320,13 @@ class SetupSkore(QtWidgets.QMainWindow):
         self.xenoplay_completed_checkBox.setText(_translate("MainWindow", "Completed"))
         self.red_dot_forever_completed_checkBox.setText(_translate("MainWindow", "Completed"))
         self.amazingmidi_completed_checkBox.setText(_translate("MainWindow", "Completed"))
-        self.loopbe1_label.setText(_translate("MainWindow", "LoopBe1"))
-        self.audacity_label.setText(_translate("MainWindow", "Audacity"))
-        self.midi_sheet_music_label.setText(_translate("MainWindow", "Midi Sheet Music"))
-        self.xenoplay_label.setText(_translate("MainWindow", "Xenoplay"))
-        self.amazingmidi_label.setText(_translate("MainWindow", "AmazingMidi"))
-        self.pianobooster_label.setText(_translate("MainWindow", "PianoBooster"))
-        self.red_dot_forever_label.setText(_translate("MainWindow", "Red Dot Forever"))
+        self.loopbe1_label.setText(_translate("MainWindow", "LoopBe1 v1.6"))
+        self.audacity_label.setText(_translate("MainWindow", "Audacity v2.1.0"))
+        self.midi_sheet_music_label.setText(_translate("MainWindow", "Midi Sheet Music v2-6"))
+        self.xenoplay_label.setText(_translate("MainWindow", "Xenoplay v0.4.2007.06.26"))
+        self.amazingmidi_label.setText(_translate("MainWindow", "AmazingMidi v1.70"))
+        self.pianobooster_label.setText(_translate("MainWindow", "PianoBooster v0.6.4"))
+        self.red_dot_forever_label.setText(_translate("MainWindow", "Red Dot Forever v1.04"))
         self.to_be_installed_label.setText(_translate("MainWindow", "To Be Installed"))
         self.application_label.setText(_translate("MainWindow", "Application"))
         self.installation_complete_label.setText(_translate("MainWindow", "Installation Completed"))

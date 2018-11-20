@@ -88,6 +88,10 @@ mode = []
 live_setting_change = False
 end_of_song_flag = 0
 
+##################################GENERAL FUNCTIONS#############################
+
+current_milli_time = lambda: int(round(time.time() * 1000))
+
 #####################################PYQT5######################################
 
 class AppOpenThread(QThread):
@@ -114,6 +118,33 @@ class AppOpenThread(QThread):
                 break
 
 ################################################################################
+
+class MidiEvent():
+    # This class makes the midi event easier to understand and to obtain its
+    # properties
+
+    def __init__(self, _event_type, _data):
+        self.event_type = _event_type
+            # None -> delay
+            # True -> TurnOnEvent
+            # False -> TurnOffEvent
+        if self.event_type == None:
+            self.ticks = _data
+
+        elif self.event_type == True or self.event_type == False:
+            self.pitch = _data
+
+    def __str__(self):
+        if self.event_type == None:
+            return '(' + str(self.event_type) + ',' + str(self.ticks) + ')'
+        elif self.event_type == True or self.event_type == False:
+            return '(' + str(self.event_type) + ',' + str(self.pitch) + ')'
+
+    def __repr__(self):
+        if self.event_type == None:
+            return '(' + str(self.event_type) + ',' + str(self.ticks) + ')'
+        elif self.event_type == True or self.event_type == False:
+            return '(' + str(self.event_type) + ',' + str(self.pitch) + ')'
 
 class TutorThread(QThread):
     # This thread performs the algorithm to control the LED lights with the
@@ -168,7 +199,12 @@ class TutorThread(QThread):
 
             # Obtaining the note event info for the mid file
             sequence = midi_to_note_event_info(mid_file)
-            #print(sequence)
+
+            if sequence[0].event_type != None:
+                sequence.insert(0,MidiEvent(None,0))
+
+            print(sequence)
+            print()
             return 1
 
         def midi_to_note_event_info(mid_file):
@@ -179,15 +215,20 @@ class TutorThread(QThread):
 
             note_event_matrix = []
 
+            #print(pattern)
+
             for track in pattern:
                 for event in track:
                     if isinstance(event, NoteEvent):
                         if event.tick > 0:
-                            note_event_matrix.append('D,'+str(event.tick))
+                            #note_event_matrix.append('D,'+str(event.tick))
+                            note_event_matrix.append(MidiEvent(None,event.tick))
                         if isinstance(event, NoteOffEvent):
-                            note_event_matrix.append('0,'+str(event.pitch))
+                            #note_event_matrix.append('0,'+str(event.pitch))
+                            note_event_matrix.append(MidiEvent(False, event.pitch))
                         else:
-                            note_event_matrix.append('1,'+str(event.pitch))
+                            note_event_matrix.append(MidiEvent(True, event.pitch))
+                            #note_event_matrix.append('1,'+str(event.pitch))
 
             return note_event_matrix
 
@@ -215,72 +256,51 @@ class TutorThread(QThread):
 
         #############################TUTORING UTILITY FUNCTIONS#################
 
-        def chord_detection(inital_delay_location):
-            # This function returns the final delay location, meaning the next delay that
-            # does not include the chord. If the function returns inital_delay_location,
-            # it means that the inital delay is not a chord.
+        def determine_delay(index):
 
-            final_delay_location = inital_delay_location
-            total_delay_value = int(sequence[inital_delay_location][2:])
-            for_counter = 0
+            #print(sequence[:index])
+            delay = 0
 
-            if int(sequence[inital_delay_location][2:]) <= chord_timing_tolerance:
+            for event in reversed(sequence[:index]):
 
-                for event in sequence[inital_delay_location: ]:
+                if event.event_type == None:
+                    delay += event.ticks
 
-                    if event[0] == 'D':
-                        #print("Delay Detected")
+                elif event.event_type == True:
+                    return delay
 
-                        if int(event[2:]) >= chord_timing_tolerance:
-                            #print("End of Chord Detected")
-                            break
+            return delay
 
-                        else:
-                            total_delay_value += int(event[2:])
-                            for_counter += 1
-                            continue
+        def chord_detection(index):
+
+            #print('index: ', index)
+            #print(sequence[index:])
+
+            chord_delay = 0
+            note_array = []
+            is_chord = False
+            final_index = index
+
+            for index_tracker, event in enumerate(sequence[index:]):
+
+                if event.event_type == None:
+                    if event.ticks >= chord_timing_tolerance:
+                        final_index += index_tracker - 1
+                        break
                     else:
-                        for_counter += 1
-                        continue
-            else:
-                #print("Not a chord")
-                return inital_delay_location, total_delay_value
+                        if chord_delay + event.ticks >= 25:
+                            final_index += index_tracker - 1
+                            break
+                        else:
+                            chord_delay += event.ticks
 
-            final_delay_location += for_counter
-            return final_delay_location, total_delay_value
+                elif event.event_type == True:
+                    note_array.append(event.pitch)
 
-        def get_chord_notes(inital_delay_location,final_delay_location):
-            # This functions obtains the notes within the inital and final delay locations
-            # Additionally, the function obtains the duration of the chord.
+            if len(note_array) > 1:
+                is_chord = True
 
-            notes = []
-
-            for event in sequence[inital_delay_location:final_delay_location]:
-                if event[0] != 'D':
-                    notes.append(event)
-
-            try:
-                chord_delay = int(sequence[final_delay_location][2:])
-            except IndexError:
-                chord_delay = float(setting_read("manual_final_chord_sustain_timing"))
-
-            return notes, chord_delay
-
-        def safe_change_target_keyboard_state(pitch, state):
-            # This function safely removes or adds the pitch to the
-            # target_keyboard_state variable
-
-            if state == 1:
-                if pitch in target_keyboard_state:
-                    return
-                target_keyboard_state.append(pitch)
-
-            elif state == 0:
-                if pitch not in target_keyboard_state:
-                    return
-                target_keyboard_state.remove(pitch)
-
-            return
+            return note_array, chord_delay, is_chord, final_index
 
         ##############################COMMUNICATION FUNCTIONS###################
 
@@ -301,8 +321,8 @@ class TutorThread(QThread):
             if notes == []:
                 notes_to_send = arduino_keyboard
                 arduino_keyboard = []
-                #arduino.write(b'*')
-                #return
+                arduino.write(b'*')
+                return
 
             else:
                 for note in notes: # For Turning on a note
@@ -354,44 +374,10 @@ class TutorThread(QThread):
 
         #################################TUTOR FUNCTIONS########################
 
-        def resetting_tutor():
-            # Resetting all variables for song to restart
-
-            global restart,temp_keyboard,notes,current_keyboard_state,right_notes,wrong_notes,sequence,for_counter
-            global playing_state,event_counter,final_delay_location,chord_event_skip,live_setting_change,target_keyboard_state
-            global end_of_song_flag
-
-            restart = False
-
-            if end_of_song_flag != 1:
-                arduino_comm([])
-                end_of_song_flag = 0
-                print('end of song flag'+ str(end_of_song_flag))
-
-
-            #sequence = []
-            #temp_keyboard = []
-            #notes = []
-            #current_keyboard_state = []
-            target_keyboard_state = []
-            ###
-            right_notes = []
-            wrong_notes = []
-            event_counter = -1
-            ###
-            #for_counter = 0
-            #final_delay_location = 0
-            #chord_event_skip = 0
-            ###
-            playing_state = True # resetting acts as play button as well
-            live_setting_change = False
-
-            return
-
         def tutor_beginner():
             # This is practically the tutoring code for Beginner Mode
 
-            global target_keyboard_state, playing_state, end_of_song_flag, right_notes
+            global target_keyboard_state, playing_state, right_notes
             global wrong_notes, restart, arduino_keyboard
 
             target_keyboard_state = []
@@ -399,69 +385,68 @@ class TutorThread(QThread):
             wrong_notes = []
             arduino_keyboard = []
 
-            event_counter = -1
-            final_delay_location = 0
-            chord_event_skip = 0
-            end_of_song_flag = 0
+            final_index = 0
+            is_chord = False
 
-            for event in sequence:
-                event_counter += 1
-                #counter = 0
+            for current_index, event in enumerate(sequence):
 
-                if chord_event_skip != 0:
-                    # This ensures that the sequence is taken all the way to the sustain
-                    # of the chord rather than duplicating the chords' data processing.
-                    chord_event_skip -= 1
-                    continue
-
-                if event[0] == '1':
-                    safe_change_target_keyboard_state(int(event[2:]), 1)
-
-                if event[0] == 'D':
-
-                    note_delay = int(event[2:])
-                    final_delay_location, total_delay_value = chord_detection(event_counter)
-
-                    if final_delay_location != event_counter:
-                        #print("Chord Detected")
-                        notes, note_delay = get_chord_notes(event_counter, final_delay_location)
-#for chord
-                        for note in notes:
-                            if note[0] == '1':
-                                safe_change_target_keyboard_state(int(note[2:]),1)
-                                #target_keyboard_state.append(int(event[2:]))
-                            else:
-                                safe_change_target_keyboard_state(int(note[2:]),0)
-                                #target_keyboard_state.remove(int(event[2:]))
-
-                        chord_event_skip = final_delay_location - event_counter
-
-                    if target_keyboard_state == []:
+                if is_chord == True:
+                    if current_index <= final_index:
+                        # This is to account for the index shift if a chord is
+                        # registered
                         continue
+                    else:
+                        is_chord = False
 
-                    print("Target " + str(target_keyboard_state))
+                # If Turn On Event
+                if event.event_type == True:
+                    print('current_index', current_index)
+
+                    # Determine if chord and details
+                    note_array, chord_delay, is_chord, final_index = chord_detection(current_index)
+                    print('Note/Chord Characteristics: ',note_array, chord_delay, is_chord, final_index)
+                    target_keyboard_state = note_array
+
+                    # Determine previous delay
+                    delay = determine_delay(current_index)
+                    print('Pre-Note/Chord delay: ', delay, '  Millisecond version: (with tolerance) ', delay*10 - 25)
+
+                    print('Target', target_keyboard_state)
                     arduino_comm(target_keyboard_state)
+                    print()
 
+                    inital_time = current_milli_time()
+                    #print('inital_time: ', inital_time)
+                    timer = 0
+
+                    # Waiting while loop
                     while(True):
                         time.sleep(tutor_thread_delay)
 
-                        if restart == True or current_mode != 'beginner':
-                            restart = False
-                            arduino_comm([])
-                            #resetting_tutor()
-                            return
+                        if playing_state:
+                            timer = current_milli_time() - inital_time
+                            #print(timer)
 
-                        if keyboard_valid() and playing_state:
-                            target_keyboard_state = []
-                            break
+                            if timer >= delay * 10 - 25:
+                                if keyboard_valid():
+                                #if True:
+                                    target_keyboard_state = []
+                                    arduino_comm([])
+                                    break
 
-                    arduino_comm([])
+                        else:
+                            inital_time = current_milli_time()
 
-            # Turn off all notes when song is over
+                            if timer != 0:
+                                # if user paused, account for the passed time
+                                # in the timer
+                                delay -= timer
+                                timer = 0
+
+            # Outside of large For Loop
             arduino_comm([])
             playing_state = False
-            end_of_song_flag = 1
-            print('end of song flag= ' + str(end_of_song_flag))
+            print("end of song")
 
         def tutor_intermediate():
             print("intermediate")
@@ -576,7 +561,6 @@ class CommThread(QThread):
                 print("Setup String:" + setup_transmitted_string)
                 arduino.write(setup_transmitted_string.encode('utf-8'))
                 time.sleep(2)
-
                 return 1
 
             except serial.serialutil.SerialException:
