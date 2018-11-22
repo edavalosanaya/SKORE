@@ -1,0 +1,203 @@
+      #include <FastLED.h>
+      #define LED_PIN     7
+      #define NUM_LEDS    88
+      #define BRIGHTNESS 15       // 0-64
+      
+      //all variables for settings//
+      bool key_size_flag = true;
+      bool settings_flag = true;
+      int key_array_size = 31; //default 76 key piano
+      int key_element = 0;
+      int ledsetting = 0;
+      int redS = -1;
+      int greenS = -1;
+      int blueS = -1;
+      int redF = -1;
+      int greenF = -1;
+      int blueF = -1;
+      //////////////////////////////
+      
+      //Characters for recieving functions//
+      char comma = ',';
+      char rc; 
+      char endMarker = '\n';
+      //const byte numChars = 5;
+      const byte numChars = 4;
+      char receivedChars[numChars];
+      //////////////////////////////////////
+      int ledNumber = 0; // variable for led on and off state
+      int i = 0;      // used for indexing
+      long ledarray_beg[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+                                              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}; // adding 1 0 88 without extra 0 turns 0?
+      bool ledarray_bool[] = {false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false
+                                ,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false
+                                 ,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false};
+                                              
+      byte keyboardSize[3][88] = {{2,4,7,9,11,14,16,19,21,23,26,28,31,33,35,38,40,43,45,47,50,52,55,57,59}, //61 key piano 0th element //25total
+                                    {3,5,7,10,12,15,17,19,22,24,27,29,31,34,36,39,41,43,46,48,51,53,55,58,60,63,65,67,70,72,75}, // 76 key piano  1st element //31 total
+                                       {2,5,7,10,12,14,17,19,22,26,29,31,34,36,38,41,43,46,48,50,53,55,58,60,62,65,67,70,72,74,77,79,82,84,86}}; // 88 key piano 2nd element //35 total
+       
+      CRGB leds[NUM_LEDS];
+void setup(){
+        Serial.begin(9600);                         // Serial communication at 9600buad.
+        FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS); 
+        FastLED.setBrightness(BRIGHTNESS);
+        FastLED.show();                              //Initializing all LEDs to off 
+        Serial.print("Enter all values as CSV ex(61,255,0,150,150,150,40)"); 
+}
+
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+void receiveLED() {
+      static byte ndx = 0;
+     
+      if (Serial.available() > 0) {
+          rc = Serial.read();
+          delay(10); //tolerance for letting code finish before reading new number
+        
+          if (rc != endMarker && rc != ',') {
+              receivedChars[ndx] = rc;
+              ndx++;
+              if (ndx >= numChars) {
+                  ndx = numChars - 1;
+              }
+          }
+          else {
+              //delay(10);     
+              receivedChars[ndx] = '\0'; // terminate the string
+              ndx = 0;
+              ledNumber = atoi(receivedChars);
+              if (ledarray_bool[ledNumber] == false){
+                ledarray_bool[ledNumber] = true;
+              }
+              else{
+                ledarray_bool[ledNumber] = false;
+              }             
+         }    
+     }
+  }  
+////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////
+
+
+
+  void settings_input(){
+      receiveLED();
+
+      
+      if(key_size_flag && ledNumber <= 88 && ledNumber >=61){
+        if(ledNumber == 61){
+          key_array_size = 25;
+          key_element = 0;
+          Serial.println(key_element);
+          Serial.println(key_array_size);
+          key_size_flag = false;
+          ledNumber = -1;
+        }
+        else if(ledNumber == 76){
+          key_element = 1;
+          key_array_size = 31;
+          Serial.println(key_element);
+          Serial.println(key_array_size);
+          key_size_flag = false;
+          ledNumber = -1;
+        }
+        else if(ledNumber == 88){
+          key_element = 2;
+          key_array_size = 35;
+          Serial.println(key_element);
+          Serial.println(key_array_size);
+          key_size_flag = false;
+          ledNumber = -1;
+        }
+      }
+      
+      else if(key_size_flag == false){
+          if(ledNumber <=255 && ledNumber != -1 && redF == -1){
+          redF = ledNumber;
+          ledNumber = -1;
+          Serial.print("redfvalue = ");
+          Serial.println(redF);
+        }
+        else if(ledNumber<=255 && ledNumber != -1 && redF != -1 && greenF == -1){
+          greenF = ledNumber;
+          ledNumber = -1;
+          Serial.print("greenfvalue = ");
+          Serial.println(greenF);
+        }
+        else if(ledNumber<=255 && ledNumber != -1 && greenF != -1 && blueF == -1){
+          blueF = ledNumber;
+          ledNumber = -1;
+          Serial.print("bluefvalue = ");
+          Serial.println(blueF);
+       }
+       else if(ledNumber<=255 && ledNumber != -1 && blueF != -1 && redS == -1){
+          redS = ledNumber;
+          ledNumber = -1;
+          Serial.print("redSvalue = ");
+          Serial.println(redS);  
+       }
+       else if(ledNumber<=255 && ledNumber != -1 && redS != -1 && greenS == -1){
+          greenS = ledNumber;
+          ledNumber = -1;
+          Serial.print("greenSvalue = ");
+          Serial.println(greenS);  
+       }
+       else if(ledNumber<=255 && ledNumber != -1 && greenS != -1 && blueS == -1){
+          blueS = ledNumber;
+          ledNumber = -1;
+          Serial.print("blueSvalue = ");
+          Serial.println(blueS);
+          for(i=0;i<90;i++){
+            ledarray_beg[i] = 0;
+            }
+            settings_flag = false;
+       }
+     
+       
+      }    
+     }
+    
+  void loop(){
+
+    if(settings_flag){
+      settings_input();
+    }
+
+    else if(settings_flag == false){
+    receiveLED();
+    if(ledNumber != 0){
+      if(ledarray_bool[ledNumber] == true){
+        bool note_check = false; 
+        for(i = 0;i<key_array_size;i++){
+          if(ledNumber == keyboardSize[key_element][i]){       //find a way without using note_check
+            note_check = true;                                 //probably dont even need it, flags are sloppy.
+          }
+         }
+         if(note_check){
+          leds[ledNumber-1] = CRGB(redS,greenS,blueS);
+         }
+         else{
+          leds[ledNumber-1] = CRGB(redF,greenF,blueF);
+         }
+      }
+    else{
+      leds[ledNumber-1] = CRGB::Black;
+    }
+    FastLED.show();   
+    ledNumber = 0;
+  }
+ }
+}
+
+ // NOTES
+// with only checking if LEDs on (1) or off (0) in array. System responds to any input with no error
+// * with the exception of to many inputs in serial monitor. Seems at some point it just stops reading
+// around 30 numbers (not including ',')
+//^^ This is because the serial monitor can only hold 64 bytes, (64 characters)
+
+// testing now with checking for flat and sharp using for loop
+//Binary search is significantly faster and might be the answer
+
+
