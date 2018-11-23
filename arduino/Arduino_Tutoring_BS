@@ -4,11 +4,13 @@
       #define BRIGHTNESS 15       // 0-64
       
       //all variables for settings//
+      bool reset_flag = false;
       bool key_size_flag = true;
       bool settings_flag = true;
+      int n;
       int key_array_size = 31; //default 76 key piano
       int key_element = 0;
-      int ledsetting = 0;
+      //int ledsetting = 0;
       int redS = -1;
       int greenS = -1;
       int blueS = -1;
@@ -21,26 +23,22 @@
       char comma = ',';
       char rc; 
       char endMarker = '\n';
-      //const byte numChars = 5;
       const byte numChars = 4;
       char receivedChars[numChars];
       //////////////////////////////////////
       int ledNumber = 0; // variable for led on and off state
-      int i = 0;      // used for indexing
-      long ledarray_beg[] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-                                        0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-                                              0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}; // adding 1 0 88 without extra 0 turns 0?
+      byte i = 0;      // used for indexing
       bool ledarray_bool[] = {false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false
                                 ,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false
                                  ,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false};
                                               
-      byte keyboardSize[3][88] = {{2,4,7,9,11,14,16,19,21,23,26,28,31,33,35,38,40,43,45,47,50,52,55,57,59}, //61 key piano 0th element //25total
+      int keyboardSize[3][35] = {{2,4,7,9,11,14,16,19,21,23,26,28,31,33,35,38,40,43,45,47,50,52,55,57,59}, //61 key piano 0th element //25total
                                     {3,5,7,10,12,15,17,19,22,24,27,29,31,34,36,39,41,43,46,48,51,53,55,58,60,63,65,67,70,72,75}, // 76 key piano  1st element //31 total
                                        {2,5,7,10,12,14,17,19,22,26,29,31,34,36,38,41,43,46,48,50,53,55,58,60,62,65,67,70,72,74,77,79,82,84,86}}; // 88 key piano 2nd element //35 total
        
       CRGB leds[NUM_LEDS];
 void setup(){
-        Serial.begin(9600);                         // Serial communication at 9600buad.
+        Serial.begin(115200);                         // Serial communication at 9600buad.
         FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS); 
         FastLED.setBrightness(BRIGHTNESS);
         FastLED.show();                              //Initializing all LEDs to off 
@@ -49,13 +47,50 @@ void setup(){
 
 ////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////
-void receiveLED() {
+// Binary searching
+// if element is present at the middle then done,
+// if the middle is greater than we "shrink" the array to left side
+// or vice versa if smaller.
+bool binarySearch(int arr[], int l, int r, int x){
+
+   if (r >= l) 
+   { 
+        int mid = l + (r - l)/2;     
+        if (arr[mid] == x)   
+            return true; 
+        if (arr[mid] > x)  
+            return binarySearch(arr, l, mid-1, x); 
+        return binarySearch(arr, mid+1, r, x); 
+   } 
+   return false; 
+} 
+
+void resetting_code(){
+  
+      key_size_flag = true;
+      settings_flag = true;
+      redS = -1;
+      greenS = -1;
+      blueS = -1;
+      redF = -1;
+      greenF = -1;
+      blueF = -1;
+}
+
+void  receiveLED() {
       static byte ndx = 0;
      
       if (Serial.available() > 0) {
           rc = Serial.read();
-          delay(10); //tolerance for letting code finish before reading new number
-        
+          if( rc == '*'){
+            reset_flag = true;
+          }
+          else if(rc == '!'){
+            resetting_code();
+          }
+
+          
+          delay(2); //tolerance for letting code finish before reading new number // 2 is de best 112000 baud
           if (rc != endMarker && rc != ',') {
               receivedChars[ndx] = rc;
               ndx++;
@@ -63,8 +98,7 @@ void receiveLED() {
                   ndx = numChars - 1;
               }
           }
-          else {
-              //delay(10);     
+          else {    
               receivedChars[ndx] = '\0'; // terminate the string
               ndx = 0;
               ledNumber = atoi(receivedChars);
@@ -90,6 +124,8 @@ void receiveLED() {
         if(ledNumber == 61){
           key_array_size = 25;
           key_element = 0;
+          n = sizeof(keyboardSize[0])/ sizeof(keyboardSize[0][0]); 
+          Serial.println(n);
           Serial.println(key_element);
           Serial.println(key_array_size);
           key_size_flag = false;
@@ -98,6 +134,8 @@ void receiveLED() {
         else if(ledNumber == 76){
           key_element = 1;
           key_array_size = 31;
+          n = sizeof(keyboardSize[1])/ sizeof(keyboardSize[1][0]); 
+          Serial.println(n);
           Serial.println(key_element);
           Serial.println(key_array_size);
           key_size_flag = false;
@@ -106,6 +144,8 @@ void receiveLED() {
         else if(ledNumber == 88){
           key_element = 2;
           key_array_size = 35;
+          n = sizeof(keyboardSize[2])/ sizeof(keyboardSize[2][0]); 
+          Serial.println(n);
           Serial.println(key_element);
           Serial.println(key_array_size);
           key_size_flag = false;
@@ -149,8 +189,8 @@ void receiveLED() {
           ledNumber = -1;
           Serial.print("blueSvalue = ");
           Serial.println(blueS);
-          for(i=0;i<90;i++){
-            ledarray_beg[i] = 0;
+          for(i=0;i<88;i++){
+            ledarray_bool[i] = false;
             }
             settings_flag = false;
        }
@@ -158,46 +198,50 @@ void receiveLED() {
        
       }    
      }
+
+  void led_lighting(){
+    if (reset_flag){
+    reset_flag = false;
+    FastLED.clear();
+     for(i=0;i<88;i++){
+       ledarray_bool[i] = false;
+     }
+    FastLED.show();
+  }
+    
+    else{
+      receiveLED();
+      if(ledNumber != 0){
+        if(ledarray_bool[ledNumber] == true){
+          bool note_check = false; 
+          note_check = binarySearch(keyboardSize[key_element], 0, n-1, ledNumber);
+           if(note_check){
+              leds[ledNumber-1] = CRGB(redS,greenS,blueS);
+              
+           }
+           else{
+              leds[ledNumber-1] = CRGB(redF,greenF,blueF);
+             
+           }
+          }          
+           else{
+              leds[ledNumber-1] = CRGB::Black;
+          }
+        FastLED.show();   
+        ledNumber = 0;
+      }
+     }
+    }
+  
+
     
   void loop(){
 
     if(settings_flag){
       settings_input();
     }
-
-    else if(settings_flag == false){
-    receiveLED();
-    if(ledNumber != 0){
-      if(ledarray_bool[ledNumber] == true){
-        bool note_check = false; 
-        for(i = 0;i<key_array_size;i++){
-          if(ledNumber == keyboardSize[key_element][i]){       //find a way without using note_check
-            note_check = true;                                 //probably dont even need it, flags are sloppy.
-          }
-         }
-         if(note_check){
-          leds[ledNumber-1] = CRGB(redS,greenS,blueS);
-         }
-         else{
-          leds[ledNumber-1] = CRGB(redF,greenF,blueF);
-         }
-      }
     else{
-      leds[ledNumber-1] = CRGB::Black;
+      led_lighting();
     }
-    FastLED.show();   
-    ledNumber = 0;
   }
- }
-}
-
- // NOTES
-// with only checking if LEDs on (1) or off (0) in array. System responds to any input with no error
-// * with the exception of to many inputs in serial monitor. Seems at some point it just stops reading
-// around 30 numbers (not including ',')
-//^^ This is because the serial monitor can only hold 64 bytes, (64 characters)
-
-// testing now with checking for flat and sharp using for loop
-//Binary search is significantly faster and might be the answer
-
-
+    
