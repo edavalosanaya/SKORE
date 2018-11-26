@@ -18,7 +18,8 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 
 # Tutor Application
-from midi import read_midifile, NoteEvent, NoteOffEvent
+from midi import read_midifile, NoteEvent, NoteOffEvent, MetaEvent
+from mido import tick2second
 from skore_program_controller import is_mid,setting_read,output_address
 import serial
 import serial.tools.list_ports
@@ -73,6 +74,10 @@ timeBeginPeriod(1)
 arduino_keyboard = []
 arduino = []
 keyboard_shift = 0
+
+# Timing Variables:
+micro_per_beat_tempo = 0
+PPQN = 0
 
 ############################LIVE TUTORING VARIABLES#############################
 skill ='follow_you_button'
@@ -209,16 +214,33 @@ class TutorThread(QThread):
 
         def midi_to_note_event_info(mid_file):
             # Now obtaining the pattern of the midi file found.
+            global bpm, PPQN, micro_per_beat_tempo
 
             mid_file_name = os.path.basename(mid_file)
             pattern = read_midifile(mid_file)
 
+            PPQN = pattern.resolution
+            print('PPQN: ', PPQN)
+
             note_event_matrix = []
 
-            #print(pattern)
+            print(pattern)
 
             for track in pattern:
                 for event in track:
+                    if isinstance(event, MetaEvent):
+                        try:
+                            tempo_info = event.data
+                            #print(tempo_info)
+
+                            if tempo_info != []:
+                                for index, element in enumerate(tempo_info):
+                                    micro_per_beat_tempo += element * 256 ** (2 - index)
+
+                            print('micro_per_beat_tempo:', micro_per_beat_tempo)
+                        except:
+                            pass
+
                     if isinstance(event, NoteEvent):
                         if event.tick > 0:
                             #note_event_matrix.append('D,'+str(event.tick))
@@ -310,65 +332,70 @@ class TutorThread(QThread):
 
             global arduino_keyboard, keyboard_shift
 
-            print("Arduino Comm Notes: " + str(notes))
+            #print("Arduino Comm Notes: " + str(notes))
 
             notes_to_add = []
             notes_to_remove = []
 
-            time.sleep(0.001)
-            print("Arduino Keyboard Pre-Communication: " + str(arduino_keyboard))
+            #time.sleep(0.001)
+            #print("Arduino Keyboard Pre-Communication: " + str(arduino_keyboard))
 
             if notes == []:
                 notes_to_send = arduino_keyboard
                 arduino_keyboard = []
-                arduino.write(b'*')
-                return
+                #print('sending *')
+                arduino.write(b',*,#,')
+                #time.sleep(0.05)
 
             else:
                 for note in notes: # For Turning on a note
                     if note not in arduino_keyboard:
-                        print("Note Added: " + str(note))
+                        #print("Note Added: " + str(note))
                         notes_to_add.append(note)
                         arduino_keyboard.append(note)
 
                 for note in arduino_keyboard: # for turning off a note
                     if note not in notes:
-                        print("Note Remove: " + str(note))
+                        #print("Note Remove: " + str(note))
                         notes_to_remove.append(note)
 
                 for note in notes_to_remove:
                     arduino_keyboard.remove(note)
 
-                print("notes_to_add: " + str(notes_to_add))
-                print("notes_to_remove: " + str(notes_to_remove))
+                #print("notes_to_add: " + str(notes_to_add))
+                #print("notes_to_remove: " + str(notes_to_remove))
 
                 notes_to_send = notes_to_add + notes_to_remove
                 notes_to_send.sort()
 
-            # All transmitted notes are contain within the same string
-            transmitted_string = ''
-            non_shifted_string = ''
+                # All transmitted notes are contain within the same string
+                transmitted_string = ''
+                non_shifted_string = ''
 
-            for note in notes_to_send:
-                shifted_note = note - keyboard_shift + 1
-                transmitted_string += str(shifted_note) + ','
-                non_shifted_string += str(note) + ','
+                for note in notes_to_send:
+                    shifted_note = note - keyboard_shift + 1
+                    transmitted_string += str(shifted_note) + ','
+                    non_shifted_string += str(note) + ','
 
-            transmitted_string = ',' + transmitted_string
-            non_shifted_string = ',' + non_shifted_string
+                transmitted_string = ',' + transmitted_string + ',#,'
+                non_shifted_string = ',' + non_shifted_string + ',#,'
 
-            #transmitted_string = transmitted_string[:-1] # to remove last note's comma
-            #print("transmitted_string to Arduino: " + transmitted_string)
-            print("non_shifted_string to Arduino: " + non_shifted_string)
-            print("shifted_string to Arduino: " + transmitted_string)
+                #transmitted_string = transmitted_string[:-1] # to remove last note's comma
+                #print("transmitted_string to Arduino: " + transmitted_string)
+                #print("non_shifted_string to Arduino: " + non_shifted_string)
+                #print("shifted_string to Arduino: " + transmitted_string)
 
+                encoded_transmitted_string = transmitted_string.encode('utf-8')
+                arduino.write(encoded_transmitted_string)
 
-            b = transmitted_string.encode('utf-8')
-            #print(b)
-            #b2 = bytes(transmitted_string, 'utf-8')
-            arduino.write(b)
+                #print("Post-Communication: " + str(arduino_keyboard))
 
-            print("Post-Communication: " + str(arduino_keyboard))
+            while(True):
+                read_data = arduino.read()
+                #print(read_data)
+                if read_data == b'#':
+                    print("recieved confirmation from arduino")
+                    break
 
             return
 
@@ -385,6 +412,8 @@ class TutorThread(QThread):
             wrong_notes = []
             arduino_keyboard = []
 
+            delay_early_tolerance = 35 # < 40, > 25, > 30, > 35, < 37, < 36
+
             final_index = 0
             is_chord = False
 
@@ -400,24 +429,29 @@ class TutorThread(QThread):
 
                 # If Turn On Event
                 if event.event_type == True:
-                    print('current_index', current_index)
+                    #print('current_index:', current_index)
 
                     # Determine if chord and details
                     note_array, chord_delay, is_chord, final_index = chord_detection(current_index)
-                    print('Note/Chord Characteristics: ',note_array, chord_delay, is_chord, final_index)
+                    #print('Note/Chord Characteristics: ',note_array, chord_delay, is_chord, final_index)
                     target_keyboard_state = note_array
 
                     # Determine previous delay
                     delay = determine_delay(current_index)
-                    print('Pre-Note/Chord delay: ', delay, '  Millisecond version: (with tolerance) ', delay*10 - 25)
+                    #print('Pre-Note/Chord delay: ', delay, '  Millisecond version: (with tolerance) ', delay * delay_multiplier)
 
                     print('Target', target_keyboard_state)
                     arduino_comm(target_keyboard_state)
-                    print()
+                    #print()
 
                     inital_time = current_milli_time()
                     #print('inital_time: ', inital_time)
                     timer = 0
+
+                    print(delay, PPQN, micro_per_beat_tempo)
+                    second_delay = tick2second(delay - delay_early_tolerance, PPQN, micro_per_beat_tempo)
+                    second_delay = round(second_delay * 1000)
+                    #print('second_delay:', second_delay)
 
                     # Waiting while loop
                     while(True):
@@ -427,12 +461,14 @@ class TutorThread(QThread):
                             timer = current_milli_time() - inital_time
                             #print(timer)
 
-                            if timer >= delay * 10 - 25:
+                            if timer >= second_delay:
+                                #print('ready')
                                 if keyboard_valid():
-                                #if True:
                                     target_keyboard_state = []
-                                    arduino_comm([])
+                                    #arduino_comm([])
                                     break
+                            else:
+                                right_notes = []
 
                         else:
                             inital_time = current_milli_time()
@@ -440,7 +476,7 @@ class TutorThread(QThread):
                             if timer != 0:
                                 # if user paused, account for the passed time
                                 # in the timer
-                                delay -= timer
+                                second_delay -= timer
                                 timer = 0
 
             # Outside of large For Loop
@@ -527,7 +563,7 @@ class CommThread(QThread):
                 com_port = setting_read("arduino_com_port")
                 print("COM Port Selected: " + str(com_port))
 
-                arduino = serial.Serial(com_port, 9600)
+                arduino = serial.Serial(com_port, 230400, writeTimeout = 0)
                 print("Arduino Connected")
 
                 whitekey.append(int(setting_read('whitekey_r')))
@@ -555,12 +591,21 @@ class CommThread(QThread):
                 print("BlackKey Colors: " + str(blackkey_transmitted_string))
 
                 setup_transmitted_string = size_message + whitekey_transmitted_string + blackkey_transmitted_string
-                setup_transmitted_string = setup_transmitted_string.replace(' ','')
+                #setup_transmitted_string = setup_transmitted_string.replace(' ','')
+                setup_transmitted_string = setup_transmitted_string + ',#,'
 
                 time.sleep(2)
                 print("Setup String:" + setup_transmitted_string)
                 arduino.write(setup_transmitted_string.encode('utf-8'))
                 time.sleep(2)
+
+                while(True):
+                    read_data = arduino.read()
+                    print(read_data)
+                    if read_data == b'#':
+                        print("recieved confirmation from arduino")
+                        break
+
                 return 1
 
             except serial.serialutil.SerialException:
@@ -664,7 +709,7 @@ class CommThread(QThread):
                             elif note_info[1] in wrong_notes:
                                 wrong_notes.remove(note_info[1])
 
-                        print('current_keyboard_state: ' + str(current_keyboard_state))
+                        #print('current_keyboard_state: ' + str(current_keyboard_state))
 
             except AttributeError:
                 print("Lost Piano Communication")

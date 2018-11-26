@@ -39,4 +39,4 @@ time_per_tick=r"0.01"
 manual_final_chord_sustain_timing=r"50"
 increment_counter=r"10"
 Tutoring Settings:
-midi_file_location=r"C:\Users\daval\Documents\GitHub\SKORE\python\conversion_test\complicated_chord_test.mid"
+midi_file_location=r"C:\Users\daval\Documents\GitHub\SKORE\python\conversion_test\beautiful_bosker.mid"

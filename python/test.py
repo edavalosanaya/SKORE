@@ -18,7 +18,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 
 # Tutor Application
-from midi import read_midifile, NoteEvent, NoteOffEvent
+from midi import read_midifile, NoteEvent, NoteOffEvent, MetaEvent
 from skore_program_controller import is_mid,setting_read,output_address
 import serial
 import serial.tools.list_ports
@@ -26,6 +26,8 @@ import glob
 from ctypes import windll
 import rtmidi
 from shutil import copyfile
+
+from mido import tick2second
 
 # SKORE Library
 from skore_program_controller import setting_read, click_center_try, setting_write, rect_to_int
@@ -90,6 +92,10 @@ restart = False
 mode = []
 live_setting_change = False
 end_of_song_flag = 0
+
+# Timing Variables:
+micro_per_beat_tempo = 0
+PPQN = 0
 
 ################################################################################
 
@@ -177,16 +183,34 @@ def midi_setup():
 
 def midi_to_note_event_info(mid_file):
     # Now obtaining the pattern of the midi file found.
+    global bpm, PPQN, micro_per_beat_tempo
 
     mid_file_name = os.path.basename(mid_file)
     pattern = read_midifile(mid_file)
 
+    PPQN = pattern.resolution
+    print('PPQN: ', PPQN)
+
     note_event_matrix = []
 
-    #print(pattern)
+    print(pattern)
 
     for track in pattern:
         for event in track:
+
+            if isinstance(event, MetaEvent):
+                try:
+                    tempo_info = event.data
+                    #print(tempo_info)
+
+                    if tempo_info != []:
+                        for index, element in enumerate(tempo_info):
+                            micro_per_beat_tempo += element * 256 ** (2 - index)
+
+                    print('micro_per_beat_tempo:', micro_per_beat_tempo)
+                except:
+                    pass
+
             if isinstance(event, NoteEvent):
                 if event.tick > 0:
                     #note_event_matrix.append('D,'+str(event.tick))
@@ -368,7 +392,7 @@ def tutor_beginner():
 
         # If Turn On Event
         if event.event_type == True:
-            print('current_index', current_index)
+            print('current_index:', current_index)
 
             # Determine if chord and details
             note_array, chord_delay, is_chord, final_index = chord_detection(current_index)
@@ -387,6 +411,11 @@ def tutor_beginner():
             #print('inital_time: ', inital_time)
             timer = 0
 
+            print(delay, PPQN, micro_per_beat_tempo)
+            second_delay = tick2second(delay, PPQN, micro_per_beat_tempo)
+            second_delay = round(second_delay * 1000)
+            print('second_delay:', second_delay)
+
             # Waiting while loop
             while(True):
                 time.sleep(tutor_thread_delay)
@@ -395,7 +424,7 @@ def tutor_beginner():
                     timer = current_milli_time() - inital_time
                     #print(timer)
 
-                    if timer >= delay * 10 - 25:
+                    if timer >= second_delay - 25:
                         #if keyboard_valid():
                         if True:
                             target_keyboard_state = []
@@ -408,7 +437,7 @@ def tutor_beginner():
                     if timer != 0:
                         # if user paused, account for the passed time
                         # in the timer
-                        delay -= timer
+                        secound_delay -= timer
                         timer = 0
 
     # Outside of large For Loop
