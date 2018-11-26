@@ -85,7 +85,7 @@ current_mode = 'beginner'
 reset_flag = 0
 hands = []
 speed = []
-tranpose = []
+transpose = []
 start_bar_value = []
 playing_state = False
 restart = False
@@ -405,8 +405,9 @@ class TutorThread(QThread):
             # This is practically the tutoring code for Beginner Mode
 
             global target_keyboard_state, playing_state, right_notes
-            global wrong_notes, restart, arduino_keyboard
+            global wrong_notes, restart, arduino_keyboard, live_setting_change, transpose
 
+            local_transpose_variable = 0
             target_keyboard_state = []
             right_notes = []
             wrong_notes = []
@@ -434,6 +435,10 @@ class TutorThread(QThread):
                     # Determine if chord and details
                     note_array, chord_delay, is_chord, final_index = chord_detection(current_index)
                     #print('Note/Chord Characteristics: ',note_array, chord_delay, is_chord, final_index)
+
+                    for index, note in enumerate(note_array):
+                        note_array[index] = transpose + note
+
                     target_keyboard_state = note_array
 
                     # Determine previous delay
@@ -450,12 +455,35 @@ class TutorThread(QThread):
 
                     print(delay, PPQN, micro_per_beat_tempo)
                     second_delay = tick2second(delay - delay_early_tolerance, PPQN, micro_per_beat_tempo)
-                    second_delay = round(second_delay * 1000)
-                    #print('second_delay:', second_delay)
+                    second_delay = round(second_delay * 1000 * 100/speed)
+                    print('second_delay:', second_delay)
 
                     # Waiting while loop
                     while(True):
-                        time.sleep(tutor_thread_delay)
+                        #time.sleep(tutor_thread_delay)
+
+                        if live_setting_change:
+                            live_setting_change = False
+
+                            if restart == True:
+                                arduino_comm([])
+                                playing_state = True
+                                restart = False
+                                return
+
+                            if current_mode != 'beginner':
+                                arduino_comm([])
+                                playing_state = False
+                                return
+
+                            if local_transpose_variable != transpose:
+                                print("Transpose Detected")
+                                diff = transpose - local_transpose_variable
+                                local_transpose_variable = transpose
+                                for index, note in enumerate(target_keyboard_state):
+                                    target_keyboard_state[index] = note + diff
+                                    arduino_comm([])
+                                    arduino_comm(target_keyboard_state)
 
                         if playing_state:
                             timer = current_milli_time() - inital_time
@@ -508,8 +536,6 @@ class TutorThread(QThread):
             while(not playing_state):
                 #print("completion of tutoring mode")
                 time.sleep(0.2)
-
-            restart = False
 
         return
 
@@ -601,7 +627,7 @@ class CommThread(QThread):
 
                 while(True):
                     read_data = arduino.read()
-                    print(read_data)
+                    #print(read_data)
                     if read_data == b'#':
                         print("recieved confirmation from arduino")
                         break
@@ -1150,7 +1176,7 @@ class SkoreGlassGui(QMainWindow):
         # This function clicks on the corresponding PianoBooster button once
         # a transparent and enabled button
 
-        global skill, hands, speed, tranpose, start_bar_value, playing_state
+        global skill, hands, speed, transpose, start_bar_value, playing_state
         global restart, live_setting_change
 
         button_name = str(button.objectName())
@@ -1166,7 +1192,7 @@ class SkoreGlassGui(QMainWindow):
 
         if button_name == 'play_button':
             playing_state = not playing_state
-            live_setting_change = True
+            #live_setting_change = True
             print("Playing State: " + str(playing_state))
 
         elif button_name == 'restart_button':
@@ -1219,9 +1245,9 @@ class SkoreGlassGui(QMainWindow):
     @pyqtSlot('QString', 'int')
     def create_message_box(self, item, desired_index):
         # This function creates a QInputDialog box for the user to input
-        # multivalue information, such as speed and tranpose
+        # multivalue information, such as speed and transpose
 
-        global speed, tranpose, message_box_active, playing_state, speed, tranpose
+        global speed, transpose, message_box_active, playing_state, speed, transpose
         global live_setting_change, start_bar_value
 
         flag = 0
@@ -1233,7 +1259,7 @@ class SkoreGlassGui(QMainWindow):
             print("Stoping app")
             all_qwidgets[6].click() # play button
             playing_state = False
-            live_setting_change = True
+            #live_setting_change = True
 
         # Asking user for value of spin button
         message_box_active = 1
@@ -1255,18 +1281,19 @@ class SkoreGlassGui(QMainWindow):
         if ok and not unacceptable_value_flag:
             if item == 'speed_spin_button':
                 speed = num
-                live_setting_change = True
+                #live_setting_change = True
             elif item == 'transpose_spin_button':
-                tranpose = num
+                transpose = num
+                print("Transpose: ", transpose)
                 live_setting_change = True
             elif item == 'start_bar_spin_button':
                 start_bar_value = num
-                live_setting_change = True
+                #live_setting_change = True
 
             # manually pressed the spin button and places the value
             self.hide()
             all_qwidgets[desired_index].click_input()
-            all_qwidgets[desired_index].type_keys('^a {DEL}' + str(num))
+            all_qwidgets[desired_index].type_keys('^a {DEL}' + str(num) + '{ENTER}')
             time.sleep(0.2)
             self.show()
 
@@ -1338,7 +1365,7 @@ class SkoreGlassGui(QMainWindow):
         # utilizes template matching to click on specific regions of the PianoBooster
         # GUI
 
-        global all_qwidgets, all_qwidgets_names, int_dimensions, pia_app
+        global all_qwidgets, all_qwidgets_names, int_dimensions, pia_app, speed, transpose
 
         # Initilizing the PianoBooster Application
         pia_app = pywinauto.application.Application()
@@ -1453,9 +1480,6 @@ class SkoreGlassGui(QMainWindow):
         #listen_button.click()
         follow_you_button.click()
         both_hands_button.click()
-        speed_spin_button.click_input()
-        speed_spin_button.type_keys('^a {DEL}100')
-
 
         # Opening the .mid file
         time.sleep(delay)
@@ -1477,12 +1501,11 @@ class SkoreGlassGui(QMainWindow):
         o_window.type_keys('{ENTER}')
 
         click_center_try('skill_groupBox_pia', unique_int_dimensions)
-        #click_center_try('hands_groupBox_pia', unique_int_dimensions)
-        #click_center_try('book_song_buttons_pia', unique_int_dimensions)
-        #click_center_try('flag_button_pia', unique_int_dimensions)
-        #click_center_try('part_button_pia', unique_int_dimensions)
-
-
+        speed_spin_button.click_input()
+        speed_spin_button.type_keys('^a {DEL}100{ENTER}')
+        speed = 100
+        transpose = 0
+        click_center_try('skill_groupBox_pia', unique_int_dimensions)
         return
 
     def click(self,x,y):
