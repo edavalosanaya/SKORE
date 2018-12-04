@@ -220,11 +220,11 @@ class TutorThread(QThread):
             pattern = read_midifile(mid_file)
 
             PPQN = pattern.resolution
-            print('PPQN: ', PPQN)
+            #print('PPQN: ', PPQN)
 
             note_event_matrix = []
 
-            print(pattern)
+            #print(pattern)
 
             for track in pattern:
                 for event in track:
@@ -280,7 +280,9 @@ class TutorThread(QThread):
 
         def determine_delay(index):
 
-            #print(sequence[:index])
+            print("determine_delay_sequence:")
+            print(sequence[:index])
+            print()
             delay = 0
 
             for event in reversed(sequence[:index]):
@@ -296,7 +298,9 @@ class TutorThread(QThread):
         def chord_detection(index):
 
             #print('index: ', index)
-            #print(sequence[index:])
+            print("chord_detection:")
+            print(sequence[index:])
+            print()
 
             chord_delay = 0
             note_array = []
@@ -401,7 +405,7 @@ class TutorThread(QThread):
 
         #################################TUTOR FUNCTIONS########################
 
-        def tutor_beginner():
+        def tutor_beginner(starting_index):
             # This is practically the tutoring code for Beginner Mode
 
             global target_keyboard_state, playing_state, right_notes
@@ -417,8 +421,14 @@ class TutorThread(QThread):
 
             final_index = 0
             is_chord = False
+            previous_turnon_event_index = 0
 
             for current_index, event in enumerate(sequence):
+
+                print(current_index,':',event)
+
+                if starting_index > current_index:
+                    continue
 
                 if is_chord == True:
                     if current_index <= final_index:
@@ -430,7 +440,8 @@ class TutorThread(QThread):
 
                 # If Turn On Event
                 if event.event_type == True:
-                    #print('current_index:', current_index)
+                    print('##############################################################')
+                    print('current_index:', current_index)
 
                     # Determine if chord and details
                     note_array, chord_delay, is_chord, final_index = chord_detection(current_index)
@@ -453,14 +464,14 @@ class TutorThread(QThread):
                     #print('inital_time: ', inital_time)
                     timer = 0
 
-                    print(delay, PPQN, micro_per_beat_tempo)
+                    #print(delay, PPQN, micro_per_beat_tempo)
                     second_delay = tick2second(delay - delay_early_tolerance, PPQN, micro_per_beat_tempo)
                     second_delay = round(second_delay * 1000 * 100/speed)
-                    print('second_delay:', second_delay)
+                    #print('second_delay:', second_delay)
 
                     # Waiting while loop
                     while(True):
-                        #time.sleep(tutor_thread_delay)
+                        time.sleep(tutor_thread_delay)
 
                         if live_setting_change:
                             live_setting_change = False
@@ -469,12 +480,14 @@ class TutorThread(QThread):
                                 arduino_comm([])
                                 playing_state = True
                                 restart = False
-                                return
+                                return 0
 
                             if current_mode != 'beginner':
                                 arduino_comm([])
                                 playing_state = False
-                                return
+                                print("changing tutoring mode")
+                                return final_index + 1
+                                #return previous_turnon_event_index
 
                             if local_transpose_variable != transpose:
                                 print("Transpose Detected")
@@ -507,35 +520,43 @@ class TutorThread(QThread):
                                 second_delay -= timer
                                 timer = 0
 
+                    previous_turnon_event_index = current_index
+
             # Outside of large For Loop
             arduino_comm([])
             playing_state = False
             print("end of song")
+            return 0
 
-        def tutor_intermediate():
-            print("intermediate")
-            return
+        def tutor_intermediate(starting_index):
+            #print(starting_index)
+            #print("intermediate")
+            return starting_index
 
-        def tutor_expert():
-            print('expert')
+        def tutor_expert(starting_index):
+            #print(starting_index)
+            #print('expert')
+            return starting_index
 
         ###############################MAIN RUN CODE############################
 
         global restart
 
+        tutoring_index = 0
+
         midi_setup()
 
         while (True):
             if current_mode == 'beginner':
-                tutor_beginner()
+                tutoring_index = tutor_beginner(tutoring_index)
             elif current_mode == 'intermediate':
-                tutor_intermediate()
+                tutoring_index = tutor_intermediate(tutoring_index)
             elif current_mode == 'expert':
-                tutor_expert()
+                tutoring_index = tutor_expert(tutoring_index)
 
             while(not playing_state):
                 #print("completion of tutoring mode")
-                time.sleep(0.2)
+                time.sleep(0.1)
 
         return
 
@@ -1113,28 +1134,58 @@ class SkoreGlassGui(QMainWindow):
     def beginner_mode_setting(self):
         # This function selects the tutoring mode to beginner
 
-        global current_mode, live_setting_change
+        global current_mode, live_setting_change, playing_state
+
+        if current_mode == 'beginner':
+            return
 
         current_mode = 'beginner'
         live_setting_change = True
+
+        #all_qwidgets[5].click()
+        if playing_state:
+            all_qwidgets[6].click() # play_button
+            playing_state = False
+        all_qwidgets[3].click() # follow_you_button
+
         return
 
     def intermediate_mode_setting(self):
         # This function selects the tutoring mode to intermediate
 
-        global current_mode,live_setting_change
+        global current_mode, live_setting_change, playing_state
+
+        if current_mode == 'intermediate':
+            return
 
         current_mode = 'intermediate'
         live_setting_change = True
+
+        #all_qwidgets[5].click()
+        if playing_state:
+            all_qwidgets[6].click() # play_button
+            playing_state = False
+        all_qwidgets[4].click() # play_along_button
+
         return
 
     def expert_mode_setting(self):
         # This function selects the tutoring mode to expert
 
-        global current_mode,live_setting_change
+        global current_mode, live_setting_change, playing_state
+
+        if current_mode == 'expert':
+            return
 
         current_mode = 'expert'
         live_setting_change = True
+
+        #all_qwidgets[5].click()
+        if playing_state:
+            all_qwidgets[6].click() # play_button
+            playing_state = False
+        all_qwidgets[4].click() # play_along_button
+
         return
 
     def settings_timing_read(self):
@@ -1177,7 +1228,7 @@ class SkoreGlassGui(QMainWindow):
         # a transparent and enabled button
 
         global skill, hands, speed, transpose, start_bar_value, playing_state
-        global restart, live_setting_change
+        global restart, live_setting_change, current_mode
 
         button_name = str(button.objectName())
         button_attribute = getattr(self,button_name)
@@ -1185,46 +1236,42 @@ class SkoreGlassGui(QMainWindow):
         if button_attribute.button_state == 'disabled':
             return
 
-        for index,qwidget in enumerate(local_button_list):
-            if qwidget == button_attribute:
-                desired_index = index
-                break
+        #for index,qwidget in enumerate(local_button_list):
+        #    if qwidget == button_attribute:
+        #        desired_index = index
+        #        break
 
         if button_name == 'play_button':
+            all_qwidgets[6].click() # play_button
             playing_state = not playing_state
             #live_setting_change = True
             print("Playing State: " + str(playing_state))
 
         elif button_name == 'restart_button':
+            all_qwidgets[5].click() # restart_button
             playing_state = True
             restart = True
             live_setting_change = True
             print("Restart Pressed")
 
         elif button_name == 'listen_button':
-            skill = button_name
+            all_qwidgets[2].click() # follow_you_button
+            #skill = button_name
+            current_mode = 'intermediate'
             live_setting_change = True
             print(button_name + " pressed")
 
-        """
-        elif button_name == 'follow_you_button':
-            skill = button_name
-            live_setting_change = True
-            print(button_name + " pressed")
-
-        elif button_name == 'play_along_button':
-            skill = button_name
-            live_setting_change = True
-            print(button_name + " pressed")
-        """
-
-        if button_name == 'speed_spin_button' or button_name == 'transpose_spin_button' or button_name == 'start_bar_spin_button':
+        elif button_name == 'speed_spin_button' or button_name == 'transpose_spin_button': #or button_name == 'start_bar_spin_button':
             if message_box_active == 0:
+                if button_name == 'speed_spin_button':
+                    desired_index = 7
+                else:
+                    desired_index = 8
                 self.button_signal.emit(button_name, desired_index)
             else:
                 print("QInputDialog in use")
-        else:
-            all_qwidgets[desired_index].click()
+        #else:
+        #    all_qwidgets[desired_index].click()
 
     def menubar_click(self, button):
         # This function clicks on the assigned buttons that are the coordinate
@@ -1240,6 +1287,14 @@ class SkoreGlassGui(QMainWindow):
         time.sleep(0.01)
         self.show()
 
+        return
+
+    def click(self,x,y):
+        # This function manually clicks on a set of x and y coordinates
+
+        win32api.SetCursorPos((x,y))
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN,x,y,0,0)
+        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP,x,y,0,0)
         return
 
     @pyqtSlot('QString', 'int')
@@ -1506,14 +1561,6 @@ class SkoreGlassGui(QMainWindow):
         speed = 100
         transpose = 0
         click_center_try('skill_groupBox_pia', unique_int_dimensions)
-        return
-
-    def click(self,x,y):
-        # This function manually clicks on a set of x and y coordinates
-
-        win32api.SetCursorPos((x,y))
-        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN,x,y,0,0)
-        win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP,x,y,0,0)
         return
 
 ################################################################################
