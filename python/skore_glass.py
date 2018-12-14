@@ -208,8 +208,8 @@ class TutorThread(QThread):
             if sequence[0].event_type != None:
                 sequence.insert(0,MidiEvent(None,0))
 
-            print(sequence)
-            print()
+            #print(sequence)
+            #print()
             return 1
 
         def midi_to_note_event_info(mid_file):
@@ -280,9 +280,9 @@ class TutorThread(QThread):
 
         def determine_delay(index):
 
-            print("determine_delay_sequence:")
-            print(sequence[:index])
-            print()
+            #print("determine_delay_sequence:")
+            #print(sequence[:index])
+            #print()
             delay = 0
 
             for event in reversed(sequence[:index]):
@@ -298,9 +298,9 @@ class TutorThread(QThread):
         def chord_detection(index):
 
             #print('index: ', index)
-            print("chord_detection:")
-            print(sequence[index:])
-            print()
+            #print("chord_detection:")
+            #print(sequence[index:])
+            #print()
 
             chord_delay = 0
             note_array = []
@@ -425,7 +425,7 @@ class TutorThread(QThread):
 
             for current_index, event in enumerate(sequence):
 
-                print(current_index,':',event)
+                #print(current_index,':',event)
 
                 if starting_index > current_index:
                     continue
