@@ -11,13 +11,13 @@ from PyQt5.QtCore import *
 # Importing the Settings Dialog (CAUSES ERROR)
 from settings_dialog import *
 
-# This is to prevent an error caused when importing skore_program_controller
+# This is to prevent an error caused when importing skore_lib
 import warnings
 warnings.simplefilter("ignore", UserWarning)
 sys.coinit_flags = 2
 
 # SKORE Library
-from skore_program_controller import *
+from skore_lib import *
 #from skore_companion import *
 from skore_glass import *
 

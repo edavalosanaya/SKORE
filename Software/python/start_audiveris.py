@@ -1,6 +1,6 @@
 import os
 import sys
-from skore_program_controller import setting_read
+from skore_lib import setting_read
 
 #This program opens initializes the program Audiveris. This has to be a separate
 #program to run the application in a different command line.

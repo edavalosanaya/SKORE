@@ -20,7 +20,7 @@ warnings.simplefilter("ignore", UserWarning)
 sys.coinit_flags = 2
 
 # SKORE Library
-from skore_program_controller import setting_read, setting_write
+from skore_lib import setting_read, setting_write
 
 ################################VARIABLES#######################################
 

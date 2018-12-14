@@ -20,7 +20,6 @@ from PyQt5.QtCore import *
 # Tutor Application
 from midi import read_midifile, NoteEvent, NoteOffEvent, MetaEvent
 from mido import tick2second
-from skore_program_controller import is_mid,setting_read,output_address
 import serial
 import serial.tools.list_ports
 import glob
@@ -29,7 +28,7 @@ import rtmidi
 from shutil import copyfile
 
 # SKORE Library
-from skore_program_controller import setting_read, click_center_try, setting_write, rect_to_int
+from skore_lib import setting_read, click_center_try, setting_write, rect_to_int, is_mid, output_address
 
 warnings.simplefilter("ignore", UserWarning)
 sys.coinit_flags = 2
