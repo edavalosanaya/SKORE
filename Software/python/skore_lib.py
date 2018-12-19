@@ -506,77 +506,39 @@ class FileContainer:
 
         return None
 
-#-------------------------------------------------------------------------------
-# Utility Functions
 
-def rect_to_int(rect_object):
-    # This function is catered to help click_center by converting the RECT object
-    # to a list of integers that is compatible with the cropping feature of the
-    # click_center_try function
 
-    int_dimensions = [0,0,0,0]
+class GuiManipulator:
 
-    dimensions = rect_dimensions
+    def __init__(self):
 
-    tolerance = 10
+        self.complete_path = os.path.dirname(os.path.abspath(__file__))
+        if self.complete_path == '' or self.complete_path.find('SKORE') == -1:
+                self.complete_path = os.path.dirname(sys.argv[0])
 
-    int_dimensions[0] = dimensions.left
-    int_dimensions[1] = dimensions.top
-    int_dimensions[2] = dimensions.right - dimensions.left + tolerance
-    int_dimensions[3] = dimensions.bottom - dimensions.top + tolerance
+        skore_index = self.complete_path.find('SKORE') + len('SKORE')
+        self.skore_path = self.complete_path[0: skore_index + 1]
+        self.templates_path = self.skore_path + r"\Software\python\templates"
 
-    return int_dimensions
+        return None
 
-def click_center(button, dimensions):
-    # This function utilizes screen shoots and determines the location of certain
-    # buttons within the screenshot. The screenshot will then be cropped to only
-    # include the application that is being clicked
+    def click_center(self, button, dimensions):
+        # This function utilizes screen shoots and determines the location of certain
+        # buttons within the screenshot. The screenshot will then be cropped to only
+        # include the application that is being clicked
 
-    """
-    image = pyautogui.screenshot(region=dimensions)
+        """
+        image = pyautogui.screenshot(region=dimensions)
 
-    image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-    cv2.imwrite('gui_screenshot.png', image)
-    img = cv2.imread('gui_screenshot.png', 0)
-    #location = find_image_path(button)
-    template = cv2.imread(templates_folder_path + '\\' + button + '.png', 0)
+        image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        cv2.imwrite('gui_screenshot.png', image)
+        img = cv2.imread('gui_screenshot.png', 0)
+        #location = find_image_path(button)
+        template = cv2.imread(templates_folder_path + '\\' + button + '.png', 0)
 
-    w, h = template.shape[::-1]
+        w, h = template.shape[::-1]
 
-    method = eval('cv2.TM_CCOEFF')
-    res = cv2.matchTemplate(img, template, method)
-    min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
-
-    top_left = max_loc
-    bottom_right = (top_left[0] + w, top_left[1] + h)
-
-    top_left = [top_left[0] + dimensions[0], top_left[1] + dimensions[1]]
-    bottom_right = (top_left[0] + w, top_left[1] + h)
-
-    file_button_center_coords = [ int((top_left[0]+bottom_right[0])/2) , int((top_left[1]+bottom_right[1])/2) ]
-    pywinauto.mouse.click(button="left",coords=(file_button_center_coords[0],file_button_center_coords[1]))
-    os.remove('gui_screenshot.png')
-    time.sleep(0.1)
-    """
-
-    image = pyautogui.screenshot(region=dimensions)
-    x_coord_list = []
-    y_coord_list = []
-
-    image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-    cv2.imwrite('gui_screenshot.png', image)
-    img = cv2.imread('gui_screenshot.png', 0)
-    template = cv2.imread(templates_folder_path + '\\' + button + '.png', 0)
-
-    w, h = template.shape[::-1]
-
-    methods = ['cv2.TM_CCOEFF', 'cv2.TM_CCOEFF_NORMED', 'cv2.TM_CCORR',
-            'cv2.TM_CCORR_NORMED', 'cv2.TM_SQDIFF', 'cv2.TM_SQDIFF_NORMED']
-
-    desirable_methods = ['cv2.TM_CCOEFF', 'cv2.TM_CCOEFF_NORMED','cv2.TM_CCORR_NORMED']
-
-    for method in desirable_methods:
-        method = eval(method)
+        method = eval('cv2.TM_CCOEFF')
         res = cv2.matchTemplate(img, template, method)
         min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
 
@@ -587,37 +549,89 @@ def click_center(button, dimensions):
         bottom_right = (top_left[0] + w, top_left[1] + h)
 
         file_button_center_coords = [ int((top_left[0]+bottom_right[0])/2) , int((top_left[1]+bottom_right[1])/2) ]
+        pywinauto.mouse.click(button="left",coords=(file_button_center_coords[0],file_button_center_coords[1]))
+        os.remove('gui_screenshot.png')
+        time.sleep(0.1)
+        """
 
-        #print(file_button_center_coords)
-        x_coord_list.append(file_button_center_coords[0])
-        y_coord_list.append(file_button_center_coords[1])
+        image = pyautogui.screenshot(region=dimensions)
+        x_coord_list = []
+        y_coord_list = []
 
-    try:
-        x_coord_mode = mode(x_coord_list)
-        y_coord_mode = mode(y_coord_list)
-    except:
-        x_coord_mode = x_coord_list[0]
-        y_coord_mode = y_coord_list[0]
+        image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+        cv2.imwrite('gui_screenshot.png', image)
+        img = cv2.imread('gui_screenshot.png', 0)
+        template = cv2.imread(self.templates_path + '\\' + button + '.png', 0)
 
-    #pywinauto.mouse.click(button="left",coords=(file_button_center_coords[0],file_button_center_coords[1]))
-    pywinauto.mouse.click(button="left",coords=(x_coord_mode,y_coord_mode))
-    os.remove('gui_screenshot.png')
-    time.sleep(0.1)
+        w, h = template.shape[::-1]
 
-    return
+        methods = ['cv2.TM_CCOEFF', 'cv2.TM_CCOEFF_NORMED', 'cv2.TM_CCORR',
+                'cv2.TM_CCORR_NORMED', 'cv2.TM_SQDIFF', 'cv2.TM_SQDIFF_NORMED']
 
-def click_center_try(button, rect_object):
-    # This functions does the same as click_center, but allows the function to wait
-    # Until the image is found.
+        desirable_methods = ['cv2.TM_CCOEFF', 'cv2.TM_CCOEFF_NORMED','cv2.TM_CCORR_NORMED']
 
-    while(True):
+        for method in desirable_methods:
+            method = eval(method)
+            res = cv2.matchTemplate(img, template, method)
+            min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
+
+            top_left = max_loc
+            bottom_right = (top_left[0] + w, top_left[1] + h)
+
+            top_left = [top_left[0] + dimensions[0], top_left[1] + dimensions[1]]
+            bottom_right = (top_left[0] + w, top_left[1] + h)
+
+            file_button_center_coords = [ int((top_left[0]+bottom_right[0])/2) , int((top_left[1]+bottom_right[1])/2) ]
+
+            #print(file_button_center_coords)
+            x_coord_list.append(file_button_center_coords[0])
+            y_coord_list.append(file_button_center_coords[1])
+
         try:
-            click_center(button, rect_object)
-            break
-        except AttributeError:
-            #print('.', end='')
-            time.sleep(0.5)
-    return
+            x_coord_mode = mode(x_coord_list)
+            y_coord_mode = mode(y_coord_list)
+        except:
+            x_coord_mode = x_coord_list[0]
+            y_coord_mode = y_coord_list[0]
+
+        #pywinauto.mouse.click(button="left",coords=(file_button_center_coords[0],file_button_center_coords[1]))
+        pywinauto.mouse.click(button="left",coords=(x_coord_mode,y_coord_mode))
+        os.remove('gui_screenshot.png')
+        time.sleep(0.1)
+
+        return None
+
+    def click_center_try(self, button, dimensions):
+        # This functions does the same as click_center, but allows the function to wait
+        # Until the image is found.
+
+        while(True):
+            try:
+                self.click_center(button, dimensions)
+                break
+            except AttributeError:
+                #print('.', end='')
+                time.sleep(0.5)
+        return
+
+#-------------------------------------------------------------------------------
+# Utility Functions
+
+def rect_to_int(rect_object):
+    # This function is catered to help click_center by converting the RECT object
+    # to a list of integers that is compatible with the cropping feature of the
+    # click_center_try function
+
+    int_dimensions = [0,0,0,0]
+
+    tolerance = 10
+
+    int_dimensions[0] = rect_object.left
+    int_dimensions[1] = rect_object.top
+    int_dimensions[2] = rect_object.right - rect_object.left + tolerance
+    int_dimensions[3] = rect_object.bottom - rect_object.top + tolerance
+
+    return int_dimensions
 
 def setting_read(setting):
     # Reading the value of the setting

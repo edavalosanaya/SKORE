@@ -29,7 +29,7 @@ import rtmidi
 from shutil import copyfile
 
 # SKORE Library
-from skore_lib import FileContainer, setting_read, click_center_try, setting_write, is_mid
+from skore_lib import FileContainer, GuiManipulator, setting_read, setting_write, is_mid, rect_to_int
 
 #-------------------------------------------------------------------------------
 # Constants
@@ -70,6 +70,8 @@ class TransparentButton(QPushButton):
         self.setGraphicsEffect(op)
         self.setAutoFillBackground(True)
 
+        return None
+
 class DisabledButton(QPushButton):
     # This class is custom version of QPushButton that is not transparent, and not
     # enabled for the user's usability
@@ -96,6 +98,16 @@ class CoordinateButton(QPushButton):
         self.setGraphicsEffect(op)
         self.setAutoFillBackground(True)
 
+class DataBridge:
+
+    def __init__(self):
+
+        self.comm_data = {}
+        self.tutor_data = {}
+        self.gui_data = {}
+
+        return None
+
 #-------------------------------------------------------------------------------
 # Main Classes
 
@@ -106,8 +118,10 @@ class AppOpenThread(QThread):
 
     app_close_signal = QtCore.pyqtSignal()
 
-    def __init__(self):
+    def __init__(self, data_bridge):
         QThread.__init__(self)
+
+        self.data_bridge = data_bridge
 
     def run(self):
 
@@ -116,7 +130,7 @@ class AppOpenThread(QThread):
         while(True):
             time.sleep(APP_CLOSE_DELAY)
 
-            if pia_app.is_process_running() == False:
+            if self.data_bridge.gui_data['pia_app'].is_process_running() == False:
                 print("PianoBooster Application Closure Detection")
                 self.app_close_signal.emit()
 
@@ -130,17 +144,19 @@ class Comm(QThread):
 
     comm_setup_signal = QtCore.pyqtSignal()
 
-    def __init__(self):
+    def __init__(self, data_bridge):
         QThread.__init__(self)
 
         self.arduino = None
         self.midi_in = None
         self.midi_out = None
-
-        self.right_notes = []
-        self.wrong_notes = []
-        self.target_keyboard_state = []
         self.current_keyboard_state = []
+
+        self.data_bridge = data_bridge
+        self.data_bridge.comm_data['arduino'] = self.arduino
+        self.data_bridge.comm_data['midi_in'] = self.midi_in
+        self.data_bridge.comm_data['midi_out'] = self.midi_out
+        self.data_bridge.comm_data['current_keyboard_state'] = self.current_keyboard_state
 
     def arduino_handshake(self):
 
@@ -269,12 +285,12 @@ class Comm(QThread):
         # This function safely removes or adds the pitch to the
         # current_keyboard_state variable
 
-        if state == 1:
+        if state is True:
             if pitch in self.current_keyboard_state:
                 return None
             self.current_keyboard_state.append(pitch)
 
-        elif state == 0:
+        elif state is False:
             if pitch not in self.current_keyboard_state:
                 return None
             self.current_keyboard_state.remove(pitch)
@@ -301,10 +317,12 @@ class Comm(QThread):
 
                     if message:
                         note_info, delay = message
+                        ####
                         self.midi_out.send_message(note_info)
+                        ####
 
                         if note_info[0] == 144: # Note ON event
-                            safe_change_current_keyboard_state(note_info[1],1)
+                            safe_change_current_keyboard_state(note_info[1], True)
 
                             if note_info[1] in self.target_keyboard_state:
                                 if note_info[1] not in self.right_notes:
@@ -314,7 +332,7 @@ class Comm(QThread):
                                     self.wrong_notes.append(note_info[1])
 
                         else: # Note OFF event
-                            safe_change_current_keyboard_state(note_info[1],0)
+                            safe_change_current_keyboard_state(note_info[1], False)
 
                             if note_info[1] in self.right_notes:
                                 self.right_notes.remove(note_info[1])
@@ -335,19 +353,24 @@ class Tutor(QThread):
     # expert mode.
 
     def __init__(self):
-        QThread.__init__(self, file_container, comm)
+        QThread.__init__(self, file_container, data_bridge)
 
         self.file_container = file_container
+
         self.sequence = []
         self.PPQN = None
         self.micro_per_beat_tempo = None
 
-        self.comm = comm
-        self.right_notes = comm.right_notes
-        self.wrong_notes = comm.wrong_notes
-        self.target_keyboard_state = comm.target_keyboard_state
-        self.current_keyboard_state = comm.current_keyboard_state
+        self.right_notes = []
+        self.wrong_notes = []
+        self.target_keyboard_state = []
         self.arduino_keyboard = []
+
+        self.data_bridge = data_bridge
+        self.data_bridge.tutor_data['right_notes'] = self.right_notes
+        self.data_bridge.tutor_data['wrong_notes'] = self.wrong_notes
+        self.data_bridge.tutor_data['target_keyboard_state'] = self.target_keyboard_state
+        self.data_bridge.tutor_data['arduino_keyboard'] = self.arduino_keyboard
 
     def midi_setup(self):
         # This fuction deletes pre-existing MIDI files and places the new desired MIDI
@@ -576,7 +599,7 @@ class Tutor(QThread):
         # This is practically the tutoring code for Beginner Mode
 
         global target_keyboard_state, playing_state, right_notes
-        global wrong_notes, restart, arduino_keyboard, live_setting_change, transpose
+        global wrong_notes, restart, arduino_keyboard, live_settings_change, transpose
 
         local_transpose_variable = 0
         target_keyboard_state = []
@@ -607,7 +630,7 @@ class Tutor(QThread):
 
             # If Turn On Event
             if event.event_type == True:
-                print('##############################################################')
+                print('\n##############################################################')
                 print('current_index:', current_index)
 
                 # Determine if chord and details
@@ -640,8 +663,8 @@ class Tutor(QThread):
                 while(True):
                     time.sleep(tutor_thread_delay)
 
-                    if live_setting_change:
-                        live_setting_change = False
+                    if live_settings_change:
+                        live_settings_change = False
 
                         if restart == True:
                             arduino_comm([])
@@ -729,12 +752,16 @@ class Tutor(QThread):
 
         return
 
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
 class SkoreGlassGui(QMainWindow):
     # This class creates the transparent GUI overlay that rests ontop of PianoBooster.
     # It initalizises PianoBooster, the communication systems, and buttons that
     # manipulate PianoBooster
 
-    button_signal = QtCore.pyqtSignal('QString', 'int')
+    button_signal = QtCore.pyqtSignal('QString')
 
     def __init__(self, file_container):
         super(QMainWindow, self).__init__()
@@ -753,15 +780,173 @@ class SkoreGlassGui(QMainWindow):
                               'live_settings_change': False}
 
         self.skore_gui_buttons = {}
-        self.piano_booster_buttons = {}
+        self.pianobooster_buttons = {}
+        self.message_box_active = False
 
-        #self.piano_booster_setup()
-        #self.setupTransparentUI()
-        #self.setupMenuBar()
-        self.setupVisibleUI()
-        #self.setupThread()
+        self.data_bridge = DataBridge()
+        self.data_bridge.gui_data['live_settings'] = self.live_settings
+        self.data_bridge.gui_data['pia_app'] = None
 
-    def setupTransparentUI(self):
+        self.setup_pianobooster()
+        self.setup_transparent_ui()
+        self.setup_menu_bar()
+        self.setup_visible_ui()
+        self.setup_thread()
+
+    def setup_pianobooster(self):
+            # This function performs the task of opening PianoBooster and appropriately
+            # clicking on the majority of the qwidgets to make them addressable. When
+            # PianoBooster is opened, the qwidgets are still not addressible via
+            # pywinauto. For some weird reason, clicked on them enables them. The code
+            # utilizes template matching to click on specific regions of the PianoBooster
+            # GUI
+
+            # Initilizing the PianoBooster Application
+            pia_app = pywinauto.application.Application()
+            pia_app_exe_path = setting_read('pia_app_exe_path')
+            pia_app.start(pia_app_exe_path)
+            print("Initialized PianoBooser")
+
+            # Getting a handle of the application, the application's title changes depending
+            # on the .mid file opened by the application.
+            possible_handles = pywinauto.findwindows.find_elements()
+
+            # Getting the title of the PianoBooster application, might to try multiple times
+            time.sleep(0.5)
+            while True:
+                try:
+                    for i in range(len(possible_handles)):
+                        key = str(possible_handles[i])
+                        if key.find('Piano Booster') != -1:
+                            wanted_key = key
+                            #print('Found it ' + key)
+
+                    first_index = wanted_key.find("'")
+                    last_index = wanted_key.find(',')
+                    pia_app_title = wanted_key[first_index + 1 :last_index - 1]
+                    break
+
+                except UnboundLocalError:
+                    time.sleep(0.1)
+
+            # Once with the handle, control over the window is achieved.
+            while True:
+                try:
+                    w_handle = pywinauto.findwindows.find_windows(title=pia_app_title)[0]
+                    window = pia_app.window(handle=w_handle)
+                    break
+                except IndexError:
+                    time.sleep(0.1)
+
+            # Initializion of the Qwidget within the application
+
+            window.maximize()
+            time.sleep(0.5)
+
+            rect_object = window.rectangle()
+            dimensions = rect_to_int(rect_object)
+
+            self.pianobooster_image_gui_manipulator = GuiManipulator()
+            self.pianobooster_image_gui_manipulator.click_center_try('skill_groupBox_pia', dimensions)
+            self.pianobooster_image_gui_manipulator.click_center_try('hands_groupBox_pia', dimensions)
+            self.pianobooster_image_gui_manipulator.click_center_try('book_song_buttons_pia', dimensions)
+            self.pianobooster_image_gui_manipulator.click_center_try('flag_button_pia', dimensions)
+            self.pianobooster_image_gui_manipulator.click_center_try('part_button_pia', dimensions)
+
+
+
+            # Aquiring the qwigets from the application
+            main_qwidget = pia_app.QWidget
+            main_qwidget.wait('ready')
+
+            # Skill Group Box
+            listen_button = main_qwidget.Skill3
+            follow_you_button = main_qwidget.Skill2
+            play_along_button = main_qwidget.Skill
+
+            # Hands Group Box
+            right_hand_button = main_qwidget.Hands4
+            both_hands_button = main_qwidget.Hands3
+            left_hand_button = main_qwidget.Hands2
+            slider_hand = main_qwidget.Hands
+
+            # Parts Group Box
+            parts_mute_button = main_qwidget.Parts
+            parts_slider_button = main_qwidget.Parts2
+            parts_selection_button = main_qwidget.Parts3
+
+            # Song and Book Button
+            song_combo_button = main_qwidget.songCombo
+            book_combo_button = main_qwidget.bookCombo
+
+            # GuiTopBar
+            key_combo_button = main_qwidget.keyCombo
+            play_button = main_qwidget.playButton
+            restart_button = main_qwidget.playFromStartButton
+            save_bar_button = main_qwidget.savebarButton
+            speed_spin_button = main_qwidget.speedSpin
+            start_bar_spin_button = main_qwidget.startBarSpin
+            transpose_spin_button = main_qwidget.transposeSpin
+            looping_bars_popup_button = main_qwidget.loopingBarsPopupButton
+            major_button = main_qwidget.majorCombo
+
+            try:
+                menubar_button = main_qwidget[u'3']
+            except:
+                try:
+                    menubar_button = main_qwidget.QWidget34
+                except:
+                    raise RuntimeError("Main Menu QWidget Missed")
+
+            self.pianobooster_buttons = {'book_combo_button': book_combo_button, 'song_combo_button': song_combo_button, 'listen_button': listen_button,
+                                'follow_you_button': follow_you_button, 'play_along_button': play_along_button, 'restart_button': restart_button,
+                                'play_button': play_button, 'speed_spin_button': speed_spin_button, 'transpose_spin_button': transpose_spin_button,
+                                'looping_bars_popup_button': looping_bars_popup_button, 'start_bar_spin_button': start_bar_spin_button,
+                                'menubar_button': menubar_button, 'parts_selection_button': parts_selection_button, 'parts_mute_button': parts_mute_button,
+                                'parts_slider_button': parts_slider_button, 'right_hand_button': right_hand_button, 'both_hands_button': both_hands_button,
+                                'left_hand_button': left_hand_button, 'slider_hand': slider_hand, 'key_combo_button': key_combo_button,
+                                'major_button': major_button, 'save_bar_button': save_bar_button}
+
+            delay = 0.4
+            #listen_button.click()
+            self.pianobooster_buttons['follow_you_button'].click()
+            self.pianobooster_buttons['both_hands_button'].click()
+
+            # Opening the .mid file
+            #time.sleep(delay)
+            #self.pianobooster_image_gui_manipulator.click_center_try('file_button_xeno', dimensions)
+            #time.sleep(delay)
+            #self.pianobooster_image_gui_manipulator.click_center_try('open_button_pianobooster_menu', dimensions)
+            #time.sleep(delay)
+
+
+            #while True:
+            #    try:
+            #        o_handle = pywinauto.findwindows.find_windows(title='Open Midi File')[0]
+            #        o_window = pia_app.window(handle = o_handle)
+            #        break
+            #    except IndexError:
+            #        time.sleep(0.1)
+
+            #mid_file_path = self.file_container.file_path['.mid']
+            #mid_file_path = r"C:\Users\daval\Documents\GitHub\SKORE\Software\python\conversion_test\aa.mid"
+            #o_window.type_keys(mid_file_path)
+            #o_window.type_keys('{ENTER}')
+
+            #self.pianobooster_image_gui_manipulator.click_center_try('skill_groupBox_pia', dimensions)
+            #self.pianobooster_buttons['speed_spin_button'].click_input()
+            #self.pianobooster_buttons['speed_spin_button'].type_keys('^a {DEL}100{ENTER}')
+            #self.live_settings['speed'] = 100
+            #self.live_settings['transpose'] = 0
+            #self.pianobooster_image_gui_manipulator.click_center_try('skill_groupBox_pia', dimensions)
+
+            print("Finished Initialization")
+            self.data_bridge.gui_data['pia_app'] = pia_app
+
+
+            return None
+
+    def setup_transparent_ui(self):
         # This functions sets up all the transparent GUI
 
         self.book_combo_button = DisabledButton(self)
@@ -800,7 +985,7 @@ class SkoreGlassGui(QMainWindow):
         self.skore_gui_buttonGroup.addButton(self.transpose_spin_button)
         self.skore_gui_buttonGroup.addButton(self.looping_bars_popup_button)
         self.skore_gui_buttonGroup.addButton(self.start_bar_spin_button)
-        self.skore_gui_buttonGroup.addButton(self.menubar_button)
+        #self.skore_gui_buttonGroup.addButton(self.menubar_button)
         self.skore_gui_buttonGroup.addButton(self.parts_selection_button)
         self.skore_gui_buttonGroup.addButton(self.parts_mute_button)
         self.skore_gui_buttonGroup.addButton(self.parts_slider_button)
@@ -825,10 +1010,41 @@ class SkoreGlassGui(QMainWindow):
 
         self.skore_gui_buttons_geometry()
 
-        self.skore_gui_buttonGroup.buttonClicked.connect(self.button_click)
+        self.skore_gui_buttonGroup.buttonClicked.connect(self.transparent_button_click)
         self.button_signal.connect(self.create_message_box)
 
-    def setupVisibleUI(self):
+    def setup_menu_bar(self):
+        # This function assigns the coordinates to the CoordinateButton class, which
+        # have to be calculated. This is because the menubar buttons QRect object
+        # was not obtainable with pywinauto.
+
+        self.view_menubar_button = CoordinateButton(self)
+        self.song_menubar_button = CoordinateButton(self)
+        self.setup_menubar_button = CoordinateButton(self)
+        self.help_menubar_button = CoordinateButton(self)
+
+        self.view_menubar_button.setObjectName('view_menubar_button')
+        self.song_menubar_button.setObjectName('song_menubar_button')
+        self.setup_menubar_button.setObjectName('setup_menubar_button')
+        self.help_menubar_button.setObjectName('help_menubar_button')
+
+        self.menubar_buttonGroup = QButtonGroup()
+        self.menubar_buttonGroup.setExclusive(True)
+        self.menubar_buttonGroup.addButton(self.view_menubar_button)
+        self.menubar_buttonGroup.addButton(self.song_menubar_button)
+        self.menubar_buttonGroup.addButton(self.setup_menubar_button)
+        self.menubar_buttonGroup.addButton(self.help_menubar_button)
+        self.menubar_buttonGroup.addButton(self.menubar_button)
+
+        #menubar_button_list = [self.view_menubar_button, self.song_menubar_button,
+        #                        self.setup_menubar_button, self.help_menubar_button]
+
+        self.menubar_button_set_geometry()
+        self.menubar_buttonGroup.buttonClicked.connect(self.menubar_click)
+
+        return
+
+    def setup_visible_ui(self):
         # This functions sets up all the visible GUI
 
         #self.setStyleSheet("""
@@ -861,11 +1077,6 @@ class SkoreGlassGui(QMainWindow):
         self.expert_pushButton.setObjectName("expert_pushButton")
         self.expert_pushButton.setText("Expert Mode")
 
-        # Tutoring Mode Function Assignment
-        #self.beginner_pushButton.clicked.connect(self.beginner_mode_setting)
-        #self.intermediate_pushButton.clicked.connect(self.intermediate_mode_setting)
-        #self.expert_pushButton.clicked.connect(self.expert_mode_setting)
-
         self.visible_buttonGroup = QButtonGroup()
         self.visible_buttonGroup.setExclusive(True)
         self.visible_buttonGroup.addButton(self.listen_pushButton)
@@ -877,49 +1088,19 @@ class SkoreGlassGui(QMainWindow):
 
         return None
 
-    def setupThread(self):
+    def setup_thread(self):
         # This functions initalizes the communication threads between PianoBooster,
         # the piano, and the arduino.
 
         # Initializing PianoBooster App Open Check MultiThreading
-        self.check_open_app_thread = AppOpenThread()
+        self.check_open_app_thread = AppOpenThread(self.data_bridge)
         self.check_open_app_thread.app_close_signal.connect(self.close_all_thread)
         self.check_open_app_thread.start()
 
         # Initializing Piano and Arduino Communication
-        self.comm_thread = CommThread()
-        self.comm_thread.comm_setup_signal.connect(self.start_tutoring_thread)
-        self.comm_thread.start()
-
-        return
-
-    def setupMenuBar(self):
-        # This function assigns the coordinates to the CoordinateButton class, which
-        # have to be calculated. This is because the menubar buttons QRect object
-        # was not obtainable with pywinauto.
-
-        self.view_menubar_button = CoordinateButton(self)
-        self.song_menubar_button = CoordinateButton(self)
-        self.setup_menubar_button = CoordinateButton(self)
-        self.help_menubar_button = CoordinateButton(self)
-
-        self.view_menubar_button.setObjectName('view_menubar_button')
-        self.song_menubar_button.setObjectName('song_menubar_button')
-        self.setup_menubar_button.setObjectName('setup_menubar_button')
-        self.help_menubar_button.setObjectName('help_menubar_button')
-
-        self.menubar_buttonGroup = QButtonGroup()
-        self.menubar_buttonGroup.setExclusive(True)
-        self.menubar_buttonGroup.addButton(self.view_menubar_button)
-        self.menubar_buttonGroup.addButton(self.song_menubar_button)
-        self.menubar_buttonGroup.addButton(self.setup_menubar_button)
-        self.menubar_buttonGroup.addButton(self.help_menubar_button)
-
-        menubar_button_list = [self.view_menubar_button, self.song_menubar_button,
-                                self.setup_menubar_button, self.help_menubar_button]
-
-        self.menubar_button_set_geometry()
-        self.menubar_buttonGroup.buttonClicked.connect(self.menubar_click)
+        #self.comm_thread = CommThread()
+        #self.comm_thread.comm_setup_signal.connect(self.start_tutoring_thread)
+        #self.comm_thread.start()
 
         return
 
@@ -931,11 +1112,12 @@ class SkoreGlassGui(QMainWindow):
 
         for key in self.skore_gui_buttons.keys():
             if key == 'menubar_button':
-                dimensions = self.piano_booster_buttons[key]
+                dimensions = self.pianobooster_buttons[key].rectangle()
                 width = int((dimensions.right - dimensions.left)*0.02)
                 self.skore_gui_buttons[key].setGeometry(QRect(dimensions.left, dimensions.top, width, dimensions.bottom - dimensions.top))
+                continue
 
-            dimensions = self.piano_port_comboBox[key].rectangle()
+            dimensions = self.pianobooster_buttons[key].rectangle()
             self.skore_gui_buttons[key].setGeometry(QRect(dimensions.left, dimensions.top, dimensions.right - dimensions.left, dimensions.bottom - dimensions.top))
 
         return None
@@ -976,17 +1158,17 @@ class SkoreGlassGui(QMainWindow):
             return None
 
         self.live_settings['current_mode'] = changing_mode
-        self.live_settings['live_setting_change'] = True
+        self.live_settings['live_settings_change'] = True
 
         if self.live_settings['playing_state'] is True:
-            self.piano_booster_buttons['play_button'].click() # play_button
+            self.pianobooster_buttons['play_button'].click() # play_button
             self.live_settings['playing_state'] = False
 
-        self.piano_booster_buttons['follow_you_button'].click() # follow_you_button
+        self.pianobooster_buttons['follow_you_button'].click() # follow_you_button
 
         return None
 
-    def button_click(self, button):
+    def transparent_button_click(self, button):
         # This function clicks on the corresponding PianoBooster button once
         # a transparent and enabled button
 
@@ -994,48 +1176,41 @@ class SkoreGlassGui(QMainWindow):
             return
 
         if button == self.play_button:
-            self.piano_booster_buttons['play_button'].click()
+            self.pianobooster_buttons['play_button'].click()
             self.live_settings['playing_state'] = not self.live_settings['playing_state']
-            print("Playing State: " + str(self.playing_state))
+            print("Playing State: {0}".format(self.live_settings['playing_state']))
 
-        elif button_name == 'restart_button':
-            all_qwidgets[5].click() # restart_button
-            playing_state = True
-            restart = True
-            live_setting_change = True
+        elif button == self.restart_button:
+            self.pianobooster_buttons['restart_button'].click()
+            self.live_settings['playing_state'] = True
+            self.live_settings['restart'] = True
+            self.live_settings['live_settings_change'] = True
             print("Restart Pressed")
 
-        elif button_name == 'listen_button':
-            all_qwidgets[2].click() # follow_you_button
-            #skill = button_name
-            current_mode = 'intermediate'
-            live_setting_change = True
-            print(button_name + " pressed")
-
-        elif button_name == 'speed_spin_button' or button_name == 'transpose_spin_button': #or button_name == 'start_bar_spin_button':
-            if message_box_active == 0:
-                if button_name == 'speed_spin_button':
-                    desired_index = 7
+        elif button == self.speed_spin_button or button == self.transpose_spin_button: #or button_name == 'start_bar_spin_button':
+            if self.message_box_active is False:
+                if button == self.speed_spin_button:
+                    button_name = 'speed_spin_button'
                 else:
-                    desired_index = 8
-                self.button_signal.emit(button_name, desired_index)
+                    button_name = 'transpose_spin_button'
+                self.button_signal.emit(button_name)
             else:
                 print("QInputDialog in use")
-        #else:
-        #    all_qwidgets[desired_index].click()
+
+        return None
 
     def menubar_click(self, button):
         # This function clicks on the assigned buttons that are the coordinate
         # buttons.
 
-        button_name = str(button.objectName())
+        #button_name = str(button.objectName())
         x_coord, y_coord = win32api.GetCursorPos()
         print(x_coord,',',y_coord)
 
         self.hide()
         self.click(x_coord,y_coord)
-        self.click(x_coord,y_coord)
-        time.sleep(0.01)
+        #self.click(x_coord,y_coord)
+        time.sleep(0.1)
         self.show()
 
         return
@@ -1046,74 +1221,70 @@ class SkoreGlassGui(QMainWindow):
         win32api.SetCursorPos((x,y))
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTDOWN,x,y,0,0)
         win32api.mouse_event(win32con.MOUSEEVENTF_LEFTUP,x,y,0,0)
-        return
+        return None
 
-    @pyqtSlot('QString', 'int')
-    def create_message_box(self, item, desired_index):
+    @pyqtSlot('QString')
+    def create_message_box(self, item):
         # This function creates a QInputDialog box for the user to input
         # multivalue information, such as speed and transpose
 
-        global speed, transpose, message_box_active, playing_state, speed, transpose
-        global live_setting_change, start_bar_value
-
-        flag = 0
-        unacceptable_value_flag = 0
+        was_playing = False
+        setting_change = False
 
         # Stopping the application
-        if playing_state == True:
-            flag = 1
+        if self.live_settings['playing_state'] is True:
+            was_playing = True
             print("Stoping app")
-            all_qwidgets[6].click() # play button
-            playing_state = False
-            #live_setting_change = True
+            self.pianobooster_buttons['play_button'].click()
+            self.live_settings['playing_state'] = False
+            self.live_settings['live_settings_change'] = True
 
         # Asking user for value of spin button
-        message_box_active = 1
+        self.message_box_active = True
 
         if item == 'speed_spin_button':
             num, ok = QInputDialog.getInt(self, item + "Pressed", "Enter the value [20 - 200] for " + item)
-            if num > 200 or num < 20:
-                unacceptable_value_flag = 1
+
+            if num <= 200 or num >= 20:
+                original_speed = self.live_settings['speed']
+                if original_speed != num:
+                    self.live_settings['speed'] = num
+                    setting_change = True
+                else:
+                    print("Same speed value, no change.")
+
         elif item == 'transpose_spin_button':
             num, ok = QInputDialog.getInt(self, item + "Pressed", "Enter the value [-12 - 12] for " + item)
-            if num > 12 or num < -12:
-                unacceptable_value_flag = 1
+
+            if num <= 12 or num >= -12:
+                original_transpose = self.live_settings['transpose']
+                if original_transpose != num:
+                    self.live_settings['transpose'] = num
+                    setting_change = True
+                else:
+                    print("Same transpose value, no change.")
+
         else:
-            num, ok = QInputDialog.getDouble(self, item + "Pressed", "Enter the value [0 - 999.9] for " + item)
-            if num > 999.9 or num < 0:
-                unacceptable_value_flag = 1
+            raise RuntimeError("Invalid button selected for messagebox")
 
-        # Processing data entered from QInputDialog
-        if ok and not unacceptable_value_flag:
-            if item == 'speed_spin_button':
-                speed = num
-                #live_setting_change = True
-            elif item == 'transpose_spin_button':
-                transpose = num
-                print("Transpose: ", transpose)
-                live_setting_change = True
-            elif item == 'start_bar_spin_button':
-                start_bar_value = num
-                #live_setting_change = True
-
-            # manually pressed the spin button and places the value
+        # manually pressed the spin button and places the value
+        if setting_change is True:
             self.hide()
-            all_qwidgets[desired_index].click_input()
-            all_qwidgets[desired_index].type_keys('^a {DEL}' + str(num) + '{ENTER}')
+            self.pianobooster_buttons[item].click_input()
+            self.pianobooster_buttons[item].type_keys('^a {DEL}' + str(num) + '{ENTER}')
             time.sleep(0.2)
             self.show()
 
         print("End of Message Box Usage")
-        message_box_active = 0
+        self.message_box_active = False
 
-        if flag == 1:
+        if was_playing is True:
             print("Continuing the app")
-            #all_qwidgets[8].click()
-            all_qwidgets[6].click() # play button
-            playing_state = True
-            live_setting_change = True
+            self.pianobooster_buttons['play_button'].click() # play button
+            self.live_settings['playing_state'] = True
+            self.live_settings['live_settings_change'] = True
 
-        return
+        return None
 
     @pyqtSlot()
     def start_tutoring_thread(self):
@@ -1132,7 +1303,10 @@ class SkoreGlassGui(QMainWindow):
         print("SKORE application closes SKORE companion detected")
 
         print("Terminating all threads")
-        self.comm_thread.terminate()
+        try:
+            self.comm_thread.terminate()
+        except AttributeError:
+            print("Failure in Comm Termination")
 
         try:
             self.tutor_thread.terminate()
@@ -1141,164 +1315,26 @@ class SkoreGlassGui(QMainWindow):
 
         # Closing communication ports
         print("Closing all Communication Ports")
+
         try:
-            midi_in.close_port()
-            midi_out.close_port()
+            self.data_bridge.comm_data['midi_in'].close_port()
+            self.data_bridge.comm_data['midi_out'].close_port()
             print("midi ports closed")
+        except KeyError:
+            print("Comm Thread not Initialized")
         except AttributeError:
             print("Failure in Comms is acknowledge")
 
         try:
-            arduino.close()
+            self.data_bridge.comm_data['arduino'].close()
             print("arduino port closed")
-        except:
+        except KeyError:
+            print("Comm Thread not Initialized")
+        except AttributeError:
             print("Failure in arduino.close()")
 
         self.close()
         return
-
-    def piano_booster_setup(self):
-        # This function performs the task of opening PianoBooster and appropriately
-        # clicking on the majority of the qwidgets to make them addressable. When
-        # PianoBooster is opened, the qwidgets are still not addressible via
-        # pywinauto. For some weird reason, clicked on them enables them. The code
-        # utilizes template matching to click on specific regions of the PianoBooster
-        # GUI
-
-        # Initilizing the PianoBooster Application
-        pia_app = pywinauto.application.Application()
-        pia_app_exe_path = setting_read('pia_app_exe_path')
-        pia_app.start(pia_app_exe_path)
-        print("Initialized PianoBooser")
-
-        # Getting a handle of the application, the application's title changes depending
-        # on the .mid file opened by the application.
-        possible_handles = pywinauto.findwindows.find_elements()
-
-        # Getting the title of the PianoBooster application, might to try multiple times
-        time.sleep(0.5)
-        while True:
-            try:
-                for i in range(len(possible_handles)):
-                    key = str(possible_handles[i])
-                    if(key.find('Piano Booster') != -1):
-                        wanted_key = key
-                        #print('Found it ' + key)
-
-                first_index = wanted_key.find("'")
-                last_index = wanted_key.find(',')
-                pia_app_title = wanted_key[first_index + 1 :last_index - 1]
-                break
-
-            except UnboundLocalError:
-                time.sleep(0.1)
-
-
-        # Once with the handle, control over the window is achieved.
-        while True:
-            try:
-                w_handle = pywinauto.findwindows.find_windows(title=pia_app_title)[0]
-                window = pia_app.window(handle=w_handle)
-                break
-            except IndexError:
-                time.sleep(0.1)
-
-        # Initializion of the Qwidget within the application
-        window.maximize()
-        time.sleep(0.5)
-
-        rect_dimensions = window.rectangle()
-        dimensions = rect_to_int(rect_dimensions)
-        click_center_try('skill_groupBox_pia', dimensions)
-        click_center_try('hands_groupBox_pia', dimensions)
-        click_center_try('book_song_buttons_pia', dimensions)
-        click_center_try('flag_button_pia', dimensions)
-        click_center_try('part_button_pia', dimensions)
-
-        # Aquiring the qwigets from the application
-        main_qwidget = pia_app.QWidget
-        main_qwidget.wait('ready')
-
-        # Skill Group Box
-        listen_button = main_qwidget.Skill3
-        follow_you_button = main_qwidget.Skill2
-        play_along_button = main_qwidget.Skill
-
-        # Hands Group Box
-        right_hand_button = main_qwidget.Hands4
-        both_hands_button = main_qwidget.Hands3
-        left_hand_button = main_qwidget.Hands2
-        slider_hand = main_qwidget.Hands
-
-        # Parts Group Box
-        parts_mute_button = main_qwidget.Parts
-        parts_slider_button = main_qwidget.Parts2
-        parts_selection_button = main_qwidget.Parts3
-
-        # Song and Book Button
-        song_combo_button = main_qwidget.songCombo
-        book_combo_button = main_qwidget.bookCombo
-
-        # GuiTopBar
-        key_combo_button = main_qwidget.keyCombo
-        play_button = main_qwidget.playButton
-        restart_button = main_qwidget.playFromStartButton
-        save_bar_button = main_qwidget.savebarButton
-        speed_spin_button = main_qwidget.speedSpin
-        start_bar_spin_button = main_qwidget.startBarSpin
-        transpose_spin_button = main_qwidget.transposeSpin
-        looping_bars_popup_button = main_qwidget.loopingBarsPopupButton
-        major_button = main_qwidget.majorCombo
-
-        try:
-            menubar_button = main_qwidget[u'3']
-        except:
-            try:
-                menubar_button = main_qwidget.QWidget34
-            except:
-                raise RuntimeError("Main Menu QWidget Missed")
-
-        self.piano_booster_buttons = {'book_combo_button': book_combo_button, 'song_combo_button': song_combo_button, 'listen_button': listen_button,
-                            'follow_you_button': follow_you_button, 'play_along_button': play_along_button, 'restart_button': restart_button,
-                            'play_button': play_button, 'speed_spin_button': speed_spin_button, 'transpose_spin_button': transpose_spin_button,
-                            'looping_bars_popup_button': looping_bars_popup_button, 'start_bar_spin_button': start_bar_spin_button,
-                            'menubar_button': menubar_button, 'parts_selection_button': parts_selection_button, 'parts_mute_button': parts_mute_button,
-                            'parts_slider_button': parts_slider_button, 'right_hand_button': right_hand_button, 'both_hands_button': both_hands_button,
-                            'left_hand_button': left_hand_button, 'slider_hand': slider_hand, 'key_combo_button': key_combo_button,
-                            'major_button': major_button, 'save_bar_button': save_bar_button}
-
-        delay = 0.4
-        #listen_button.click()
-        self.piano_booster_buttons['follow_you_button'].click()
-        self.piano_booster_buttons['both_hands_button'].click()
-
-        # Opening the .mid file
-        time.sleep(delay)
-        click_center_try('file_button_xeno', rect_dimensions)
-        time.sleep(delay)
-        click_center_try('open_button_pianobooster_menu', rect_dimensions)
-        time.sleep(delay)
-
-        while True:
-            try:
-                o_handle = pywinauto.findwindows.find_windows(title='Open Midi File')[0]
-                o_window = pia_app.window(handle = o_handle)
-                break
-            except IndexError:
-                time.sleep(0.1)
-
-        mid_file_path = self.file_container['.mid']
-        o_window.type_keys(mid_file_path)
-        o_window.type_keys('{ENTER}')
-
-        click_center_try('skill_groupBox_pia', rect_dimensions)
-        self.piano_booster_buttons['speed_spin_button'].click_input()
-        self.piano_booster_buttons['speed_spin_button'].type_keys('^a {DEL}100{ENTER}')
-        self.live_settings['speed'] = 100
-        self.live_settings['transpose'] = 0
-        click_center_try('skill_groupBox_pia', rect_dimensions)
-
-        return None
 
 #-------------------------------------------------------------------------------
 # Main Code

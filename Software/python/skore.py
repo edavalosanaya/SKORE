@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 
 # Importing the Settings Dialog (CAUSES ERROR)
-from settings_dialog import *
+#from settings_dialog import *
 
 # This is to prevent an error caused when importing skore_lib
 import warnings
@@ -18,7 +18,7 @@ sys.coinit_flags = 2
 
 # SKORE Library
 from skore_lib import *
-from skore_glass import *
+#from skore_glass import *
 
 #####################################PYQT5######################################
 
