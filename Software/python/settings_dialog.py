@@ -27,7 +27,7 @@ from skore_lib import setting_read, setting_write
 # Path Tab Variables
 app_exe_path = ['','','','','','','','']
 possible_app = ['audiveris','amazingmidi','audacity','midiSheetMusic','xenoplay','reddotforever','pianobooster','anthemscore']
-app_exe_setting_label = ['audi_app_exe_path','ama_app_exe_path','aud_app_exe_path','midi_app_exe_path','xeno_app_exe_path','red_app_exe_path','pia_app_exe_path','ant_app_exe_path']
+app_exe_setting_label = ['aud_app_exe_path','ama_app_exe_path','aud_app_exe_path','midi_app_exe_path','xeno_app_exe_path','red_app_exe_path','pia_app_exe_path','ant_app_exe_path']
 
 # Tutoring Tab Variables
 mp3_2_midi_choice = []
@@ -41,7 +41,7 @@ port_combobox_values = ['','','']
 
 #####################################PYQT5######################################
 
-class arduino_ComboBox(QtWidgets.QComboBox):
+class ArduinoComboBox(QtWidgets.QComboBox):
     # This class allows the combobox to recognize arduinos connected as soon as
     # the user clicks the combobox
 
@@ -60,9 +60,9 @@ class arduino_ComboBox(QtWidgets.QComboBox):
         self.clear()
         for avaliable_port in avaliable_arduino_ports:
             self.addItem(avaliable_port)
-        super(arduino_ComboBox, self).showPopup()
+        super(ArduinoComboBox, self).showPopup()
 
-class piano_ComboBox(QtWidgets.QComboBox):
+class PianoComboBox(QtWidgets.QComboBox):
     # This class allows the combobox to recognize piano connected as soon as the
     # user clicks the combobox
 
@@ -87,7 +87,7 @@ class piano_ComboBox(QtWidgets.QComboBox):
         self.clear()
         for avaliable_piano_port_connected in avaliable_piano_ports:
             self.addItem(avaliable_piano_port_connected)
-        super(piano_ComboBox, self).showPopup()
+        super(PianoComboBox, self).showPopup()
 
 class SettingsDialog(QtWidgets.QDialog):
     # This class contains all the processes and functions for the settings
@@ -240,39 +240,39 @@ class SettingsDialog(QtWidgets.QDialog):
         self.anthemscore_pushButton.setObjectName("anthemscore_pushButton")
 
         # Mp3 to Midi Converter Selection
-        radio_buttons_y = ant_lineEdit_y + 40
+        radio_buttons_y = ant_lineEdit_y + 60
         self.mp3_2_midi_converter_label = QtWidgets.QLabel(self.path_tab)
         self.mp3_2_midi_converter_label.setGeometry(QtCore.QRect(10, radio_buttons_y, 141, 16))
         self.mp3_2_midi_converter_label.setObjectName("mp3_2_midi_converter_label")
-        self.amazingmidi_radioButton = QtWidgets.QRadioButton(self.path_tab)
-        self.amazingmidi_radioButton.setGeometry(QtCore.QRect(230, radio_buttons_y, 111, 20))
-        self.amazingmidi_radioButton.setObjectName("amazingmidi_radioButton")
-        self.anthemscore_radioButton = QtWidgets.QRadioButton(self.path_tab)
-        self.anthemscore_radioButton.setGeometry(QtCore.QRect(390, radio_buttons_y, 111, 20))
-        self.anthemscore_radioButton.setObjectName("anthemscore_radioButton")
+        self.open_source_radioButton = QtWidgets.QRadioButton(self.path_tab)
+        self.open_source_radioButton.setGeometry(QtCore.QRect(230, radio_buttons_y, 111, 20))
+        self.open_source_radioButton.setObjectName("open_source_radioButton")
+        self.close_source_radioButton = QtWidgets.QRadioButton(self.path_tab)
+        self.close_source_radioButton.setGeometry(QtCore.QRect(390, radio_buttons_y, 111, 20))
+        self.close_source_radioButton.setObjectName("close_source_radioButton")
 
         # File Conversion User Control
-        radio_buttons2_y = radio_buttons_y + 35
-        self.file_conversion_label = QtWidgets.QLabel(self.path_tab)
-        self.file_conversion_label.setGeometry(QtCore.QRect(10, radio_buttons2_y, 180, 16))
-        self.file_conversion_label.setObjectName("file_conversion_label")
-        self.yes_file_conversion_radioButton = QtWidgets.QRadioButton(self.path_tab)
-        self.yes_file_conversion_radioButton.setGeometry(QtCore.QRect(230, radio_buttons2_y, 111, 20))
-        self.yes_file_conversion_radioButton.setObjectName('yes_file_conversion_radioButton')
-        self.no_file_conversion_radioButton = QtWidgets.QRadioButton(self.path_tab)
-        self.no_file_conversion_radioButton.setGeometry(QtCore.QRect(390, radio_buttons2_y, 111, 20))
-        self.no_file_conversion_radioButton.setObjectName("no_file_conversion_radioButton")
+        #radio_buttons2_y = radio_buttons_y + 35
+        #self.file_conversion_label = QtWidgets.QLabel(self.path_tab)
+        #self.file_conversion_label.setGeometry(QtCore.QRect(10, radio_buttons2_y, 180, 16))
+        #elf.file_conversion_label.setObjectName("file_conversion_label")
+        #elf.yes_file_conversion_radioButton = QtWidgets.QRadioButton(self.path_tab)
+        #self.yes_file_conversion_radioButton.setGeometry(QtCore.QRect(230, radio_buttons2_y, 111, 20))
+        #self.yes_file_conversion_radioButton.setObjectName('yes_file_conversion_radioButton')
+        #self.no_file_conversion_radioButton = QtWidgets.QRadioButton(self.path_tab)
+        #self.no_file_conversion_radioButton.setGeometry(QtCore.QRect(390, radio_buttons2_y, 111, 20))
+        #self.no_file_conversion_radioButton.setObjectName("no_file_conversion_radioButton")
 
         # RadioButton Groups
         # This is to separate the radioButtons to ensure that they are paired correctly
         self.mp3_2_midi_converter_group = QButtonGroup()
         self.mp3_2_midi_converter_group.setExclusive(True)
-        self.mp3_2_midi_converter_group.addButton(self.amazingmidi_radioButton)
-        self.mp3_2_midi_converter_group.addButton(self.anthemscore_radioButton)
-        self.file_conversion_group = QButtonGroup()
-        self.file_conversion_group.setExclusive(True)
-        self.file_conversion_group.addButton(self.yes_file_conversion_radioButton)
-        self.file_conversion_group.addButton(self.no_file_conversion_radioButton)
+        self.mp3_2_midi_converter_group.addButton(self.open_source_radioButton)
+        self.mp3_2_midi_converter_group.addButton(self.close_source_radioButton)
+        #self.file_conversion_group = QButtonGroup()
+        #self.file_conversion_group.setExclusive(True)
+        #self.file_conversion_group.addButton(self.yes_file_conversion_radioButton)
+        #self.file_conversion_group.addButton(self.no_file_conversion_radioButton)
 
         # Button Browsing Addition
         self.browse_button_group = QButtonGroup()
@@ -300,7 +300,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
         # Piano Port ComboBox Class had to be overwritten to make the QComboBox
         # adjustable during the popup function
-        self.piano_port_comboBox = piano_ComboBox(self.tutor_tab)
+        self.piano_port_comboBox = PianoComboBox(self.tutor_tab)
         self.piano_port_comboBox.setGeometry(QtCore.QRect(10, 50, 481, 31))
         self.piano_port_comboBox.setObjectName("piano_port_comboBox")
 
@@ -312,11 +312,11 @@ class SettingsDialog(QtWidgets.QDialog):
         self.piano_size_label.setGeometry(QtCore.QRect(10, 90, 71, 16))
         self.piano_size_label.setObjectName("piano_size_label")
         self.piano_size_comboBox = QtWidgets.QComboBox(self.tutor_tab)
-        self.piano_size_comboBox.setGeometry(QtCore.QRect(10, 111, 231, 31))
+        self.piano_size_comboBox.setGeometry(QtCore.QRect(10, 111, 481, 31))
         self.piano_size_comboBox.setObjectName("piano_size_comboBox")
-        self.piano_size_pushButton = QtWidgets.QPushButton(self.tutor_tab)
-        self.piano_size_pushButton.setGeometry(QtCore.QRect(270, 110, 221, 31))
-        self.piano_size_pushButton.setObjectName("piano_size_pushButton")
+        #self.piano_size_pushButton = QtWidgets.QPushButton(self.tutor_tab)
+        #self.piano_size_pushButton.setGeometry(QtCore.QRect(270, 110, 221, 31))
+        #self.piano_size_pushButton.setObjectName("piano_size_pushButton")
 
         self.arduino_com_port_label = QtWidgets.QLabel(self.tutor_tab)
         self.arduino_com_port_label.setGeometry(QtCore.QRect(10, 150, 81, 16))
@@ -325,7 +325,7 @@ class SettingsDialog(QtWidgets.QDialog):
         # Arduino Port ComboBox Class had to be overwritten to make the QComboBox
         # adjustable during the popup function
         #self.arduino_com_port_comboBox = QtWidgets.QComboBox(self.tutor_tab)
-        self.arduino_com_port_comboBox = arduino_ComboBox(self.tutor_tab)
+        self.arduino_com_port_comboBox = ArduinoComboBox(self.tutor_tab)
         self.arduino_com_port_comboBox.setGeometry(QtCore.QRect(10, 170, 481, 31))
         self.arduino_com_port_comboBox.setObjectName("arduino_com_port_comboBox")
 
@@ -473,24 +473,24 @@ class SettingsDialog(QtWidgets.QDialog):
         self.tabWidget.setCurrentIndex(0)
 
         # Path Tab Initalization
-        self.settings_path_read()
-        self.update_paths()
+        #self.settings_path_read()
+        #self.update_paths()
 
         # Tutoring Tab Initalization
-        self.settings_file_conversion_choice()
-        self.update_file_conversion_choice()
+        #self.settings_file_conversion_choice()
+        #self.update_file_conversion_choice()
 
-        self.settings_mp3_2_midi_choice()
-        self.update_mp3_2_midi_choice()
+        #self.settings_mp3_2_midi_choice()
+        #self.update_mp3_2_midi_choice()
 
-        self.settings_color_read()
-        self.update_color_values()
+        #self.settings_color_read()
+        #self.update_color_values()
 
-        self.settings_timing_read()
-        self.update_timing_values()
+        #self.settings_timing_read()
+        #self.update_timing_values()
 
-        self.settings_combobox_read()
-        self.update_combobox_values()
+        #self.settings_combobox_read()
+        #self.update_combobox_values()
 
         # Apply and Cancel Button Information
         self.buttonBox.button(QDialogButtonBox.Apply).clicked.connect(self.apply_changes)
@@ -604,12 +604,12 @@ class SettingsDialog(QtWidgets.QDialog):
 
         if mp3_2_midi_choice == "amazingmidi":
             #print("amazingmidi")
-            self.amazingmidi_radioButton.setChecked(True)
-            self.anthemscore_radioButton.setChecked(False)
+            self.open_source_radioButton.setChecked(True)
+            self.close_source_radioButton.setChecked(False)
         elif mp3_2_midi_choice == "anthemscore":
             #print("anthemscore")
-            self.anthemscore_radioButton.setChecked(True)
-            self.amazingmidi_radioButton.setChecked(False)
+            self.close_source_radioButton.setChecked(True)
+            self.open_source_radioButton.setChecked(False)
 
         return
 
@@ -618,12 +618,12 @@ class SettingsDialog(QtWidgets.QDialog):
 
         self.settings_mp3_2_midi_choice()
 
-        if self.amazingmidi_radioButton.isChecked():
+        if self.open_source_radioButton.isChecked():
             if mp3_2_midi_choice != 'amazingmidi':
                 print("Settings Changed: AmazingMIDI Converter has been selected")
                 setting_write("mp3_2_midi_converter", "amazingmidi")
 
-        elif self.anthemscore_radioButton.isChecked():
+        elif self.close_source_radioButton.isChecked():
             if mp3_2_midi_choice != 'anthemscore':
                 print("Settings Changed: AnthemScore Converter has been selected")
                 setting_write("mp3_2_midi_converter", "anthemscore")
@@ -827,19 +827,18 @@ class SettingsDialog(QtWidgets.QDialog):
                     setting_write(port_combobox_titles[i], text)
         return
 
-
 ################################OVERALL FUNCTIONS###############################
 
     def apply_changes(self):
         # This functions applies all the changes of the settings once the apply
         # button has been pressed
 
-        self.apply_path()
-        self.apply_mp3_2_midi_choice()
-        self.apply_color_values()
-        self.apply_timing_values()
-        self.apply_combobox_values()
-        self.apply_file_conversion_choice()
+        #self.apply_path()
+        #self.apply_mp3_2_midi_choice()
+        #self.apply_color_values()
+        #self.apply_timing_values()
+        #self.apply_combobox_values()
+        #self.apply_file_conversion_choice()
 
         return
 
@@ -867,11 +866,11 @@ class SettingsDialog(QtWidgets.QDialog):
         self.reddotforever_pushButton.setText(_translate("Dialog", "Browse"))
         self.xenoplay_pushButton.setText(_translate("Dialog", "Browse"))
         self.mp3_2_midi_converter_label.setText(_translate("Dialog", "MP3 to MIDI Converter:"))
-        self.amazingmidi_radioButton.setText(_translate("Dialog", "AmazingMIDI"))
-        self.anthemscore_radioButton.setText(_translate("Dialog", "AnthemScore"))
-        self.file_conversion_label.setText(_translate("Dialog","File Conversion User Control:"))
-        self.yes_file_conversion_radioButton.setText(_translate("Dialog","Enabled"))
-        self.no_file_conversion_radioButton.setText(_translate("Dialog","Disabled"))
+        self.open_source_radioButton.setText(_translate("Dialog", "Open Source"))
+        self.close_source_radioButton.setText(_translate("Dialog", "Close Source"))
+        #self.file_conversion_label.setText(_translate("Dialog","File Conversion User Control:"))
+        #self.yes_file_conversion_radioButton.setText(_translate("Dialog","Enabled"))
+        #self.no_file_conversion_radioButton.setText(_translate("Dialog","Disabled"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.path_tab), _translate("Dialog", "Path Settings"))
         self.timingsettings_label.setText(_translate("Dialog", "Timing Settings"))
         self.colorsettings_label.setText(_translate("Dialog", "Color Settings"))
@@ -894,7 +893,7 @@ class SettingsDialog(QtWidgets.QDialog):
         self.chord_timing_tolerance_label.setText(_translate("Dialog", "Chord Timing Tolerance:"))
         self.manual_final_chord_sustain_timing_label.setText(_translate("Dialog", "Manual Final Chord Sustain Timing: "))
         self.piano_size_label.setText(_translate("Dialog", "Piano Size"))
-        self.piano_size_pushButton.setText(_translate("Dialog", "Piano Size Calibration"))
+        #self.piano_size_pushButton.setText(_translate("Dialog", "Piano Size Calibration"))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tutor_tab), _translate("Dialog", "Tutoring Settings"))
 
 ################################################################################

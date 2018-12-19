@@ -18,22 +18,7 @@ sys.coinit_flags = 2
 
 # SKORE Library
 from skore_lib import *
-#from skore_companion import *
 from skore_glass import *
-
-################################VARIABLES#######################################
-#File Information
-upload_file_path = []
-save_folder_path = []
-upload_file_name = []
-upload_file_type = []
-mid_file_obtained_path = []
-animation_group = []
-blink_button_group = []
-
-#Event Information
-file_conversion_event = 0
-mid_file_obtained_event = 0
 
 #####################################PYQT5######################################
 
@@ -45,8 +30,6 @@ class Skore(QtWidgets.QMainWindow):
         self.setupUI()
 
     def setupUI(self):
-
-        global animation_group, blink_button_group
 
         self.setWindowTitle('SKORE')
         self.setObjectName("MainWindow")
@@ -138,20 +121,23 @@ class Skore(QtWidgets.QMainWindow):
         self.statusbar.setObjectName("statusbar")
         self.setStatusBar(self.statusbar)
 
+        self.file_container = FileContainer()
+        self.file_container.clean_temp_folder()
+
         self.retranslateUi()
         QtCore.QMetaObject.connectSlotsByName(self)
 
-        self.progress_bar = ProgressBarDialog()
-        self.progress_bar.show()
+        #self.progress_bar = ProgressBarDialog()
+        #self.progress_bar.show()
 
         self.uploadAudioFile_animation.start()
         self.record_animation.start()
 
-        animation_group = [self.uploadAudioFile_animation, self.generateMusicSheet_animation,
+        self.animation_group = [self.uploadAudioFile_animation, self.generateMusicSheet_animation,
                             self.generateMIDFile_animation, self.saveGeneratedFiles_animation,
                             self.tutor_animation, self.record_animation]
 
-        blink_button_group = [self.uploadAudioFile_toolButton, self.generateMusicSheet_pushButton,
+        self.blink_button_group = [self.uploadAudioFile_toolButton, self.generateMusicSheet_pushButton,
                                 self.generateMIDFile_pushButton, self.saveGeneratedFiles_pushButton,
                                 self.tutor_pushButton, self.record_toolButton]
 
@@ -159,6 +145,10 @@ class Skore(QtWidgets.QMainWindow):
 
     def retranslateUi(self):
         # This function applies all the text changes in the main SKORE app.
+
+        midi_file_location = ''
+        if self.file_container.has_midi_file() is True:
+            midi_file_location = self.file_container.file_path['.mid']
 
         _translate = QtCore.QCoreApplication.translate
         #self.uploadAudioFile_toolButton.setText(_translate("MainWindow", "Upload audio file"))
@@ -170,10 +160,8 @@ class Skore(QtWidgets.QMainWindow):
 "p, li { white-space: pre-wrap; }\n"
 "</style></head><body style=\" font-family:\'MS Shell Dlg 2\'; font-size:7.8pt; font-weight:400; font-style:normal;\">\n"
 "<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">To open previous files, access the files from the output folder within app_control folder. </p>\n"
-"<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">Uploaded File: " + str(upload_file_path) + " </p>\n"
-"<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">MIDI File Location: " + str(mid_file_obtained_path) + "</p></body></html>"))
-        #self.generateMIDFile_pushButton.setText(_translate("MainWindow", "Generate MIDI File"))
-        #self.saveGeneratedFiles_pushButton.setText(_translate("MainWindow", "Save Generated Files"))
+"<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">Uploaded File: " + self.file_container.original_file + " </p>\n"
+"<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">MIDI File Location: " + midi_file_location + "</p></body></html>"))
 
     def closeEvent(self, event):
         # Closes any open threads and additional GUIs
@@ -185,11 +173,11 @@ class Skore(QtWidgets.QMainWindow):
         except:
             print("skore_glass_overlay closure failed")
 
-        try:
-            self.progress_bar.close()
-            print("progress_bar closure successful")
-        except:
-            print("progress_bar closure failed")
+        #try:
+        #    self.progress_bar.close()
+        #    print("progress_bar closure successful")
+        #except:
+        #    print("progress_bar closure failed")
 
         try:
             self.settings_dialog.close()
@@ -215,9 +203,14 @@ class Skore(QtWidgets.QMainWindow):
 
         return
 
-    def red_dot_forever_translate(self):
+    @pyqtSlot('QString','QString')
+    def red_dot_forever_translate(self, address_string, filename_string):
 
         # MIDI File Recorded!
+        self.file_container.clean_temp_folder()
+        self.file_container.remove_all()
+        self.file_container.red_dot_address_conversion(address_string, filename_string)
+
         self.stop_all_animation()
         self.tutor_animation.start()
         self.generateMusicSheet_animation.start()
@@ -228,57 +221,46 @@ class Skore(QtWidgets.QMainWindow):
     def open_pianobooster(self):
         # This function initializes PianoBooster and opens the SKORE Companion app
 
-        if(mid_file_obtained_event == 0):
+        if self.file_container.has_midi_file() is False:
             print("No midi file uploaded or generated")
             QMessageBox.about(self, "MIDI File Needed", "Please upload or generate a MIDI file before tutoring.")
             return
 
         #self.skore_companion_dialog = Companion_Dialog()
         #self.skore_companion_dialog.show()
-        self.progress_bar.current_action_label.setText("Initializing SKORE Glass")
-        self.progress_bar.progress.setValue(50)
-        self.skore_glass_overlay = SkoreGlassGui()
+        #self.progress_bar.current_action_label.setText("Initializing SKORE Glass")
+        #self.progress_bar.progress.setValue(50)
+        self.skore_glass_overlay = SkoreGlassGui(self.file_container)
         self.skore_glass_overlay.show()
-        self.progress_bar.current_action_label.setText("SKORE Glass Enabled")
-        self.progress_bar.progress.setValue(100)
+        #self.progress_bar.current_action_label.setText("SKORE Glass Enabled")
+        #self.progress_bar.progress.setValue(100)
 
         return
 
     def upload_file(self):
         # This function allows the user to upload a file for file conversions
 
-        global upload_file_path, upload_file_name, upload_file_type
-        global mid_file_obtained_event, mid_file_obtained_path
+        upload_file_path = self.openFileNameDialog_UserInput()
 
-        temp_upload_file_path = self.openFileNameDialog_UserInput()
-
-        if temp_upload_file_path:
-            upload_file_path = temp_upload_file_path
-            upload_file_name = os.path.splitext(os.path.basename(upload_file_path))[0]
-            upload_file_type = os.path.splitext(os.path.basename(upload_file_path))[1]
+        if upload_file_path:
 
             self.stop_all_animation()
-
             print(upload_file_path)
 
-            if(is_mid(upload_file_path)):
-                # Obtaining mid file location
-                mid_file_obtained_event = 1
-                mid_file_obtained_path = upload_file_path
+            self.file_container.clean_temp_folder()
+            self.file_container.remove_all()
+            self.file_container.original_file = upload_file_path
+            self.file_container.add_file_type(upload_file_path)
+
+            if is_mid(upload_file_path):
                 self.tutor_animation.start()
                 self.generateMusicSheet_animation.start()
-            elif(is_pdf(upload_file_path)):
+            elif is_pdf(upload_file_path):
                 self.generateMIDFile_animation.start()
-                mid_file_obtained_event = 0
-                mid_file_obtained_path = []
-            elif(is_mp3(upload_file_path)):
+            elif is_mp3(upload_file_path):
                 self.generateMIDFile_animation.start()
                 self.generateMusicSheet_animation.start()
-                mid_file_obtained_event = 0
-                mid_file_obtained_path = []
 
-            setting_write('midi_file_location', mid_file_obtained_path)
-            #self.retranslateUi(MainWindow)
             self.retranslateUi()
 
         return
@@ -287,24 +269,22 @@ class Skore(QtWidgets.QMainWindow):
         # This functions converts the file uploaded to .pdf. It checkes if the
         # user has actually uploaded a file and if the conversion is valid.
 
-        global file_conversion_event, mid_file_obtained_event, mid_file_obtained_path
-
-        if(upload_file_path):
-            if(is_pdf(upload_file_path)):
-                QMessageBox.about(self, "Invalid Conversion", "Cannot convert .pdf to .pdf")
+        if self.file_container.is_empty() is not True:
+            if self.file_container.has_pdf_file() is True:
+                QMessageBox.about(self, "Invalid/Unnecessary Conversion", "Cannot convert .pdf to .pdf or already present .pdf file in output directory")
                 return
-            # Obtaining mid file location
-            self.stop_all_animation()
-            file_conversion_event = 1
-            mid_file_obtained_event = 1
-            mid_file_obtained_path = input_to_pdf(upload_file_path, self.progress_bar)
-            setting_write('midi_file_location',mid_file_obtained_path)
 
-            self.saveGeneratedFiles_animation.start()
-            self.tutor_animation.start()
+            else:
+                # Obtaining mid file location
+                self.stop_all_animation()
+                #self.file_container.input_to_pdf(self.progress_bar)
+                self.file_container.input_to_pdf()
+                #setting_write('midi_file_location',mid_file_obtained_path)
 
-            self.retranslateUi()
+                self.saveGeneratedFiles_animation.start()
+                self.tutor_animation.start()
 
+                self.retranslateUi()
 
         else:
             print("No file uploaded")
@@ -315,31 +295,21 @@ class Skore(QtWidgets.QMainWindow):
         # This functions converts the file uploaded to .mid. It checkes if the
         # user has actually uploaded a file and if the conversion is valid.
 
-        global file_conversion_event, mid_file_obtained_event, mid_file_obtained_path
-        mp3_2_midi_converter = setting_read('mp3_2_midi_converter')
-
-        if(upload_file_path):
-            if(is_mid(upload_file_path)):
-                QMessageBox.about(self, "Invalid Conversion", "Cannot convert .mid to .mid")
+        if self.file_container.is_empty() is not True:
+            if self.file_container.has_midi_file() is True:
+                QMessageBox.about(self, "Invalid/Unnecessary Conversion", "Cannot convert .mid to .mid or already present .mid file in output directory")
                 return
+
             # Obtaining mid file location
             self.stop_all_animation()
-            file_conversion_event = 1
-            mid_file_obtained_event = 1
-            mid_file_obtained_path = input_to_mid(upload_file_path, self.progress_bar)
-            setting_write('midi_file_location',mid_file_obtained_path)
+            #self.file_container.input_to_mid(self.progress_bar)
+            self.file_container.input_to_mid()
+            self.saveGeneratedFiles_animation.start()
+            self.tutor_animation.start()
 
-            if(is_pdf(upload_file_path)):
-                self.saveGeneratedFiles_animation.start()
-                self.tutor_animation.start()
-            elif(is_mp3(upload_file_path)):
-                if mp3_2_midi_converter == 'amazingmidi':
-                    self.saveGeneratedFiles_animation.start()
-                    self.tutor_animation.start()
-                    self.generateMusicSheet_animation.start()
-                elif mp3_2_midi_converter == 'anthemscore':
-                    self.tutor_animation.start()
-                    self.generateMusicSheet_animation.start()
+            if self.file_container.has_pdf_file() is not True:
+                self.generateMusicSheet_animation.start()
+
             self.retranslateUi()
 
         else:
@@ -351,33 +321,34 @@ class Skore(QtWidgets.QMainWindow):
         # This functions saves all the files generated by the user. Effectively
         # it relocates all the files found temp to the user's choice of directory
 
-        global save_folder_path, file_conversion_event, mid_file_obtained_path
+        if len(self.file_container.file_path) >= 2:
+            filename = os.path.splitext(os.path.basename(self.file_container.original_file))[0]
+            user_given_filename, okPressed = QInputDialog.getText(self, "Save Files","Files Group Name:", QLineEdit.Normal, filename)
 
-        if(file_conversion_event):
-            user_given_filename, okPressed = QInputDialog.getText(self, "Save Files","Files Group Name:", QLineEdit.Normal, upload_file_name)
-            if(okPressed):
+            if okPressed:
                 save_folder_path = self.openDirectoryDialog_UserInput()
                 print(save_folder_path)
-                file_conversion_event = 0
 
-                self.stop_all_animation()
+                if user_given_filename == '' or save_folder_path == '':
+                    QMessageBox.about(self, "Invalid Information",  "Please enter a valid filename or/and save folder path")
+                    return None
 
                 # Obtaining mid file location
-                file = temp_to_folder(destination_folder = save_folder_path, filename = user_given_filename)
+                self.file_container.temp_to_folder(save_folder_path, user_given_filename)
+                self.stop_all_animation()
 
-                if file != []:
-                    mid_file_obtained_path = file
-                    setting_write('midi_file_location',mid_file_obtained_path)
-                    print(mid_file_obtained_path)
-                    self.retranslateUi()
+                if self.file_container.has_midi_file() is True:
                     self.tutor_animation.start()
 
-                if is_mid(upload_file_path):
-                    self.tutor_animation.start()
+                self.uploadAudioFile_animation.start()
+                self.record_animation.start()
+
+                self.retranslateUi()
 
         else:
             QMessageBox.about(self, "No Conversion Present", "Please upload and convert a file before saving it.")
-        return
+
+        return None
 
 ################################################################################
 
@@ -401,7 +372,8 @@ class Skore(QtWidgets.QMainWindow):
         # save location for the generated files
 
         options = QFileDialog.ShowDirsOnly
-        directory = QFileDialog.getExistingDirectory(self, caption = 'Open a folder', directory = skore_path, options = options)
+        #directory = QFileDialog.getExistingDirectory(self, caption = 'Open a folder', directory = skore_path, options = options)
+        directory = QFileDialog.getExistingDirectory(self, caption = 'Open a folder', options = options)
 
         if directory:
             file_dialog_output = str(directory)
@@ -421,10 +393,10 @@ class Skore(QtWidgets.QMainWindow):
 
     def stop_all_animation(self):
 
-        for animation in animation_group:
+        for animation in self.animation_group:
             animation.stop()
 
-        for blink_button in blink_button_group:
+        for blink_button in self.blink_button_group:
             blink_button.reset_color()
         return
 
@@ -499,14 +471,13 @@ class RedDotThread(QThread):
     # recorded by Red Dot Forever. It successfully changes the upload_file
     # variable and other necessary changes to account for any changes.
 
-    red_dot_signal = QtCore.pyqtSignal()
+    red_dot_signal = QtCore.pyqtSignal('QString','QString')
 
     def __init__(self):
         QThread.__init__(self)
 
     def run(self):
 
-        global mid_file_obtained_path, upload_file_path, mid_file_obtained_event
         address_list = []
         filename_list = []
         s_handle = []
@@ -527,13 +498,10 @@ class RedDotThread(QThread):
 
         while(True):
             try:
-                #s_handle = pywinauto.findwindows.find_windows(title="Save As")[0]
                 s_handle = pywinauto.findwindows.find_windows(parent=w_handle)[0]
                 s_window = red_app.window(handle=s_handle)
-                #print("Handle Found: " + str(s_handle))
             except IndexError:
                 s_handle = []
-                #print("waiting")
 
             if s_handle != []:
                 toolbarwindow = s_window.Toolbar4
@@ -541,15 +509,9 @@ class RedDotThread(QThread):
                 while(True):
                     try:
                         address_list = toolbarwindow.texts()
-                        #print(text[0])
                         filename_list = edit.texts()
-                        #print(text2)
                     except:
                         break
-
-                # User is Saving!
-                #print("Address: " + str(text))
-                #print("File Name: " + str(text2))
 
             # Checking if the Red Dot Forever application is running
             processes = [p.name() for p in psutil.process_iter()]
@@ -569,20 +531,22 @@ class RedDotThread(QThread):
         print("Final Data")
         print("Address: " + str(address_list))
         print("File Name: " + str(filename_list))
-        red_dot_address = red_dot_address_conversion(address_list,filename_list)
 
-        output_file = Path(red_dot_address)
-        if(output_file.is_file()):
-            upload_file_path = red_dot_address
-            mid_file_obtained_path = upload_file_path
-            setting_write('midi_file_location', mid_file_obtained_path)
-            mid_file_obtained_event = 1
-            self.red_dot_signal.emit()
+        address_string = ''
+        filename_string = ''
 
-        else:
-            print("red dot midi file not found")
+        for item in address_list:
+            address_string += item + ';'
 
-        return
+        address_string = address_string[:-1]
+
+        for item in filename_list:
+            filename_string += item + ';'
+
+        filename_string = filename_string[:-1]
+        self.red_dot_signal.emit(address_string,filename_string)
+
+        return None
 
 ################################################################################
 
@@ -622,7 +586,7 @@ class BlinkAnimation(QPropertyAnimation):
     def __init__(self, *args, **kwargs):
         QPropertyAnimation.__init__(self, *args, **kwargs)
 
-        global qwidget
+        #global qwidget
         qwidget = args[0]
 
         self.setDuration(3000)
@@ -638,7 +602,6 @@ if __name__ == "__main__":
     import sys
     app = QtWidgets.QApplication(sys.argv)
     list = QStyleFactory.keys()
-    #print(list)
     app.setStyle(QStyleFactory.create(list[2])) #Fusion
     ui = Skore()
     ui.show()

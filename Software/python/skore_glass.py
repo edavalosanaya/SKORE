@@ -28,7 +28,7 @@ import rtmidi
 from shutil import copyfile
 
 # SKORE Library
-from skore_lib import setting_read, click_center_try, setting_write, rect_to_int, is_mid, output_address
+from skore_lib import setting_read, click_center_try, setting_write, is_mid
 
 warnings.simplefilter("ignore", UserWarning)
 sys.coinit_flags = 2
@@ -1464,13 +1464,12 @@ class SkoreGlassGui(QMainWindow):
         time.sleep(0.5)
 
         rect_dimensions = window.rectangle()
-        unique_int_dimensions = rect_to_int(rect_dimensions)
 
-        click_center_try('skill_groupBox_pia', unique_int_dimensions)
-        click_center_try('hands_groupBox_pia', unique_int_dimensions)
-        click_center_try('book_song_buttons_pia', unique_int_dimensions)
-        click_center_try('flag_button_pia', unique_int_dimensions)
-        click_center_try('part_button_pia', unique_int_dimensions)
+        click_center_try('skill_groupBox_pia', rect_dimensions)
+        click_center_try('hands_groupBox_pia', rect_dimensions)
+        click_center_try('book_song_buttons_pia', rect_dimensions)
+        click_center_try('flag_button_pia', rect_dimensions)
+        click_center_try('part_button_pia', rect_dimensions)
 
         # Aquiring the qwigets from the application
         main_qwidget = pia_app.QWidget
@@ -1537,9 +1536,9 @@ class SkoreGlassGui(QMainWindow):
 
         # Opening the .mid file
         time.sleep(delay)
-        click_center_try('file_button_xeno', unique_int_dimensions)
+        click_center_try('file_button_xeno', rect_dimensions)
         time.sleep(delay)
-        click_center_try('open_button_pianobooster_menu', unique_int_dimensions)
+        click_center_try('open_button_pianobooster_menu', rect_dimensions)
         time.sleep(delay)
 
         while(True):
@@ -1554,12 +1553,12 @@ class SkoreGlassGui(QMainWindow):
         o_window.type_keys(mid_file_path)
         o_window.type_keys('{ENTER}')
 
-        click_center_try('skill_groupBox_pia', unique_int_dimensions)
+        click_center_try('skill_groupBox_pia', rect_dimensions)
         speed_spin_button.click_input()
         speed_spin_button.type_keys('^a {DEL}100{ENTER}')
         speed = 100
         transpose = 0
-        click_center_try('skill_groupBox_pia', unique_int_dimensions)
+        click_center_try('skill_groupBox_pia', rect_dimensions)
         return
 
 ################################################################################
