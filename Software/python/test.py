@@ -36,13 +36,21 @@ from skore_lib import FileContainer, GuiManipulator, setting_read, setting_write
 
 APP_CLOSE_DELAY = 2
 COMM_THREAD_DELAY = 0.001
+TUTOR_THREAD_DELAY = 0.01
 
 KEYBOARD_SHIFT = 36
 COMM_TIMEOUT = 30
 HANDSHAKE_DELAY = 0.1
 
-CHORD_TICK_TOLERANCE = setting_read('chord_tick_tolerance')
+CHORD_TICK_TOLERANCE = int(setting_read('chord_tick_tolerance'))
 CHORD_SUM_TOLERANCE = 25
+DELAY_EARLY_TOLERANCE = 35 # < 40, > 25, > 30, > 35, < 37, < 36
+
+#-------------------------------------------------------------------------------
+# Useful Function
+
+def current_milli_time():
+    return int(round(time.time() * 1000))
 
 #-------------------------------------------------------------------------------
 # Support Classes
@@ -50,13 +58,13 @@ CHORD_SUM_TOLERANCE = 25
 class MidiEvent:
 
     def __init__(self, event_type, event_data):
-        self.type = event_type
+        self.event_type = event_type
         self.data = event_data
 
         return None
 
     def __repr__(self):
-        return "({0}, {1})".format(self.type, self.data)
+        return "({0}, {1})".format(self.event_type, self.data)
 
 class TransparentButton(QPushButton):
     # This class is custom version of QPushButton that is transparent
@@ -157,6 +165,7 @@ class Comm(QThread):
         self.data_bridge.comm_data['midi_in'] = self.midi_in
         self.data_bridge.comm_data['midi_out'] = self.midi_out
         self.data_bridge.comm_data['current_keyboard_state'] = self.current_keyboard_state
+        self.data_bridge.comm_data['comm'] = self
 
     def arduino_handshake(self):
 
@@ -191,7 +200,7 @@ class Comm(QThread):
             raise RuntimeError("Piano Size Selection not found.")
 
         # Closing, if applicable, the arduino port
-        if not self.arduino:
+        if self.arduino:
             self.arduino.close()
             self.arduino = []
 
@@ -303,8 +312,10 @@ class Comm(QThread):
 
         print("Piano and Arduino Communication Thread Enabled")
 
-        arduino_status = self.arduino_setup()
-        piano_status = self.piano_port_setup()
+        #arduino_status = self.arduino_setup()
+        #piano_status = self.piano_port_setup()
+        piano_status = True
+        arduino_status = True
 
         if arduino_status is True and piano_status is True:
             print("Piano and Arduino Communication Setup Successful")
@@ -313,6 +324,7 @@ class Comm(QThread):
             try:
                 while True:
                     time.sleep(COMM_THREAD_DELAY)
+                    """
                     message = self.midi_in.get_message()
 
                     if message:
@@ -338,6 +350,7 @@ class Comm(QThread):
                                 self.right_notes.remove(note_info[1])
                             elif note_info[1] in self.wrong_notes:
                                 self.wrong_notes.remove(note_info[1])
+                    """
 
             except AttributeError:
                 print("Lost Piano Communication")
@@ -352,14 +365,15 @@ class Tutor(QThread):
     # The thread will include the code for the beginner, intermediate, and
     # expert mode.
 
-    def __init__(self):
-        QThread.__init__(self, file_container, data_bridge)
+    def __init__(self, file_container, data_bridge):
+        QThread.__init__(self)
 
         self.file_container = file_container
 
         self.sequence = []
         self.PPQN = None
-        self.micro_per_beat_tempo = None
+        self.micro_per_beat_tempo = 0
+        self.tutoring_index = 0
 
         self.right_notes = []
         self.wrong_notes = []
@@ -392,38 +406,31 @@ class Tutor(QThread):
                 except PermissionError:
                     raise RuntimeError("PianoBooster is restricting the removable of previous midi files")
 
+        #self.file_container.stringify_container()
+
         if self.file_container.has_midi_file() is True:
             midi_file = self.file_container.file_path['.mid']
         else:
             raise RuntimeError("Midi file not found.")
 
-        midi_path_list = midi_file.split('\\')
-        midi_path_list.pop()
-        new_midi_file_dir = '\\'.join(midi_path_list)
-        copyfile(midi_file, new_midi_file_dir)
-        midi_file = None
-
-        files = glob.glob(cwd_path + '\*')
-        for file in files:
-            if is_mid(file):
-                mid_file = file
-
-        if mid_file:
-            print("No midi file within the cwd: " + str(cwd_path))
-            return 0
+        filename = os.path.basename(midi_file)
+        new_midi_file = cwd_path + '\\' + filename
+        copyfile(midi_file, new_midi_file)
 
         # Obtaining the note event info for the mid file
-        self.sequence = self.midi_to_note_event_info(mid_file)
+        self.midi_to_note_event_info(new_midi_file)
 
         if self.sequence[0].event_type != None:
             self.sequence.insert(0,MidiEvent(None,0))
 
         #print(sequence)
         #print()
-        return 1
+        return True
 
     def midi_to_note_event_info(self, mid_file):
         # Now obtaining the pattern of the midi file found.
+
+        print(mid_file)
 
         mid_file_name = os.path.basename(mid_file)
         pattern = read_midifile(mid_file)
@@ -449,11 +456,13 @@ class Tutor(QThread):
 
                 if isinstance(event, NoteEvent):
                     if event.tick > 0:
-                        self.sequence.append(MidiEvent(None,event.tick))
+                        self.sequence.append(MidiEvent(None, event.tick))
                     if isinstance(event, NoteOffEvent):
                         self.sequence.append(MidiEvent(False, event.pitch))
                     else:
                         self.sequence.append(MidiEvent(True, event.pitch))
+
+        return None
 
     ##############################UTILITY FUNCTIONS#########################
 
@@ -480,10 +489,10 @@ class Tutor(QThread):
 
         for event in reversed(self.sequence[:index]):
 
-            if event.event_type == None:
-                delay += event.ticks
+            if event.event_type is None:
+                delay += event.data
 
-            elif event.event_type == True:
+            elif event.event_type is True:
                 return delay
 
         return delay
@@ -502,19 +511,21 @@ class Tutor(QThread):
 
         for index_tracker, event in enumerate(self.sequence[index:]):
 
-            if event.event_type == None:
-                if event.ticks >= CHORD_TICK_TOLERANCE:
+            print(event)
+
+            if event.event_type is None:
+                if event.data >= CHORD_TICK_TOLERANCE:
                     final_index += index_tracker - 1
                     break
                 else:
-                    if chord_delay + event.ticks >= CHORD_SUM_TOLERANCE:
+                    if chord_delay + event.data >= CHORD_SUM_TOLERANCE:
                         final_index += index_tracker - 1
                         break
                     else:
-                        chord_delay += event.ticks
+                        chord_delay += event.data
 
-            elif event.event_type == True:
-                note_array.append(event.pitch)
+            elif event.event_type is True:
+                note_array.append(event.data)
 
         if len(note_array) > 1:
             is_chord = True
@@ -529,39 +540,24 @@ class Tutor(QThread):
 
         #print("Arduino Comm Notes: " + str(notes))
 
-        notes_to_add = []
-        notes_to_remove = []
+        #notes_to_add = []
+        #notes_to_remove = []
+        notes_to_send = []
 
         #time.sleep(0.001)
         #print("Arduino Keyboard Pre-Communication: " + str(arduino_keyboard))
 
-        if notes == []:
+        if notes:
             notes_to_send = self.arduino_keyboard
             self.arduino_keyboard = []
             #print('sending *')
-            self.arduino.write(b',*,#,')
+            self.data_bridge.comm_data['arduino'].write(b',*,#,')
             #time.sleep(0.05)
 
         else:
-            for note in notes: # For Turning on a note
-                if note not in self.arduino_keyboard:
-                    #print("Note Added: " + str(note))
-                    notes_to_add.append(note)
-                    self.arduino_keyboard.append(note)
 
-            for note in self.arduino_keyboard: # for turning off a note
-                if note not in notes:
-                    #print("Note Remove: " + str(note))
-                    notes_to_remove.append(note)
-
-            for note in notes_to_remove:
-                self.arduino_keyboard.remove(note)
-
-            #print("notes_to_add: " + str(notes_to_add))
-            #print("notes_to_remove: " + str(notes_to_remove))
-
-            notes_to_send = notes_to_add + notes_to_remove
-            notes_to_send.sort()
+            notes_to_send = list(set(self.target_keyboard_state).symmetric_difference(self.arduino_keyboard))
+            #notes_to_send.sort()
 
             # All transmitted notes are contain within the same string
             transmitted_string = ''
@@ -581,46 +577,34 @@ class Tutor(QThread):
             #print("shifted_string to Arduino: " + transmitted_string)
 
             encoded_transmitted_string = transmitted_string.encode('utf-8')
-            self.arduino.write(encoded_transmitted_string)
+            self.data_bridge.comm_data['arduino'].write(encoded_transmitted_string)
 
             #print("Post-Communication: " + str(arduino_keyboard))
 
-            self.comm.arduino_handshake()
+            self.data_bridge.comm_data['comm'].arduino_handshake()
 
-        return
+        return None
 
     #################################TUTOR FUNCTIONS########################
-
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
     def tutor_beginner(self, starting_index):
         # This is practically the tutoring code for Beginner Mode
 
-        global target_keyboard_state, playing_state, right_notes
-        global wrong_notes, restart, arduino_keyboard, live_settings_change, transpose
-
-        local_transpose_variable = 0
-        target_keyboard_state = []
-        right_notes = []
-        wrong_notes = []
-        arduino_keyboard = []
-
-        delay_early_tolerance = 35 # < 40, > 25, > 30, > 35, < 37, < 36
+        self.local_transpose_variable = 0
+        self.target_keyboard_state = []
+        self.right_notes = []
+        self.wrong_notes = []
+        self.arduino_keyboard = []
 
         final_index = 0
         is_chord = False
-        previous_turnon_event_index = 0
 
-        for current_index, event in enumerate(sequence):
-
-            #print(current_index,':',event)
+        for current_index, event in enumerate(self.sequence):
 
             if starting_index > current_index:
                 continue
 
-            if is_chord == True:
+            if is_chord is True:
                 if current_index <= final_index:
                     # This is to account for the index shift if a chord is
                     # registered
@@ -634,20 +618,20 @@ class Tutor(QThread):
                 print('current_index:', current_index)
 
                 # Determine if chord and details
-                note_array, chord_delay, is_chord, final_index = chord_detection(current_index)
-                #print('Note/Chord Characteristics: ',note_array, chord_delay, is_chord, final_index)
+                note_array, chord_delay, is_chord, final_index = self.chord_detection(current_index)
+                print('Note/Chord Characteristics: ',note_array, chord_delay, is_chord, final_index)
 
                 for index, note in enumerate(note_array):
-                    note_array[index] = transpose + note
+                    note_array[index] = self.data_bridge.gui_data['live_settings']['transpose'] + note
 
-                target_keyboard_state = note_array
+                self.target_keyboard_state = note_array
 
                 # Determine previous delay
-                delay = determine_delay(current_index)
+                delay = self.determine_delay(current_index)
                 #print('Pre-Note/Chord delay: ', delay, '  Millisecond version: (with tolerance) ', delay * delay_multiplier)
 
-                print('Target', target_keyboard_state)
-                arduino_comm(target_keyboard_state)
+                print('Target', self.target_keyboard_state)
+                #self.arduino_comm(self.target_keyboard_state)
                 #print()
 
                 inital_time = current_milli_time()
@@ -655,51 +639,51 @@ class Tutor(QThread):
                 timer = 0
 
                 #print(delay, PPQN, micro_per_beat_tempo)
-                second_delay = tick2second(delay - delay_early_tolerance, PPQN, micro_per_beat_tempo)
-                second_delay = round(second_delay * 1000 * 100/speed)
+                second_delay = tick2second(delay - DELAY_EARLY_TOLERANCE, self.PPQN, self.micro_per_beat_tempo)
+                second_delay = round(second_delay * 1000 * 100/self.data_bridge.gui_data['live_settings']['speed'])
                 #print('second_delay:', second_delay)
 
                 # Waiting while loop
                 while(True):
-                    time.sleep(tutor_thread_delay)
+                    time.sleep(TUTOR_THREAD_DELAY)
 
-                    if live_settings_change:
-                        live_settings_change = False
+                    if self.data_bridge.gui_data['live_settings']['live_settings_change'] is True:
+                        self.data_bridge.gui_data['live_settings']['live_settings_change'] = False
 
-                        if restart == True:
-                            arduino_comm([])
-                            playing_state = True
-                            restart = False
+                        if self.data_bridge.gui_data['live_settings']['restart'] is True:
+                            self.arduino_comm([])
+                            self.data_bridge.gui_data['live_settings']['playing_state'] = True
+                            self.data_bridge.gui_data['live_settings']['restart'] = False
                             return 0
 
-                        if current_mode != 'beginner':
-                            arduino_comm([])
-                            playing_state = False
+                        if self.data_bridge.gui_data['live_settings']['current_mode'] != 'beginner':
+                            self.arduino_comm([])
+                            self.data_bridge.gui_data['live_settings']['playing_state'] = False
                             print("changing tutoring mode")
                             return final_index + 1
                             #return previous_turnon_event_index
 
-                        if local_transpose_variable != transpose:
+                        if local_transpose_variable != self.data_bridge.gui_data['live_settings']['transpose']:
                             print("Transpose Detected")
-                            diff = transpose - local_transpose_variable
-                            local_transpose_variable = transpose
-                            for index, note in enumerate(target_keyboard_state):
-                                target_keyboard_state[index] = note + diff
-                                arduino_comm([])
-                                arduino_comm(target_keyboard_state)
+                            diff = self.data_bridge.gui_data['live_settings']['transpose'] - local_transpose_variable
+                            local_transpose_variable = self.data_bridge.gui_data['live_settings']['transpose']
+                            self.target_keyboard_state = [note + diff for note in self.target_keyboard_state]
+                            self.arduino_comm([])
+                            self.arduino_comm(self.target_keyboard_state)
 
-                    if playing_state:
+                    if self.data_bridge.gui_data['live_settings']['playing_state'] is True:
                         timer = current_milli_time() - inital_time
-                        #print(timer)
+                        print(timer)
 
                         if timer >= second_delay:
+                            break
                             #print('ready')
-                            if keyboard_valid():
-                                target_keyboard_state = []
+                            if self.keyboard_valid():
+                                self.target_keyboard_state = []
                                 #arduino_comm([])
                                 break
                         else:
-                            right_notes = []
+                            self.right_notes = []
 
                     else:
                         inital_time = current_milli_time()
@@ -710,11 +694,9 @@ class Tutor(QThread):
                             second_delay -= timer
                             timer = 0
 
-                previous_turnon_event_index = current_index
-
         # Outside of large For Loop
-        arduino_comm([])
-        playing_state = False
+        #self.arduino_comm([])
+        self.data_bridge.gui_data['live_settings']['playing_state'] = False
         print("end of song")
         return 0
 
@@ -732,29 +714,23 @@ class Tutor(QThread):
 
         ###############################MAIN RUN CODE############################
 
-        global restart
+        midi_status = self.midi_setup()
 
-        tutoring_index = 0
+        if midi_status is True:
 
-        midi_setup()
+            while True:
+                if self.data_bridge.gui_data['live_settings']['current_mode'] == 'beginner':
+                    self.tutoring_index = self.tutor_beginner(self.tutoring_index)
+                elif self.data_bridge.gui_data['live_settings']['current_mode'] == 'intermediate':
+                    self.tutoring_index = self.tutor_intermediate(self.tutoring_index)
+                elif self.data_bridge.gui_data['live_settings']['current_mode'] == 'expert':
+                    self.tutoring_index = self.tutor_expert(self.tutoring_index)
 
-        while (True):
-            if current_mode == 'beginner':
-                tutoring_index = tutor_beginner(tutoring_index)
-            elif current_mode == 'intermediate':
-                tutoring_index = tutor_intermediate(tutoring_index)
-            elif current_mode == 'expert':
-                tutoring_index = tutor_expert(tutoring_index)
-
-            while(not playing_state):
-                #print("completion of tutoring mode")
-                time.sleep(0.1)
-
-        return
-
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+                while self.data_bridge.gui_data['live_settings']['playing_state']:
+                    #print("completion of tutoring mode")
+                    time.sleep(0.1)
+        else:
+            return None
 
 class SkoreGlassGui(QMainWindow):
     # This class creates the transparent GUI overlay that rests ontop of PianoBooster.
@@ -776,7 +752,7 @@ class SkoreGlassGui(QMainWindow):
         self.file_container = file_container
         self.live_settings = {'skill': 'follow_you_button', 'current_mode': 'beginner',
                               'reset_flag': False, 'hands': 'boths', 'speed': 100, 'transpose': 0,
-                              'start_bar_value': 0, 'playing_state': True, 'restart': False, 'mode': 'follow_you',
+                              'start_bar_value': 0, 'playing_state': False, 'restart': False, 'mode': 'follow_you',
                               'live_settings_change': False}
 
         self.skore_gui_buttons = {}
@@ -913,36 +889,36 @@ class SkoreGlassGui(QMainWindow):
             self.pianobooster_buttons['both_hands_button'].click()
 
             # Opening the .mid file
-            #time.sleep(delay)
-            #self.pianobooster_image_gui_manipulator.click_center_try('file_button_xeno', dimensions)
-            #time.sleep(delay)
-            #self.pianobooster_image_gui_manipulator.click_center_try('open_button_pianobooster_menu', dimensions)
-            #time.sleep(delay)
+            time.sleep(delay)
+            self.pianobooster_image_gui_manipulator.click_center_try('file_button_xeno', dimensions)
+            time.sleep(delay)
+            self.pianobooster_image_gui_manipulator.click_center_try('open_button_pianobooster_menu', dimensions)
+            time.sleep(delay)
 
 
-            #while True:
-            #    try:
-            #        o_handle = pywinauto.findwindows.find_windows(title='Open Midi File')[0]
-            #        o_window = pia_app.window(handle = o_handle)
-            #        break
-            #    except IndexError:
-            #        time.sleep(0.1)
+            while True:
+                try:
+                    o_handle = pywinauto.findwindows.find_windows(title='Open Midi File')[0]
+                    o_window = pia_app.window(handle = o_handle)
+                    break
+                except IndexError:
+                    time.sleep(0.1)
 
-            #mid_file_path = self.file_container.file_path['.mid']
+            #self.file_container.stringify_container()
+            mid_file_path = self.file_container.file_path['.mid']
             #mid_file_path = r"C:\Users\daval\Documents\GitHub\SKORE\Software\python\conversion_test\aa.mid"
-            #o_window.type_keys(mid_file_path)
-            #o_window.type_keys('{ENTER}')
+            o_window.type_keys(mid_file_path)
+            o_window.type_keys('{ENTER}')
 
-            #self.pianobooster_image_gui_manipulator.click_center_try('skill_groupBox_pia', dimensions)
-            #self.pianobooster_buttons['speed_spin_button'].click_input()
-            #self.pianobooster_buttons['speed_spin_button'].type_keys('^a {DEL}100{ENTER}')
-            #self.live_settings['speed'] = 100
-            #self.live_settings['transpose'] = 0
-            #self.pianobooster_image_gui_manipulator.click_center_try('skill_groupBox_pia', dimensions)
+            self.pianobooster_image_gui_manipulator.click_center_try('skill_groupBox_pia', dimensions)
+            self.pianobooster_buttons['speed_spin_button'].click_input()
+            self.pianobooster_buttons['speed_spin_button'].type_keys('^a {DEL}100{ENTER}')
+            self.live_settings['speed'] = 100
+            self.live_settings['transpose'] = 0
+            self.pianobooster_image_gui_manipulator.click_center_try('skill_groupBox_pia', dimensions)
 
             print("Finished Initialization")
             self.data_bridge.gui_data['pia_app'] = pia_app
-
 
             return None
 
@@ -1098,9 +1074,11 @@ class SkoreGlassGui(QMainWindow):
         self.check_open_app_thread.start()
 
         # Initializing Piano and Arduino Communication
-        #self.comm_thread = CommThread()
-        #self.comm_thread.comm_setup_signal.connect(self.start_tutoring_thread)
-        #self.comm_thread.start()
+        # Testing Here
+        self.live_settings['playing_state'] = True
+        self.comm = Comm(self.data_bridge)
+        self.comm.comm_setup_signal.connect(self.start_tutor_thread)
+        self.comm.start()
 
         return
 
@@ -1197,6 +1175,13 @@ class SkoreGlassGui(QMainWindow):
             else:
                 print("QInputDialog in use")
 
+        elif button == self.right_hand_button:
+            self.pianobooster_buttons['right_hand_button'].click()
+        elif button == self.both_hands_button:
+            self.pianobooster_buttons['both_hands_button'].click()
+        elif button == self.left_hand_button:
+            self.pianobooster_buttons['left_hand_button'].click()
+
         return None
 
     def menubar_click(self, button):
@@ -1287,13 +1272,13 @@ class SkoreGlassGui(QMainWindow):
         return None
 
     @pyqtSlot()
-    def start_tutoring_thread(self):
+    def start_tutor_thread(self):
         # This function starts the tutoring thread. This is done after a signal,
         # which is the communication setup successful signal, to ensure that
         # the arduino and piano are ready for tutoring
 
-        self.tutor_thread = TutorThread()
-        self.tutor_thread.start()
+        self.tutor = Tutor(self.file_container, self.data_bridge)
+        self.tutor.start()
 
     def close_all_thread(self):
         # This functions account for if skore.py attempts to close skore_companion.py
@@ -1304,12 +1289,12 @@ class SkoreGlassGui(QMainWindow):
 
         print("Terminating all threads")
         try:
-            self.comm_thread.terminate()
+            self.comm.terminate()
         except AttributeError:
             print("Failure in Comm Termination")
 
         try:
-            self.tutor_thread.terminate()
+            self.tutor.terminate()
         except AttributeError:
             print("Failure in Comms is acknowledge")
 
@@ -1338,7 +1323,7 @@ class SkoreGlassGui(QMainWindow):
 
 #-------------------------------------------------------------------------------
 # Main Code
-
+"""
 app = QApplication(sys.argv)
 list = QStyleFactory.keys()
 app.setStyle(QStyleFactory.create(list[2])) #Fusion
@@ -1346,3 +1331,4 @@ temp_file_container = FileContainer()
 window = SkoreGlassGui(temp_file_container)
 window.show()
 sys.exit(app.exec_())
+"""

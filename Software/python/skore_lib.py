@@ -726,7 +726,10 @@ def is_mid(file_path):
     file_name = os.path.basename(file_path)
     file_type = os.path.splitext(file_name)[1]
 
-    if(file_type == '.mid'):
+    print('name: {0}\ttype: {1}'.format(file_name, file_type))
+    print(file_type.find('.mid'))
+
+    if(file_type.find('.mid') != -1):
         return True
 
     return False

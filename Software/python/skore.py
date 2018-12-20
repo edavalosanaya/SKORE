@@ -19,6 +19,7 @@ sys.coinit_flags = 2
 # SKORE Library
 from skore_lib import *
 #from skore_glass import *
+from test import *
 
 #####################################PYQT5######################################
 
