@@ -20,6 +20,7 @@ sys.coinit_flags = 2
 from skore_lib import *
 #from skore_glass import *
 from test import *
+from settings_dialog import *
 
 #####################################PYQT5######################################
 
@@ -28,9 +29,9 @@ class Skore(QtWidgets.QMainWindow):
 
     def __init__(self):
         super(QtWidgets.QMainWindow, self).__init__()
-        self.setupUI()
+        self.setup_ui()
 
-    def setupUI(self):
+    def setup_ui(self):
 
         self.setWindowTitle('SKORE')
         self.setObjectName("MainWindow")
@@ -125,7 +126,7 @@ class Skore(QtWidgets.QMainWindow):
         self.file_container = FileContainer()
         self.file_container.clean_temp_folder()
 
-        self.retranslateUi()
+        self.retranslate_ui()
         QtCore.QMetaObject.connectSlotsByName(self)
 
         #self.progress_bar = ProgressBarDialog()
@@ -144,7 +145,7 @@ class Skore(QtWidgets.QMainWindow):
 
 ################################################################################
 
-    def retranslateUi(self):
+    def retranslate_ui(self):
         # This function applies all the text changes in the main SKORE app.
 
         midi_file_location = ''
@@ -215,7 +216,7 @@ class Skore(QtWidgets.QMainWindow):
         self.stop_all_animation()
         self.tutor_animation.start()
         self.generateMusicSheet_animation.start()
-        self.retranslateUi()
+        self.retranslate_ui()
 
         return
 
@@ -262,7 +263,7 @@ class Skore(QtWidgets.QMainWindow):
                 self.generateMIDFile_animation.start()
                 self.generateMusicSheet_animation.start()
 
-            self.retranslateUi()
+            self.retranslate_ui()
 
         return
 
@@ -285,7 +286,7 @@ class Skore(QtWidgets.QMainWindow):
                 self.saveGeneratedFiles_animation.start()
                 self.tutor_animation.start()
 
-                self.retranslateUi()
+                self.retranslate_ui()
 
         else:
             print("No file uploaded")
@@ -311,7 +312,7 @@ class Skore(QtWidgets.QMainWindow):
             if self.file_container.has_pdf_file() is not True:
                 self.generateMusicSheet_animation.start()
 
-            self.retranslateUi()
+            self.retranslate_ui()
 
         else:
             #QMessageBox.about(MainWindow, "File Needed", "Please upload a file before taking an action")
@@ -344,7 +345,7 @@ class Skore(QtWidgets.QMainWindow):
                 self.uploadAudioFile_animation.start()
                 self.record_animation.start()
 
-                self.retranslateUi()
+                self.retranslate_ui()
 
         else:
             QMessageBox.about(self, "No Conversion Present", "Please upload and convert a file before saving it.")

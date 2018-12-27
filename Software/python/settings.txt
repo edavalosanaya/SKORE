@@ -15,28 +15,25 @@ ant_app_exe_path=r"C:\Program Files (x86)\AnthemScore\AnthemScore.exe"
 MuseScore Settings:
 mus_app_exe_path=r"C:\MuseScore2\bin\MuseScore.exe"
 MP3_to_MIDI Settings:
-mp3_2_midi_converter=r"open_source"
+mp3_to_midi_converter=r"open_source"
 #
 Port Settings:
-arduino_com_port=r"COM3"
-piano_port=r"CASIO USB-MIDI 1"
-piano_size=r"S"
+arduino_port=r"COM3"
+piano_port=r"USB MIDI Interface 1"
+piano_size=r"L"
 #
 Color Settings:
-whitekey_r=r"255"
-whitekey_g=r"0"
-whitekey_b=r"0"
-whitekey_brightness=r"0"
+whitekey_r=r"33"
+whitekey_g=r"36"
+whitekey_b=r"255"
 blackkey_r=r"15"
 blackkey_g=r"255"
 blackkey_b=r"23"
-blackkey_brightness=r"0"
 #
 Timing Settings:
 chord_tick_tolerance=r"10"
-time_per_tick=r"0.01"
-manual_final_chord_sustain_timing=r"50"
-increment_counter=r"10"
+delay_early_tolerance=r"35"
+delay_late_tolerance=r"35"
 #
 Tutoring Settings:
 midi_file_location=r"C:\Users\daval\Documents\GitHub\SKORE\Software\python\conversion_test\hard.mid"

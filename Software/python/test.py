@@ -44,7 +44,8 @@ HANDSHAKE_DELAY = 0.1
 
 CHORD_TICK_TOLERANCE = int(setting_read('chord_tick_tolerance'))
 CHORD_SUM_TOLERANCE = 25
-DELAY_EARLY_TOLERANCE = 35 # < 40, > 25, > 30, > 35, < 37, < 36
+DELAY_EARLY_TOLERANCE = int(setting_read('delay_early_tolerance')) #35 # < 40, > 25, > 30, > 35, < 37, < 36
+DELAY_LATE_TOLERANCE = int(setting_read('delay_late_tolerance'))
 
 #-------------------------------------------------------------------------------
 # Useful Function
@@ -205,7 +206,7 @@ class Comm(QThread):
             self.arduino = []
 
         try:
-            com_port = setting_read("arduino_com_port")
+            com_port = setting_read("arduino_port")
             print("COM Port Selected: " + str(com_port))
 
             self.arduino = serial.Serial(com_port, 230400, writeTimeout = COMM_TIMEOUT)
