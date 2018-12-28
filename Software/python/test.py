@@ -162,19 +162,18 @@ class Comm(QThread):
         self.current_keyboard_state = []
 
         self.data_bridge = data_bridge
-        self.data_bridge.comm_data['arduino'] = self.arduino
-        self.data_bridge.comm_data['midi_in'] = self.midi_in
-        self.data_bridge.comm_data['midi_out'] = self.midi_out
         self.data_bridge.comm_data['current_keyboard_state'] = self.current_keyboard_state
         self.data_bridge.comm_data['comm'] = self
 
     def arduino_handshake(self):
 
+        print("waiting for arduino handshake")
         timeout = time.time() + COMM_TIMEOUT
         while time.time() < timeout:
             time.sleep(HANDSHAKE_DELAY)
             read_data = self.arduino.read()
             if read_data == b'#':
+                print("finished handshake")
                 return True
 
         raise RuntimeError("Communication Desync with Arduino")
@@ -210,6 +209,7 @@ class Comm(QThread):
             print("COM Port Selected: " + str(com_port))
 
             self.arduino = serial.Serial(com_port, 230400, writeTimeout = COMM_TIMEOUT)
+            self.data_bridge.comm_data['arduino'] = self.arduino
             print("Arduino Connected")
 
             whitekey.append(int(setting_read('whitekey_r')))
@@ -254,7 +254,7 @@ class Comm(QThread):
         # This function sets up the communication between Python and the MIDI device
         # For now Python will connect the first listed device.
 
-        if not midi_in and not midi_out:
+        if not self.midi_in and not self.midi_out:
             try:
                 self.midi_in.close_port()
                 self.midi_out.close_port()
@@ -263,6 +263,7 @@ class Comm(QThread):
                 self.midi_out = None
 
         self.midi_in = rtmidi.MidiIn()
+        self.data_bridge.comm_data['midi_in'] = self.midi_in
         in_avaliable_ports = self.midi_in.get_ports()
         selected_port = setting_read("piano_port")
         closes_match_in_port = difflib.get_close_matches(selected_port, in_avaliable_ports)[0]
@@ -277,6 +278,7 @@ class Comm(QThread):
             return None
 
         self.midi_out = rtmidi.MidiOut()
+        self.data_bridge.comm_data['midi_out'] = self.midi_out
         out_avaliable_ports = self.midi_out.get_ports()
         closes_match_out_port = difflib.get_close_matches('LoopBe Internal MIDI',out_avaliable_ports)[0]
         print("LoopBe Internal Port: " + str(closes_match_out_port))
@@ -313,50 +315,48 @@ class Comm(QThread):
 
         print("Piano and Arduino Communication Thread Enabled")
 
-        #arduino_status = self.arduino_setup()
-        #piano_status = self.piano_port_setup()
-        piano_status = True
-        arduino_status = True
+        arduino_status = self.arduino_setup()
+        piano_status = self.piano_port_setup()
 
         if arduino_status is True and piano_status is True:
             print("Piano and Arduino Communication Setup Successful")
             self.comm_setup_signal.emit()
 
-            try:
-                while True:
-                    time.sleep(COMM_THREAD_DELAY)
-                    """
-                    message = self.midi_in.get_message()
+            #try:
+            while True:
+                time.sleep(COMM_THREAD_DELAY)
+                message = self.midi_in.get_message()
 
-                    if message:
-                        note_info, delay = message
-                        ####
-                        self.midi_out.send_message(note_info)
-                        ####
+                if message:
+                    note_info, delay = message
+                    ####
+                    self.midi_out.send_message(note_info)
+                    ####
 
-                        if note_info[0] == 144: # Note ON event
-                            safe_change_current_keyboard_state(note_info[1], True)
+                    if note_info[0] == 144 and note_info[2] != 0: # Note ON event
+                        self.safe_change_current_keyboard_state(note_info[1], True)
 
-                            if note_info[1] in self.target_keyboard_state:
-                                if note_info[1] not in self.right_notes:
-                                    self.right_notes.append(note_info[1])
-                            else:
-                                if note_info[1] not in self.wrong_notes:
-                                    self.wrong_notes.append(note_info[1])
+                        if note_info[1] in self.data_bridge.tutor_data['target_keyboard_state']:
+                            if note_info[1] not in self.data_bridge.tutor_data['right_notes']:
+                                self.data_bridge.tutor_data['right_notes'].append(note_info[1])
+                        else:
+                            if note_info[1] not in self.data_bridge.tutor_data['wrong_notes']:
+                                self.data_bridge.tutor_data['wrong_notes'].append(note_info[1])
 
-                        else: # Note OFF event
-                            safe_change_current_keyboard_state(note_info[1], False)
+                    else: # Note OFF event
+                        self.safe_change_current_keyboard_state(note_info[1], False)
 
-                            if note_info[1] in self.right_notes:
-                                self.right_notes.remove(note_info[1])
-                            elif note_info[1] in self.wrong_notes:
-                                self.wrong_notes.remove(note_info[1])
-                    """
+                        if note_info[1] in self.data_bridge.tutor_data['right_notes']:
+                            self.data_bridge.tutor_data['right_notes'].remove(note_info[1])
+                        elif note_info[1] in self.data_bridge.tutor_data['wrong_notes']:
+                            self.data_bridge.tutor_data['wrong_notes'].remove(note_info[1])
 
-            except AttributeError:
-                print("Lost Piano Communication")
-            except RuntimeError:
-                print("Python-side Error ***bug***")
+                    print(self.current_keyboard_state)
+
+            #except AttributeError:
+            #    print("Lost Piano Communication")
+            #except RuntimeError:
+            #    print("Python-side Error ***bug***")
 
         return
 
@@ -405,7 +405,9 @@ class Tutor(QThread):
                     os.remove(file)
                     break
                 except PermissionError:
-                    raise RuntimeError("PianoBooster is restricting the removable of previous midi files")
+                    #raise RuntimeError("PianoBooster is restricting the removable of previous midi files")
+                    print("PianoBooster is restricting the removable of previous midi files")
+                    continue
 
         #self.file_container.stringify_container()
 
@@ -416,7 +418,11 @@ class Tutor(QThread):
 
         filename = os.path.basename(midi_file)
         new_midi_file = cwd_path + '\\' + filename
-        copyfile(midi_file, new_midi_file)
+
+        try:
+            copyfile(midi_file, new_midi_file)
+        except SameFileError:
+            print("Noting that midi file already exist")
 
         # Obtaining the note event info for the mid file
         self.midi_to_note_event_info(new_midi_file)
@@ -477,7 +483,7 @@ class Tutor(QThread):
                 return False
 
         if len(self.wrong_notes) <= 1:
-            self.right_notes = []
+            self.right_notes.clear()
             return True
 
         return None
@@ -550,7 +556,7 @@ class Tutor(QThread):
 
         if notes:
             notes_to_send = self.arduino_keyboard
-            self.arduino_keyboard = []
+            self.arduino_keyboard.clear()
             #print('sending *')
             self.data_bridge.comm_data['arduino'].write(b',*,#,')
             #time.sleep(0.05)
@@ -625,14 +631,15 @@ class Tutor(QThread):
                 for index, note in enumerate(note_array):
                     note_array[index] = self.data_bridge.gui_data['live_settings']['transpose'] + note
 
-                self.target_keyboard_state = note_array
+                self.target_keyboard_state.clear()
+                self.target_keyboard_state.extend(note_array)
 
                 # Determine previous delay
                 delay = self.determine_delay(current_index)
                 #print('Pre-Note/Chord delay: ', delay, '  Millisecond version: (with tolerance) ', delay * delay_multiplier)
 
                 print('Target', self.target_keyboard_state)
-                #self.arduino_comm(self.target_keyboard_state)
+                self.arduino_comm(self.target_keyboard_state)
                 #print()
 
                 inital_time = current_milli_time()
@@ -673,18 +680,21 @@ class Tutor(QThread):
                             self.arduino_comm(self.target_keyboard_state)
 
                     if self.data_bridge.gui_data['live_settings']['playing_state'] is True:
-                        timer = current_milli_time() - inital_time
-                        print(timer)
 
                         if timer >= second_delay:
-                            break
-                            #print('ready')
+
                             if self.keyboard_valid():
-                                self.target_keyboard_state = []
+                                self.target_keyboard_state.clear()
                                 #arduino_comm([])
                                 break
+
+                            continue
+
                         else:
-                            self.right_notes = []
+                            self.right_notes.clear()
+
+                        timer = current_milli_time() - inital_time
+                        print(timer)
 
                     else:
                         inital_time = current_milli_time()
@@ -1076,7 +1086,6 @@ class SkoreGlassGui(QMainWindow):
 
         # Initializing Piano and Arduino Communication
         # Testing Here
-        self.live_settings['playing_state'] = True
         self.comm = Comm(self.data_bridge)
         self.comm.comm_setup_signal.connect(self.start_tutor_thread)
         self.comm.start()

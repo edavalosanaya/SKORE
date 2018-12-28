@@ -718,7 +718,8 @@ def setting_write(setting, write_data):
     file_write.write(contents_all)
     file_write.close()
     print("Settings for " + setting + " have been modified to " + write_data)
-    return
+
+    return None
 
 def is_mid(file_path):
     # Test if the input file is .mid
@@ -726,10 +727,10 @@ def is_mid(file_path):
     file_name = os.path.basename(file_path)
     file_type = os.path.splitext(file_name)[1]
 
-    print('name: {0}\ttype: {1}'.format(file_name, file_type))
-    print(file_type.find('.mid'))
+    #print('name: {0}\ttype: {1}'.format(file_name, file_type))
+    #print(file_type.find('.mid'))
 
-    if(file_type.find('.mid') != -1):
+    if file_type.endswith('mid') is True:
         return True
 
     return False
@@ -740,7 +741,7 @@ def is_mp3(file_path):
     file_name = os.path.basename(file_path)
     file_type = os.path.splitext(file_name)[1]
 
-    if(file_type == '.mp3'):
+    if file_name.endswith('pdf') is True:
         return True
 
     return False
@@ -751,7 +752,7 @@ def is_pdf(file_path):
     file_name = os.path.basename(file_path)
     file_type = os.path.splitext(file_name)[1]
 
-    if(file_type == '.pdf'):
+    if file_type.endswith('pdf') is True:
         return True
 
     return False
