@@ -32,8 +32,8 @@ blackkey_b=r"23"
 #
 Timing Settings:
 chord_tick_tolerance=r"10"
-delay_early_tolerance=r"35"
-delay_late_tolerance=r"35"
+delay_early_tolerance=r"20"
+delay_late_tolerance=r"20"
 #
 Tutoring Settings:
 midi_file_location=r"C:\Users\daval\Documents\GitHub\SKORE\Software\python\conversion_test\hard.mid"

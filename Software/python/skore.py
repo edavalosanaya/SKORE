@@ -18,8 +18,7 @@ sys.coinit_flags = 2
 
 # SKORE Library
 from skore_lib import *
-#from skore_glass import *
-from test import *
+from skore_glass import *
 from settings_dialog import *
 
 #####################################PYQT5######################################
@@ -168,12 +167,14 @@ class Skore(QtWidgets.QMainWindow):
     def closeEvent(self, event):
         # Closes any open threads and additional GUIs
 
+        print("\n---------------------------SKORE CLOSURE---------------------------")
+
         try:
             #self.skore_companion_dialog.close()
             self.skore_glass_overlay.close()
-            print("skore_glass_overlay closure successful")
+            print("SKORE_GLASS CLOSURE")
         except:
-            print("skore_glass_overlay closure failed")
+            print("SKORE_GLASS CLOSURE FAILED")
 
         #try:
         #    self.progress_bar.close()
@@ -183,15 +184,15 @@ class Skore(QtWidgets.QMainWindow):
 
         try:
             self.settings_dialog.close()
-            print("progress_bar closure successful")
+            print("SETTINGS DIALOG CLOSURE")
         except:
-            print("dialog closure failed")
+            print("SETTINGS DIALOG CLOSURE FAILED")
 
         try:
             self.red_dot_thread.terminate()
-            print("Red Dot Thread termination successful")
+            print("RED DOT THREAD CLOSURE")
         except:
-            print("Red Dot Thread termination failed")
+            print("RED DOT THREAD CLOSURE FAILED")
         return
 
 ################################################################################
@@ -247,7 +248,7 @@ class Skore(QtWidgets.QMainWindow):
         if upload_file_path:
 
             self.stop_all_animation()
-            print(upload_file_path)
+            print("UPLOAD FILE LOCATION: {0}".format(upload_file_path))
 
             self.file_container.clean_temp_folder()
             self.file_container.remove_all()
