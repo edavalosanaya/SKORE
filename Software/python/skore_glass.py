@@ -600,7 +600,6 @@ FILTERED MIDI SEQUENCE:
     def tutor_beginner(self):
         # This is practically the tutoring code for Beginner Mode
 
-        self.local_transpose_variable = 0
         self.target_keyboard_state.clear()
         self.right_notes.clear()
         self.wrong_notes.clear()
@@ -649,6 +648,7 @@ FILTERED MIDI SEQUENCE:
                         diff = self.data_bridge.gui_data['gui'].live_settings['transpose'] - self.local_transpose_variable
                         self.local_transpose_variable = self.data_bridge.gui_data['gui'].live_settings['transpose']
                         self.target_keyboard_state = [note + diff for note in self.target_keyboard_state]
+                        print("Transpose Target: {0}".format(self.target_keyboard_state))
                         self.arduino_comm([])
                         self.arduino_comm(self.target_keyboard_state)
 
@@ -696,6 +696,7 @@ FILTERED MIDI SEQUENCE:
 
         midi_status = self.midi_setup()
         self.tutoring_index = 0
+        self.local_transpose_variable = 0
 
         if midi_status is True:
 
@@ -1207,7 +1208,6 @@ class SkoreGlassGui(QMainWindow):
             print("Stopping app")
             self.pianobooster_buttons['play_button'].click()
             self.live_settings['playing_state'] = False
-            self.live_settings['live_settings_change'] = True
 
         # Asking user for value of spin button
         self.message_box_active = True
@@ -1247,6 +1247,7 @@ class SkoreGlassGui(QMainWindow):
 
         print("End of Message Box Usage")
         self.message_box_active = False
+        self.live_settings['live_settings_change'] = True
 
         if was_playing is True:
             print("Continuing the app")
