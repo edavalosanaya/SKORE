@@ -39,7 +39,7 @@ APP_CLOSE_DELAY = 2
 COMM_THREAD_DELAY = 0.001
 TUTOR_THREAD_DELAY = 0.01
 
-KEYBOARD_SHIFT = 36
+KEYBOARD_SHIFT = 48
 COMM_TIMEOUT = 30
 HANDSHAKE_DELAY = 0.001
 
@@ -47,6 +47,7 @@ CHORD_TICK_TOLERANCE = int(setting_read('chord_tick_tolerance'))
 CHORD_SUM_TOLERANCE = 25
 DELAY_EARLY_TOLERANCE = int(setting_read('delay_early_tolerance')) #35 # < 40, > 25, > 30, > 35, < 37, < 36
 DELAY_LATE_TOLERANCE = int(setting_read('delay_late_tolerance'))
+MIDDLE_C = 60
 
 #-------------------------------------------------------------------------------
 # Useful Function
@@ -209,6 +210,9 @@ class Comm:
 
         return None
 
+    #---------------------------------------------------------------------------
+    # Arduino Functions
+
     def arduino_handshake(self):
 
         #print("waiting for arduino handshake")
@@ -300,6 +304,9 @@ SETUP STRING: {4}
             print("Arduino did not return initial setup handshake")
             return False
 
+    #---------------------------------------------------------------------------
+    # Piano Functions
+
     def piano_port_setup(self):
         # This function sets up the communication between Python and the MIDI device
         # For now Python will connect the first listed device.
@@ -382,6 +389,9 @@ class Tutor(QThread):
 
         self.data_bridge = data_bridge
         self.data_bridge.tutor_data['tutor'] = self
+
+    #---------------------------------------------------------------------------
+    # Midi Functions
 
     def midi_setup(self):
         # This fuction deletes pre-existing MIDI files and places the new desired MIDI
@@ -527,12 +537,15 @@ FILTERED MIDI SEQUENCE:
 
         return None
 
-    ##############################UTILITY FUNCTIONS#########################
+    #---------------------------------------------------------------------------
+    # Misc Functions
 
     def keyboard_valid(self):
         # This functions follows the confirmation system of PianoBooster
         # which determines if the keys pressed are acceptable compared to the
         # target keyboard configuration
+        if self.target_keyboard_state == []:
+            return True
 
         for note in self.target_keyboard_state:
             if note not in self.right_notes:
@@ -544,6 +557,9 @@ FILTERED MIDI SEQUENCE:
 
         return None
 
+    #---------------------------------------------------------------------------
+    # Communication Functions
+
     def send_piano_booster_target(self):
 
         for note in self.target_keyboard_state:
@@ -553,8 +569,6 @@ FILTERED MIDI SEQUENCE:
             self.data_bridge.comm_data['comm'].midi_out.send_message([0x80, note, 100])
 
         return None
-
-    ##############################COMMUNICATION FUNCTIONS###################
 
     def arduino_comm(self, notes):
         # This function sends the information about which notes need to be added and
@@ -595,7 +609,8 @@ FILTERED MIDI SEQUENCE:
 
         return None
 
-    #################################TUTOR FUNCTIONS########################
+    #---------------------------------------------------------------------------
+    # Currently working Tutoring Functions (Inefficient)
 
     def tutor_beginner(self):
         # This is practically the tutoring code for Beginner Mode
@@ -610,15 +625,26 @@ FILTERED MIDI SEQUENCE:
             note_array = event_info[0]
             delta_time = event_info[1]
 
+            # Converting ticks to seconds
             sec_delay = tick2second(delta_time - DELAY_EARLY_TOLERANCE, self.PPQN, self.micro_per_beat_tempo)
             sec_delay = round(sec_delay * 1000 * 100/self.data_bridge.gui_data['gui'].live_settings['speed'])
 
+            # Transpose
             self.target_keyboard_state.clear()
             self.target_keyboard_state.extend([note + self.local_transpose_variable for note in note_array])
 
-            print("Target: {}".format(self.target_keyboard_state))
+            # Hand Skill
+            if self.local_hand_skill != 'both':
+                if self.local_hand_skill == 'right':
+                    self.target_keyboard_state = [note for note in self.target_keyboard_state if note >= MIDDLE_C]
+                elif self.local_hand_skill == 'left':
+                    self.target_keyboard_state = [note for note in self.target_keyboard_state if note < MIDDLE_C]
+
+            # Arduino Comm and target_keyboard_state is ready
+            print("Target: {0}\tsec_delay: {1}".format(self.target_keyboard_state, sec_delay))
             self.arduino_comm(self.target_keyboard_state)
 
+            # Start timer
             inital_time = current_milli_time()
             timer = 0
 
@@ -626,9 +652,11 @@ FILTERED MIDI SEQUENCE:
             while(True):
                 time.sleep(TUTOR_THREAD_DELAY)
 
+                # Live Settings Change Detection
                 if self.data_bridge.gui_data['gui'].live_settings['live_settings_change'] is True:
                     self.data_bridge.gui_data['gui'].live_settings['live_settings_change'] = False
 
+                    # Restart Change
                     if self.data_bridge.gui_data['gui'].live_settings['restart'] is True:
                         self.arduino_comm([])
                         self.data_bridge.gui_data['gui'].live_settings['playing_state'] = True
@@ -636,6 +664,7 @@ FILTERED MIDI SEQUENCE:
                         self.tutoring_index = 0
                         return None
 
+                    # Tutoring Mode Change
                     if self.data_bridge.gui_data['gui'].live_settings['current_mode'] != 'beginner':
                         self.arduino_comm([])
                         self.data_bridge.gui_data['gui'].live_settings['playing_state'] = False
@@ -643,6 +672,7 @@ FILTERED MIDI SEQUENCE:
                         self.tutoring_index = self.filtered_sequence.index(event_info)
                         return None
 
+                    # Transpose Change
                     if self.local_transpose_variable != self.data_bridge.gui_data['gui'].live_settings['transpose']:
                         print("Transpose Detected")
                         diff = self.data_bridge.gui_data['gui'].live_settings['transpose'] - self.local_transpose_variable
@@ -652,18 +682,30 @@ FILTERED MIDI SEQUENCE:
                         self.arduino_comm([])
                         self.arduino_comm(self.target_keyboard_state)
 
+                    # Hand Skill Change
+                    if self.local_hand_skill != self.data_bridge.gui_data['gui'].live_settings['hands']:
+                        print("Hand Skill Change Detected")
+                        self.local_hand_skill = self.data_bridge.gui_data['gui'].live_settings['hands']
+                        self.target_keyboard_state.extend([note + self.local_transpose_variable for note in note_array])
+                        if self.local_hand_skill != 'both':
+                            if self.local_hand_skill == 'right':
+                                self.target_keyboard_state = [note for note in self.target_keyboard_state if note >= MIDDLE_C]
+                            elif self.local_hand_skill == 'left':
+                                self.target_keyboard_state = [note for note in self.target_keyboard_state if note < MIDDLE_C]
+
+                # Playing
                 if self.data_bridge.gui_data['gui'].live_settings['playing_state'] is True:
 
                     if timer >= sec_delay:
-                        #print("ready")
                         if self.keyboard_valid():
                             self.send_piano_booster_target()
                             self.target_keyboard_state.clear()
                             break
                         continue
 
-                    else:
-                        self.right_notes.clear()
+                    #else:
+                    #    pass
+                        #self.right_notes.clear()
 
                     timer = current_milli_time() - inital_time
 
@@ -673,10 +715,10 @@ FILTERED MIDI SEQUENCE:
                         sec_delay -= timer
                         timer = 0
 
-        # Outside of large For Loop
+        # End of Song
+        print("end of song")
         self.arduino_comm([])
         self.data_bridge.gui_data['gui'].live_settings['playing_state'] = False
-        print("end of song")
         self.tutoring_index = math.inf
         return None
 
@@ -690,17 +732,50 @@ FILTERED MIDI SEQUENCE:
         #print('expert')
         return None
 
+    # This is what we would like to implement instead
+
+    def tutor(self, tutor_mode):
+
+        return None
+
+    def beginner(self):
+
+        return None
+
+    def intermediate(self):
+
+        return None
+
+    def expert(self):
+
+        return None
+
+    #---------------------------------------------------------------------------
+    # Main Function
+
     def run(self):
 
-        ###############################MAIN RUN CODE############################
-
-        midi_status = self.midi_setup()
+        midi_setup_status = self.midi_setup()
         self.tutoring_index = 0
         self.local_transpose_variable = 0
+        self.local_hand_skill = "both"
 
-        if midi_status is True:
+        if midi_setup_status is True:
 
             while True:
+
+                # Restart via play_button
+                if self.data_bridge.gui_data['gui'].live_settings['playing_state'] is True:
+                    self.tutoring_index = 0
+
+                # Restart via restart_button
+                if self.data_bridge.gui_data['gui'].live_settings['restart'] is True:
+                    self.arduino_comm([])
+                    self.data_bridge.gui_data['gui'].live_settings['playing_state'] == True
+                    self.data_bridge.gui_data['gui'].live_settings['restart'] == False
+                    self.tutoring_index = 0
+
+                # Tutoring
                 if self.tutoring_index == 0:
 
                     if self.data_bridge.gui_data['gui'].live_settings['current_mode'] == 'beginner':
@@ -709,12 +784,6 @@ FILTERED MIDI SEQUENCE:
                         self.tutor_intermediate()
                     elif self.data_bridge.gui_data['gui'].live_settings['current_mode'] == 'expert':
                         self.tutor_expert()
-
-                if self.data_bridge.gui_data['gui'].live_settings['restart'] is True:
-                    self.arduino_comm([])
-                    self.data_bridge.gui_data['gui'].live_settings['playing_state'] == True
-                    self.data_bridge.gui_data['gui'].live_settings['restart'] == False
-                    self.tutoring_index = 0
         else:
             return None
 
@@ -734,7 +803,7 @@ class SkoreGlassGui(QMainWindow):
 
         self.file_container = file_container
         self.live_settings = {'skill': 'follow_you_button', 'current_mode': 'beginner',
-                              'reset_flag': False, 'hands': 'boths', 'speed': 100, 'transpose': 0,
+                              'reset_flag': False, 'hands': 'both', 'speed': 100, 'transpose': 0,
                               'start_bar_value': 0, 'playing_state': False, 'restart': False, 'mode': 'follow_you',
                               'live_settings_change': False}
 
@@ -750,6 +819,11 @@ class SkoreGlassGui(QMainWindow):
         self.setup_menu_bar()
         self.setup_visible_ui()
         self.setup_thread()
+
+        return None
+
+    #---------------------------------------------------------------------------
+    # Main Setup Functions
 
     def setup_pianobooster(self):
             # This function performs the task of opening PianoBooster and appropriately
@@ -811,7 +885,6 @@ class SkoreGlassGui(QMainWindow):
             self.pianobooster_image_gui_manipulator.click_center_try('book_song_buttons_pia', dimensions)
             self.pianobooster_image_gui_manipulator.click_center_try('flag_button_pia', dimensions)
             self.pianobooster_image_gui_manipulator.click_center_try('part_button_pia', dimensions)
-
 
             # Aquiring the qwigets from the application
             main_qwidget = pia_app.QWidget
@@ -884,9 +957,7 @@ class SkoreGlassGui(QMainWindow):
                 except IndexError:
                     time.sleep(0.1)
 
-            #self.file_container.stringify_container()
             mid_file_path = self.file_container.file_path['.mid']
-            #mid_file_path = r"C:\Users\daval\Documents\GitHub\SKORE\Software\python\conversion_test\aa.mid"
             o_window.type_keys(mid_file_path)
             o_window.type_keys('{ENTER}')
 
@@ -1069,6 +1140,7 @@ class SkoreGlassGui(QMainWindow):
         return
 
     #---------------------------------------------------------------------------
+    # Secondary Functions
 
     def skore_gui_buttons_geometry(self):
         # This function assigns the corresponding transparent buttons to the
@@ -1163,10 +1235,16 @@ class SkoreGlassGui(QMainWindow):
 
         elif button == self.right_hand_button:
             self.pianobooster_buttons['right_hand_button'].click()
+            self.live_settings['hands'] = 'right'
+            self.live_settings['live_settings_change'] = True
         elif button == self.both_hands_button:
             self.pianobooster_buttons['both_hands_button'].click()
+            self.live_settings['hands'] = 'both'
+            self.live_settings['live_settings_change'] = True
         elif button == self.left_hand_button:
             self.pianobooster_buttons['left_hand_button'].click()
+            self.live_settings['hands'] = 'left'
+            self.live_settings['live_settings_change'] = True
 
         return None
 
@@ -1294,6 +1372,7 @@ class SkoreGlassGui(QMainWindow):
 
 #-------------------------------------------------------------------------------
 # Main Code
+
 """
 app = QApplication(sys.argv)
 list = QStyleFactory.keys()
