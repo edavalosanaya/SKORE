@@ -19,8 +19,8 @@ mp3_to_midi_converter=r"open_source"
 #
 Port Settings:
 arduino_port=r"COM3"
-piano_port=r"USB MIDI Interface 1"
-piano_size=r"L"
+piano_port=r"CASIO USB-MIDI 1"
+piano_size=r"M"
 #
 Color Settings:
 whitekey_r=r"33"
