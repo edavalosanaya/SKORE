@@ -40,18 +40,12 @@ For this application to function please install the following programs:
         +https://gradle.org/
     -Tesseract OCR
         +https://github.com/tesseract-ocr/tesseract
--Audacity (v2.1.0)
-    +https://sourceforge.net/projects/audacity/files/latest/download
 -Red Dot Forever (v1.04)
     +https://sourceforge.net/projects/reddot/files/latest/download
--MidiSheetMusic-2.6 (v2-6)
-    +http://midisheetmusic.com/download.html
 -AmazingMIDI (v1.70)
     +http://www.pluto.dti.ne.jp/~araki/amazingmidi/
 -AnthemScore(Optional, not free)
     +https://www.lunaverus.com/
--Xenoplay [aka Xenoage Player] (v0.4.2007.06.26)
-    +https://sourceforge.net/projects/xenoplay/
 -PianoBooster (v0.6.4)
     +http://pianobooster.sourceforge.net/screenshots.html
 -LoopBe1 (v1.6)
