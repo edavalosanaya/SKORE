@@ -31,11 +31,6 @@ from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 
 #-------------------------------------------------------------------------------
-# Constants
-
-
-
-#-------------------------------------------------------------------------------
 # Class Definitions
 
 class FileContainer:
@@ -505,7 +500,6 @@ class FileContainer:
         self.stringify_container()
 
         return None
-
 
 
 class GuiManipulator:

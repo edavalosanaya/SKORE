@@ -46,6 +46,7 @@ class ArduinoComboBox(QtWidgets.QComboBox):
             self.addItem(avaliable_port)
         super(ArduinoComboBox, self).showPopup()
 
+
 class PianoComboBox(QtWidgets.QComboBox):
     # This class allows the combobox to recognize piano connected as soon as the
     # user clicks the combobox
@@ -72,6 +73,7 @@ class PianoComboBox(QtWidgets.QComboBox):
         for avaliable_piano_port_connected in avaliable_piano_ports:
             self.addItem(avaliable_piano_port_connected)
         super(PianoComboBox, self).showPopup()
+
 
 class SettingsDialog(QtWidgets.QDialog):
 
@@ -588,6 +590,7 @@ class SettingsDialog(QtWidgets.QDialog):
                 setting_write(self.port_dict[key][1], key.currentText()[-1])
 
         return None
+
 #-------------------------------------------------------------------------------
 # Main Code
 

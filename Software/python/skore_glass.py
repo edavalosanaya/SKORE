@@ -68,6 +68,7 @@ class DataBridge:
 
         return None
 
+
 class MidiEvent:
 
     def __init__(self, event_type, event_data):
@@ -78,6 +79,7 @@ class MidiEvent:
 
     def __repr__(self):
         return "({0}, {1})".format(self.event_type, self.data)
+
 
 class MidiInputHandler(object):
 
@@ -113,6 +115,7 @@ class MidiInputHandler(object):
 
         return None
 
+
 class TransparentButton(QPushButton):
     # This class is custom version of QPushButton that is transparent
 
@@ -127,6 +130,7 @@ class TransparentButton(QPushButton):
 
         return None
 
+
 class DisabledButton(QPushButton):
     # This class is custom version of QPushButton that is not transparent, and not
     # enabled for the user's usability
@@ -139,6 +143,7 @@ class DisabledButton(QPushButton):
             border: none;""")
         list = QStyleFactory.keys()
         self.setStyle(QStyleFactory.create(list[0]))
+
 
 class CoordinateButton(QPushButton):
     # This class is custom version of QPushButton that is set by calculated
@@ -180,6 +185,7 @@ class AppOpenThread(QThread):
                 self.app_close_signal.emit()
 
                 break
+
 
 class Comm:
     # This thread initializes the communication between the piano, virtual midi,
@@ -363,6 +369,7 @@ PIANO PORT HANDLER SETUP (SUCCESSFUL)
         """.format(closes_match_out_port, closes_match_in_port))
 
         return True
+
 
 class Tutor(QThread):
     # This thread performs the algorithm to control the LED lights with the
@@ -786,6 +793,7 @@ FILTERED MIDI SEQUENCE:
                         self.tutor_expert()
         else:
             return None
+
 
 class SkoreGlassGui(QMainWindow):
     # This class creates the transparent GUI overlay that rests ontop of PianoBooster.

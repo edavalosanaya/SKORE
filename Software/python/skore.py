@@ -21,7 +21,8 @@ from skore_lib import *
 from skore_glass import *
 from settings_dialog import *
 
-#####################################PYQT5######################################
+#-------------------------------------------------------------------------------
+# Classes
 
 class Skore(QtWidgets.QMainWindow):
     # This is the main window of the SKORE application
@@ -403,7 +404,7 @@ class Skore(QtWidgets.QMainWindow):
             blink_button.reset_color()
         return
 
-################################################################################
+
 
 class ProgressBarDialog(QtWidgets.QDialog):
     # This QtWidget deals with the display of the progress bar during the file
@@ -467,7 +468,7 @@ class ProgressBarDialog(QtWidgets.QDialog):
         self.move(frameGm.topLeft())
         return
 
-################################################################################
+
 
 class RedDotThread(QThread):
     # This thread checks and determines the address given for the midi file
@@ -551,7 +552,7 @@ class RedDotThread(QThread):
 
         return None
 
-################################################################################
+
 
 class BlinkButton(QPushButton):
     def __init__(self, *args, **kwargs):
@@ -580,7 +581,7 @@ class BlinkButton(QPushButton):
 
     color = pyqtProperty(QColor, getColor, setColor)
 
-################################################################################
+
 
 class BlinkAnimation(QPropertyAnimation):
 
@@ -598,8 +599,8 @@ class BlinkAnimation(QPropertyAnimation):
         self.setEndValue(qwidget.default_color)
         self.setKeyValueAt(0.5, QColor(10,200,30))
 
-#################################MAIN CODE######################################
-# This starts the application
+#-------------------------------------------------------------------------------
+# Main Code
 
 if __name__ == "__main__":
     import sys

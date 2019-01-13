@@ -15,17 +15,8 @@ from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 
-# Global Variables
-checkboxlist = []
-
-# Obtaining the complete path for setup.py
-complete_path = os.path.dirname(os.path.abspath(__file__))
-if complete_path == '' or complete_path.find('SKORE') == -1:
-        complete_path = os.path.dirname(sys.argv[0])
-
-setup_files_path = complete_path + r'\app_setup_files'
-
-################################PYQT5 ClASSES###################################
+#-------------------------------------------------------------------------------
+# Class Definitions
 
 class SetupSkore(QtWidgets.QMainWindow):
     # This class is the main GUI for the installation. It helps visualize and provides
@@ -33,12 +24,17 @@ class SetupSkore(QtWidgets.QMainWindow):
     # SKORE
 
     def __init__(self):
+
+        complete_path = os.path.dirname(os.path.abspath(__file__))
+        if complete_path == '' or complete_path.find('SKORE') == -1:
+                complete_path = os.path.dirname(sys.argv[0])
+
+        self.setup_files_path = complete_path + r'\app_setup_files'
+
         super(QtWidgets.QMainWindow, self).__init__()
         self.setupUi()
 
     def setupUi(self):
-
-        global checkboxlist
 
         self.setWindowTitle('SKORE Accompanying-Application Installation Wizard')
         self.setObjectName("MainWindow")
@@ -56,128 +52,123 @@ class SetupSkore(QtWidgets.QMainWindow):
         self.instructions_textBrowser.setGeometry(QtCore.QRect(30, 170, 571, 91))
         self.instructions_textBrowser.setObjectName("instructions_textBrowser")
 
+        #-----------------------------------------------------------------------
         # Major Grid Layout
+
         self.gridLayoutWidget = QtWidgets.QWidget(self.centralwidget)
         self.gridLayoutWidget.setGeometry(QtCore.QRect(30, 270, 571, 231))
         self.gridLayoutWidget.setObjectName("gridLayoutWidget")
         self.gridLayout = QtWidgets.QGridLayout(self.gridLayoutWidget)
         self.gridLayout.setContentsMargins(0, 0, 0, 0)
         self.gridLayout.setObjectName("gridLayout")
-        spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        self.gridLayout.addItem(spacerItem, 5, 0, 1, 1)
-        self.midi_sheet_music_checkBox = QtWidgets.QCheckBox(self.gridLayoutWidget)
-        self.midi_sheet_music_checkBox.setText("")
-        self.midi_sheet_music_checkBox.setObjectName("midi_sheet_music_checkBox")
-        self.gridLayout.addWidget(self.midi_sheet_music_checkBox, 5, 1, 1, 1, QtCore.Qt.AlignHCenter)
-        self.pianobooster_checkBox = QtWidgets.QCheckBox(self.gridLayoutWidget)
-        self.pianobooster_checkBox.setText("")
-        self.pianobooster_checkBox.setObjectName("pianobooster_checkBox")
-        self.gridLayout.addWidget(self.pianobooster_checkBox, 6, 1, 1, 1, QtCore.Qt.AlignHCenter)
-        self.red_dot_forever_checkBox = QtWidgets.QCheckBox(self.gridLayoutWidget)
-        self.red_dot_forever_checkBox.setText("")
-        self.red_dot_forever_checkBox.setObjectName("red_dot_forever_checkBox")
-        self.gridLayout.addWidget(self.red_dot_forever_checkBox, 7, 1, 1, 1, QtCore.Qt.AlignHCenter)
-        #self.pianobooster_completed_checkBox = QtWidgets.QCheckBox(self.gridLayoutWidget)
-        #self.pianobooster_completed_checkBox.setCheckable(False)
-        self.pianobooster_completed_checkBox = ReadOnlyCheckBox(self.gridLayoutWidget)
-        self.pianobooster_completed_checkBox.setObjectName("pianobooster_completed_checkBox")
-        self.gridLayout.addWidget(self.pianobooster_completed_checkBox, 6, 5, 1, 1, QtCore.Qt.AlignHCenter)
-        self.xenoplay_checkBox = QtWidgets.QCheckBox(self.gridLayoutWidget)
-        self.xenoplay_checkBox.setText("")
-        self.xenoplay_checkBox.setObjectName("xenoplay_checkBox")
-        self.gridLayout.addWidget(self.xenoplay_checkBox, 8, 1, 1, 1, QtCore.Qt.AlignHCenter)
-        #self.loopbe1_completed_checkBox = QtWidgets.QCheckBox(self.gridLayoutWidget)
-        #self.loopbe1_completed_checkBox.setCheckable(False)
-        self.loopbe1_completed_checkBox = ReadOnlyCheckBox(self.gridLayoutWidget)
-        self.loopbe1_completed_checkBox.setObjectName("loopbe1_completed_checkBox")
-        self.gridLayout.addWidget(self.loopbe1_completed_checkBox, 4, 5, 1, 1, QtCore.Qt.AlignHCenter)
-        #self.audacity_completed_checkBox = QtWidgets.QCheckBox(self.gridLayoutWidget)
-        #self.audacity_completed_checkBox.setCheckable(False)
-        self.audacity_completed_checkBox = ReadOnlyCheckBox(self.gridLayoutWidget)
-        self.audacity_completed_checkBox.setObjectName("audacity_completed_checkBox")
-        self.gridLayout.addWidget(self.audacity_completed_checkBox, 3, 5, 1, 1, QtCore.Qt.AlignHCenter)
-        #self.midi_sheet_music_completed_checkBox = QtWidgets.QCheckBox(self.gridLayoutWidget)
-        #self.midi_sheet_music_completed_checkBox.setCheckable(False)
-        self.midi_sheet_music_completed_checkBox = ReadOnlyCheckBox(self.gridLayoutWidget)
-        self.midi_sheet_music_completed_checkBox.setObjectName("midi_sheet_music_completed_checkBox")
-        self.gridLayout.addWidget(self.midi_sheet_music_completed_checkBox, 5, 5, 1, 1, QtCore.Qt.AlignHCenter)
-        #self.xenoplay_completed_checkBox = QtWidgets.QCheckBox(self.gridLayoutWidget)
-        #self.xenoplay_completed_checkBox.setCheckable(False)
-        self.xenoplay_completed_checkBox = ReadOnlyCheckBox(self.gridLayoutWidget)
-        self.xenoplay_completed_checkBox.setObjectName("xenoplay_completed_checkBox")
-        self.gridLayout.addWidget(self.xenoplay_completed_checkBox, 8, 5, 1, 1, QtCore.Qt.AlignHCenter)
-        #self.red_dot_forever_completed_checkBox = QtWidgets.QCheckBox(self.gridLayoutWidget)
-        #self.red_dot_forever_completed_checkBox.setCheckable(False)
-        self.red_dot_forever_completed_checkBox = ReadOnlyCheckBox(self.gridLayoutWidget)
-        self.red_dot_forever_completed_checkBox.setObjectName("red_dot_forever_completed_checkBox")
-        self.gridLayout.addWidget(self.red_dot_forever_completed_checkBox, 7, 5, 1, 1, QtCore.Qt.AlignHCenter)
-        spacerItem1 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        self.gridLayout.addItem(spacerItem1, 5, 6, 1, 1)
 
-        #self.amazingmidi_completed_checkBox = QtWidgets.QCheckBox(self.gridLayoutWidget)
-        self.amazingmidi_completed_checkBox = ReadOnlyCheckBox(self.gridLayoutWidget)
-        #self.amazingmidi_completed_checkBox.setEnabled(True)
-        #self.amazingmidi_completed_checkBox.setMouseTracking(True)
-        #self.amazingmidi_completed_checkBox.setCheckable(False)
-        self.amazingmidi_completed_checkBox.setObjectName("amazingmidi_completed_checkBox")
-
-        self.gridLayout.addWidget(self.amazingmidi_completed_checkBox, 2, 5, 1, 1, QtCore.Qt.AlignHCenter)
-        self.loopbe1_label = QtWidgets.QLabel(self.gridLayoutWidget)
-        self.loopbe1_label.setObjectName("loopbe1_label")
-        self.gridLayout.addWidget(self.loopbe1_label, 4, 3, 1, 1)
+        # Amazing Midi
         self.amazingmidi_checkBox = QtWidgets.QCheckBox(self.gridLayoutWidget)
         self.amazingmidi_checkBox.setText("")
         self.amazingmidi_checkBox.setObjectName("amazing_midi_checkBox")
         self.gridLayout.addWidget(self.amazingmidi_checkBox, 2, 1, 1, 1, QtCore.Qt.AlignHCenter)
-        self.audacity_label = QtWidgets.QLabel(self.gridLayoutWidget)
-        self.audacity_label.setObjectName("audacity_label")
-        self.gridLayout.addWidget(self.audacity_label, 3, 3, 1, 1)
-        self.midi_sheet_music_label = QtWidgets.QLabel(self.gridLayoutWidget)
-        self.midi_sheet_music_label.setObjectName("midi_sheet_music_label")
-        self.gridLayout.addWidget(self.midi_sheet_music_label, 5, 3, 1, 1)
-        self.xenoplay_label = QtWidgets.QLabel(self.gridLayoutWidget)
-        self.xenoplay_label.setObjectName("xenoplay_label")
-        self.gridLayout.addWidget(self.xenoplay_label, 8, 3, 1, 1)
-        self.audacity_checkBox = QtWidgets.QCheckBox(self.gridLayoutWidget)
-        self.audacity_checkBox.setText("")
-        self.audacity_checkBox.setObjectName("audacity_checkBox")
-        self.gridLayout.addWidget(self.audacity_checkBox, 3, 1, 1, 1, QtCore.Qt.AlignHCenter)
+
         self.amazingmidi_label = QtWidgets.QLabel(self.gridLayoutWidget)
         self.amazingmidi_label.setObjectName("amazingmidi_label")
         self.gridLayout.addWidget(self.amazingmidi_label, 2, 3, 1, 1)
-        self.pianobooster_label = QtWidgets.QLabel(self.gridLayoutWidget)
-        self.pianobooster_label.setObjectName("pianobooster_label")
-        self.gridLayout.addWidget(self.pianobooster_label, 6, 3, 1, 1)
-        self.red_dot_forever_label = QtWidgets.QLabel(self.gridLayoutWidget)
-        self.red_dot_forever_label.setObjectName("red_dot_forever_label")
-        self.gridLayout.addWidget(self.red_dot_forever_label, 7, 3, 1, 1)
-        spacerItem2 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        self.gridLayout.addItem(spacerItem2, 5, 4, 1, 1)
-        self.to_be_installed_label = QtWidgets.QLabel(self.gridLayoutWidget)
-        self.to_be_installed_label.setObjectName("to_be_installed_label")
-        self.gridLayout.addWidget(self.to_be_installed_label, 1, 1, 1, 1)
+
+        self.amazingmidi_completed_checkBox = ReadOnlyCheckBox(self.gridLayoutWidget)
+        self.amazingmidi_completed_checkBox.setObjectName("amazingmidi_completed_checkBox")
+        self.gridLayout.addWidget(self.amazingmidi_completed_checkBox, 2, 5, 1, 1, QtCore.Qt.AlignHCenter)
+
+        # LoopBe
         self.loopbe1_checkBox = QtWidgets.QCheckBox(self.gridLayoutWidget)
         self.loopbe1_checkBox.setText("")
         self.loopbe1_checkBox.setObjectName("loopbe1_checkBox")
         self.gridLayout.addWidget(self.loopbe1_checkBox, 4, 1, 1, 1, QtCore.Qt.AlignHCenter)
+
+        self.loopbe1_label = QtWidgets.QLabel(self.gridLayoutWidget)
+        self.loopbe1_label.setObjectName("loopbe1_label")
+        self.gridLayout.addWidget(self.loopbe1_label, 4, 3, 1, 1)
+
+        self.loopbe1_completed_checkBox = ReadOnlyCheckBox(self.gridLayoutWidget)
+        self.loopbe1_completed_checkBox.setObjectName("loopbe1_completed_checkBox")
+        self.gridLayout.addWidget(self.loopbe1_completed_checkBox, 4, 5, 1, 1, QtCore.Qt.AlignHCenter)
+
+        # MuseScore 2
+        self.muse_score_checkBox = QtWidgets.QCheckBox(self.gridLayoutWidget)
+        self.muse_score_checkBox.setText("")
+        self.muse_score_checkBox.setObjectName("muse_score_checkBox")
+        self.gridLayout.addWidget(self.muse_score_checkBox, 5, 1, 1, 1, QtCore.Qt.AlignHCenter)
+
+        self.muse_score_label = QtWidgets.QLabel(self.gridLayoutWidget)
+        self.muse_score_label.setObjectName("muse_score_label")
+        self.gridLayout.addWidget(self.muse_score_label, 5, 3, 1, 1)
+
+        self.muse_score_completed_checkBox = ReadOnlyCheckBox(self.gridLayoutWidget)
+        self.muse_score_completed_checkBox.setObjectName("muse_score_completed_checkBox")
+        self.gridLayout.addWidget(self.muse_score_completed_checkBox, 5, 5, 1, 1, QtCore.Qt.AlignHCenter)
+
+        # PianoBooster
+        self.pianobooster_checkBox = QtWidgets.QCheckBox(self.gridLayoutWidget)
+        self.pianobooster_checkBox.setText("")
+        self.pianobooster_checkBox.setObjectName("pianobooster_checkBox")
+        self.gridLayout.addWidget(self.pianobooster_checkBox, 6, 1, 1, 1, QtCore.Qt.AlignHCenter)
+
+        self.pianobooster_label = QtWidgets.QLabel(self.gridLayoutWidget)
+        self.pianobooster_label.setObjectName("pianobooster_label")
+        self.gridLayout.addWidget(self.pianobooster_label, 6, 3, 1, 1)
+
+        self.pianobooster_completed_checkBox = ReadOnlyCheckBox(self.gridLayoutWidget)
+        self.pianobooster_completed_checkBox.setObjectName("pianobooster_completed_checkBox")
+        self.gridLayout.addWidget(self.pianobooster_completed_checkBox, 6, 5, 1, 1, QtCore.Qt.AlignHCenter)
+
+        # Red Dot Forever
+        self.red_dot_forever_checkBox = QtWidgets.QCheckBox(self.gridLayoutWidget)
+        self.red_dot_forever_checkBox.setText("")
+        self.red_dot_forever_checkBox.setObjectName("red_dot_forever_checkBox")
+        self.gridLayout.addWidget(self.red_dot_forever_checkBox, 7, 1, 1, 1, QtCore.Qt.AlignHCenter)
+
+        self.red_dot_forever_label = QtWidgets.QLabel(self.gridLayoutWidget)
+        self.red_dot_forever_label.setObjectName("red_dot_forever_label")
+        self.gridLayout.addWidget(self.red_dot_forever_label, 7, 3, 1, 1)
+
+        self.red_dot_forever_completed_checkBox = ReadOnlyCheckBox(self.gridLayoutWidget)
+        self.red_dot_forever_completed_checkBox.setObjectName("red_dot_forever_completed_checkBox")
+        self.gridLayout.addWidget(self.red_dot_forever_completed_checkBox, 7, 5, 1, 1, QtCore.Qt.AlignHCenter)
+
+        # Spacer Items
+        spacerItem = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        self.gridLayout.addItem(spacerItem, 5, 0, 1, 1)
+
+        spacerItem1 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        self.gridLayout.addItem(spacerItem1, 5, 6, 1, 1)
+
+        spacerItem2 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        self.gridLayout.addItem(spacerItem2, 5, 4, 1, 1)
+
         spacerItem3 = QtWidgets.QSpacerItem(40, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.gridLayout.addItem(spacerItem3, 5, 2, 1, 1)
-        self.application_label = QtWidgets.QLabel(self.gridLayoutWidget)
-        self.application_label.setObjectName("application_label")
-        self.gridLayout.addWidget(self.application_label, 1, 3, 1, 1)
-        self.installation_complete_label = QtWidgets.QLabel(self.gridLayoutWidget)
-        self.installation_complete_label.setObjectName("installation_complete_label")
-        self.gridLayout.addWidget(self.installation_complete_label, 1, 5, 1, 1)
+
         spacerItem4 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.gridLayout.addItem(spacerItem4, 0, 3, 1, 1)
+
         spacerItem5 = QtWidgets.QSpacerItem(20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.gridLayout.addItem(spacerItem5, 9, 3, 1, 1)
 
-        checkboxlist = [self.amazingmidi_checkBox, self.audacity_checkBox,
-                        self.loopbe1_checkBox, self.midi_sheet_music_checkBox,
-                        self.pianobooster_checkBox, self.red_dot_forever_checkBox,
-                        self.xenoplay_checkBox]
+        # Misc Items
+        self.to_be_installed_label = QtWidgets.QLabel(self.gridLayoutWidget)
+        self.to_be_installed_label.setObjectName("to_be_installed_label")
+        self.gridLayout.addWidget(self.to_be_installed_label, 1, 1, 1, 1)
 
+        self.application_label = QtWidgets.QLabel(self.gridLayoutWidget)
+        self.application_label.setObjectName("application_label")
+        self.gridLayout.addWidget(self.application_label, 1, 3, 1, 1)
+
+        self.installation_complete_label = QtWidgets.QLabel(self.gridLayoutWidget)
+        self.installation_complete_label.setObjectName("installation_complete_label")
+        self.gridLayout.addWidget(self.installation_complete_label, 1, 5, 1, 1)
+
+        self.checkboxlist = [self.amazingmidi_checkBox, self.loopbe1_checkBox,
+                             self.muse_score_checkBox, self.pianobooster_checkBox,
+                             self.red_dot_forever_checkBox]
+
+        #-----------------------------------------------------------------------
         # Installation and Closure QPushButtons
         self.horizontalLayoutWidget = QtWidgets.QWidget(self.centralwidget)
         self.horizontalLayoutWidget.setGeometry(QtCore.QRect(350, 520, 251, 41))
@@ -208,12 +199,10 @@ class SetupSkore(QtWidgets.QMainWindow):
 
         # Creating Initial State
         self.amazingmidi_checkBox.setChecked(True)
-        self.audacity_checkBox.setChecked(True)
         self.loopbe1_checkBox.setChecked(True)
-        self.midi_sheet_music_checkBox.setChecked(True)
+        self.muse_score_checkBox.setChecked(True)
         self.pianobooster_checkBox.setChecked(True)
         self.red_dot_forever_checkBox.setChecked(True)
-        self.xenoplay_checkBox.setChecked(True)
 
         self.show()
 
@@ -223,62 +212,36 @@ class SetupSkore(QtWidgets.QMainWindow):
 
         list_of_applications_to_install = []
 
-        for checkbox in checkboxlist:
+        for checkbox in self.checkboxlist:
             if checkbox.isChecked():
                 list_of_applications_to_install.append(checkbox.objectName())
 
         if 'amazing_midi_checkBox' in list_of_applications_to_install:
             print("Install AmazingMidi")
-            os.system(r"cd " + setup_files_path + "&& azmid170.exe")
+            os.system(r"cd " + self.setup_files_path + "&& azmid170.exe")
             self.amazingmidi_completed_checkBox.setChecked(True)
-
-        if 'audacity_checkBox' in list_of_applications_to_install:
-            print("Install Audacity")
-            os.system(r"cd " + setup_files_path + "&& audacity-win-2.1.0.exe")
-            self.audacity_completed_checkBox.setChecked(True)
 
         if 'loopbe1_checkBox' in list_of_applications_to_install:
             print("Installing LoopBe1")
-            os.system(r"cd " + setup_files_path + "&& setuploopbe1.exe")
+            os.system(r"cd " + self.setup_files_path  + "&& setuploopbe1.exe")
             self.loopbe1_completed_checkBox.setChecked(True)
 
-        if 'midi_sheet_music_checkBox' in list_of_applications_to_install:
-            print("Installing MidiSheetMusic")
-            new_exe_location = self.openDirectoryDialog_UserInput()
-            if new_exe_location != '':
-                print("placing exe file in the desired location")
-                old_exe_file = setup_files_path + '\\' + 'MidiSheetMusic-2.6.exe'
-                new_exe_file, trash = self.output_address(old_exe_file, new_exe_location, '.exe')
-                copyfile(old_exe_file,new_exe_file)
-                self.midi_sheet_music_completed_checkBox.setChecked(True)
-            else:
-                print("Given location is not valid")
+        if 'muse_score_checkBox' in list_of_applications_to_install:
+            print("Installing Muse Score 2")
+            os.system(r"cd " + self.setup_files_path  + "&& MuseScore-3.0.0.msi")
+            self.muse_score_completed_checkBox.setChecked(True)
 
         if 'pianobooster_checkBox' in list_of_applications_to_install:
             print("Installing PianoBooster")
-            os.system(r"cd " + setup_files_path + "&& PianoBoosterInstall-0-6-4.exe")
+            os.system(r"cd " + self.setup_files_path  + "&& PianoBoosterInstall-0-6-4.exe")
             self.pianobooster_completed_checkBox.setChecked(True)
 
         if 'red_dot_forever_checkBox' in list_of_applications_to_install:
             print("Installing Red Dot Forever")
-            os.system(r"cd " + setup_files_path + "&& reddot-1_04.exe")
+            os.system(r"cd " + self.setup_files_path  + "&& reddot-1_04.exe")
             self.red_dot_forever_completed_checkBox.setChecked(True)
 
-        if 'xenoplay_checkBox' in list_of_applications_to_install:
-            print("Installing Xenoplay")
-            new_zip_location = self.openDirectoryDialog_UserInput()
-            if new_zip_location != '':
-                print("placing exe file in the desired location")
-                old_zip_file = setup_files_path + '\\' + 'xenoplay-0-4-src.zip'
-                os.mkdir(new_zip_location + '\\' + 'xenoplay-0-4-src')
-                zip_ref = zipfile.ZipFile(old_zip_file, 'r')
-                zip_ref.extractall(new_zip_location + '\\' + 'xenoplay-0-4-src')
-                zip_ref.close()
-                self.xenoplay_completed_checkBox.setChecked(True)
-            else:
-                print("Given location is not valid")
-
-        return
+        return None
 
     def openDirectoryDialog_UserInput(self):
         # This file dialog is used to obtain the folder directory of the desired
@@ -313,20 +276,21 @@ class SetupSkore(QtWidgets.QMainWindow):
         # This function changes all the text in the application
 
         _translate = QtCore.QCoreApplication.translate
-        self.pianobooster_completed_checkBox.setText(_translate("MainWindow", "Completed"))
-        self.loopbe1_completed_checkBox.setText(_translate("MainWindow", "Completed"))
-        self.audacity_completed_checkBox.setText(_translate("MainWindow", "Completed"))
-        self.midi_sheet_music_completed_checkBox.setText(_translate("MainWindow", "Completed"))
-        self.xenoplay_completed_checkBox.setText(_translate("MainWindow", "Completed"))
-        self.red_dot_forever_completed_checkBox.setText(_translate("MainWindow", "Completed"))
-        self.amazingmidi_completed_checkBox.setText(_translate("MainWindow", "Completed"))
-        self.loopbe1_label.setText(_translate("MainWindow", "LoopBe1 v1.6"))
-        self.audacity_label.setText(_translate("MainWindow", "Audacity v2.1.0"))
-        self.midi_sheet_music_label.setText(_translate("MainWindow", "Midi Sheet Music v2-6"))
-        self.xenoplay_label.setText(_translate("MainWindow", "Xenoplay v0.4.2007.06.26"))
         self.amazingmidi_label.setText(_translate("MainWindow", "AmazingMidi v1.70"))
+        self.amazingmidi_completed_checkBox.setText(_translate("MainWindow", "Completed"))
+
+        self.loopbe1_completed_checkBox.setText(_translate("MainWindow", "Completed"))
+        self.loopbe1_label.setText(_translate("MainWindow", "LoopBe1 v1.6"))
+
+        self.muse_score_completed_checkBox.setText(_translate("MainWindow", "Completed"))
+        self.muse_score_label.setText(_translate("MainWindow", "Muse Score 2 v2.3.2"))
+
+        self.pianobooster_completed_checkBox.setText(_translate("MainWindow", "Completed"))
         self.pianobooster_label.setText(_translate("MainWindow", "PianoBooster v0.6.4"))
+
+        self.red_dot_forever_completed_checkBox.setText(_translate("MainWindow", "Completed"))
         self.red_dot_forever_label.setText(_translate("MainWindow", "Red Dot Forever v1.04"))
+
         self.to_be_installed_label.setText(_translate("MainWindow", "To Be Installed"))
         self.application_label.setText(_translate("MainWindow", "Application"))
         self.installation_complete_label.setText(_translate("MainWindow", "Installation Completed"))
@@ -345,7 +309,6 @@ class SetupSkore(QtWidgets.QMainWindow):
         self.close_pushButton.setText(_translate("MainWindow", "Close"))
         self.actionContents.setText(_translate("MainWindow", "Contents"))
 
-################################################################################
 
 class ReadOnlyCheckBox(QtWidgets.QCheckBox):
     # This class was created to make a read-only checkbox. In principle, it just
@@ -389,8 +352,8 @@ class ReadOnlyCheckBox(QtWidgets.QCheckBox):
 
     readOnly = QtCore.pyqtProperty(bool, isReadOnly, setReadOnly)
 
-###################################MAIN CODE####################################
-#import setup_resource_file_rc
+#-------------------------------------------------------------------------------
+# Main Code
 
 if __name__ == "__main__":
     import sys
