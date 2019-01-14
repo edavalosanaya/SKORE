@@ -2,7 +2,7 @@
 ---
 This repository contains the source files for SKORE, Smart Keyboard Operated By Robotic Educator. The goal in the project is to provide an easy method to learn any song in the piano. The project utilizes both Python and Arduino to direct an modular LED bar, that goes above the piano keys, to indicate the user the following notes. The project requires an Arduino, Windows 10 (highly recommended with an Intel Processor), access to a 3D printer, and (for now) access to a PBC printer.
 
-![concept_design.png]()
+![concept_design](https://user-images.githubusercontent.com/40870026/51092443-f49ef900-175c-11e9-855c-2f1d3c66700f.PNG)
 Concept Design of the Project
 
 ### Tutoring Modes
