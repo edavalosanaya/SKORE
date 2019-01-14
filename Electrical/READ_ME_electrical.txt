@@ -1,1 +1,0 @@
-Hello, this is more information on the electrical schematics.

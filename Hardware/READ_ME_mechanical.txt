@@ -1,2 +1,0 @@
-Mechanical Information:
--SolidWork Models
