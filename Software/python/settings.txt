@@ -15,7 +15,7 @@ ant_app_exe_path=r"C:\Program Files (x86)\AnthemScore\AnthemScore.exe"
 MuseScore Settings:
 mus_app_exe_path=r"C:\MuseScore2\bin\MuseScore.exe"
 MP3_to_MIDI Settings:
-mp3_to_midi_converter=r"open_source"
+mp3_to_midi_converter=r"close_source"
 #
 Port Settings:
 arduino_port=r"COM3"
@@ -23,12 +23,12 @@ piano_port=r"CASIO USB-MIDI 1"
 piano_size=r"M"
 #
 Color Settings:
-whitekey_r=r"33"
-whitekey_g=r"36"
+whitekey_r=r"41"
+whitekey_g=r"34"
 whitekey_b=r"255"
-blackkey_r=r"15"
-blackkey_g=r"255"
-blackkey_b=r"23"
+blackkey_r=r"255"
+blackkey_g=r"33"
+blackkey_b=r"55"
 #
 Timing Settings:
 chord_tick_tolerance=r"10"

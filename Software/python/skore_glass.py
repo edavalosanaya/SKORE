@@ -220,6 +220,8 @@ class Comm:
     # Arduino Functions
 
     def arduino_handshake(self):
+        # THIS MIGHT BE WRONG
+        return True
 
         #print("waiting for arduino handshake")
         timeout = time.time() + COMM_TIMEOUT
@@ -462,8 +464,12 @@ FILTERED MIDI SEQUENCE:
 
         mid_file_name = os.path.basename(mid_file)
         pattern = read_midifile(mid_file)
+        print("Pattern: ")
+        print(pattern)
+        print("\n")
 
         self.PPQN = pattern.resolution
+        #self.PPQN = 96
 
         for track in pattern:
             for event in track:

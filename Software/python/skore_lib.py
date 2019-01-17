@@ -355,9 +355,10 @@ class FileContainer:
         mus_app_exe_path = setting_read('mus_app_exe_path')
         mus_app_exe_directory = os.path.dirname(mus_app_exe_path)
         mus_app_exe_filename = os.path.basename(mus_app_exe_path)
+        print("pdf file: {0}".format(pdf_file))
         os.system('cd {0} && {1} "{2}" -o "{3}"'.format(mus_app_exe_directory, mus_app_exe_filename, mid_file, pdf_file))
         self.add_file_type(pdf_file)
-        output_file = Path(mid_file)
+        output_file = Path(pdf_file)
 
         while True:
             if output_file.is_file() is True:
@@ -410,14 +411,14 @@ class FileContainer:
     def mp3_to_pdf(self):
         # This function converts a .mp3 to .pdf
 
-        mp3_2_midi_converter_setting = setting_read('mp3_2_midi_converter')
+        mp3_to_midi_converter_setting = setting_read('mp3_to_midi_converter')
 
         #self.clean_temp_folder()
-        if mp3_2_midi_converter_setting == 'open_source':
+        if mp3_to_midi_converter_setting == 'open_source':
             self.mp3_to_wav()
             self.wav_to_mid()
             self.mid_to_pdf()
-        elif mp3_2_midi_converter_setting == 'close_source':
+        elif mp3_to_midi_converter_setting == 'close_source':
             self.mp3_to_mid_anthemscore()
             self.mid_to_pdf()
 
@@ -428,13 +429,13 @@ class FileContainer:
     def mp3_to_mid(self):
         # This function converts a .mp3 to .mid
 
-        mp3_2_midi_converter_setting = setting_read('mp3_2_midi_converter')
+        mp3_to_midi_converter_setting = setting_read('mp3_to_midi_converter')
 
         #self.clean_temp_folder()
-        if mp3_2_midi_converter_setting == 'open_source':
+        if mp3_to_midi_converter_setting == 'open_source':
             self.mp3_to_wav()
             self.wav_to_mid()
-        elif mp3_2_midi_converter_setting == 'close_source':
+        elif mp3_to_midi_converter_setting == 'close_source':
             self.mp3_to_mid_anthemscore()
 
         print("Overall .mp3 -> .mid complete")
@@ -735,7 +736,7 @@ def is_mp3(file_path):
     file_name = os.path.basename(file_path)
     file_type = os.path.splitext(file_name)[1]
 
-    if file_name.endswith('pdf') is True:
+    if file_name.endswith('mp3') is True:
         return True
 
     return False
