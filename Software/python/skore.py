@@ -555,6 +555,7 @@ class RedDotThread(QThread):
 
 
 class BlinkButton(QPushButton):
+
     def __init__(self, *args, **kwargs):
         QPushButton.__init__(self, *args, **kwargs)
         self.default_color = self.getColor()

@@ -77,16 +77,20 @@ class PianoComboBox(QtWidgets.QComboBox):
 
 class SettingsDialog(QtWidgets.QDialog):
 
+    finish_apply_signal = QtCore.pyqtSignal()
+
     def __init__(self):
         super(QtWidgets.QDialog, self).__init__()
         self.setui_dialog()
 
     def setui_dialog(self):
         self.setWindowTitle("SKORE Settings")
-        self.setStyleSheet("""
-            background-color: rgb(50,50,50);
-            color: white;
-            """)
+
+        #self.setStyleSheet("""
+        #    background-color: rgb(50,50,50);
+        #    color: white;
+        #    """)
+
         self.setObjectName("SettingsDialog")
         self.resize(530, 679)
 
@@ -588,6 +592,8 @@ class SettingsDialog(QtWidgets.QDialog):
 
             elif key == self.piano_size_comboBox:
                 setting_write(self.port_dict[key][1], key.currentText()[-1])
+
+        self.finish_apply_signal.emit()
 
         return None
 

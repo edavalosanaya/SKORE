@@ -228,7 +228,7 @@ class SetupSkore(QtWidgets.QMainWindow):
 
         if 'muse_score_checkBox' in list_of_applications_to_install:
             print("Installing Muse Score 2")
-            os.system(r"cd " + self.setup_files_path  + "&& MuseScore-3.0.0.msi")
+            os.system(r"cd " + self.setup_files_path  + "&& MuseScore-3.0.1.msi")
             self.muse_score_completed_checkBox.setChecked(True)
 
         if 'pianobooster_checkBox' in list_of_applications_to_install:

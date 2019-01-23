@@ -355,10 +355,9 @@ class FileContainer:
         mus_app_exe_path = setting_read('mus_app_exe_path')
         mus_app_exe_directory = os.path.dirname(mus_app_exe_path)
         mus_app_exe_filename = os.path.basename(mus_app_exe_path)
-        print("pdf file: {0}".format(pdf_file))
         os.system('cd {0} && {1} "{2}" -o "{3}"'.format(mus_app_exe_directory, mus_app_exe_filename, mid_file, pdf_file))
         self.add_file_type(pdf_file)
-        output_file = Path(pdf_file)
+        output_file = Path(mid_file)
 
         while True:
             if output_file.is_file() is True:
@@ -712,7 +711,7 @@ def setting_write(setting, write_data):
     file_write = open('settings.txt', 'w')
     file_write.write(contents_all)
     file_write.close()
-    print("Settings for " + setting + " have been modified to " + write_data)
+    #print("Settings for " + setting + " have been modified to " + write_data)
 
     return None
 

@@ -36,7 +36,6 @@ from skore_lib import FileContainer, GuiManipulator, setting_read, setting_write
 # Constants
 
 APP_CLOSE_DELAY = 2
-COMM_THREAD_DELAY = 0.001
 TUTOR_THREAD_DELAY = 0.01
 
 KEYBOARD_SHIFT = 28 # 48, 36
@@ -220,8 +219,6 @@ class Comm:
     # Arduino Functions
 
     def arduino_handshake(self):
-        # THIS MIGHT BE WRONG
-        return True
 
         #print("waiting for arduino handshake")
         timeout = time.time() + COMM_TIMEOUT
@@ -464,12 +461,8 @@ FILTERED MIDI SEQUENCE:
 
         mid_file_name = os.path.basename(mid_file)
         pattern = read_midifile(mid_file)
-        print("Pattern: ")
-        print(pattern)
-        print("\n")
 
         self.PPQN = pattern.resolution
-        #self.PPQN = 96
 
         for track in pattern:
             for event in track:
@@ -838,254 +831,6 @@ class SkoreGlassGui(QMainWindow):
 
     #---------------------------------------------------------------------------
     # Main Setup Functions
-
-    def setup_pianobooster(self):
-            # This function performs the task of opening PianoBooster and appropriately
-            # clicking on the majority of the qwidgets to make them addressable. When
-            # PianoBooster is opened, the qwidgets are still not addressible via
-            # pywinauto. For some weird reason, clicked on them enables them. The code
-            # utilizes template matching to click on specific regions of the PianoBooster
-            # GUI
-
-            print("Setting Up PianoBooster")
-
-            # Initilizing the PianoBooster Application
-            pia_app = pywinauto.application.Application()
-            pia_app_exe_path = setting_read('pia_app_exe_path')
-            pia_app.start(pia_app_exe_path)
-            self.data_bridge.gui_data['gui'].pia_app = pia_app
-
-            # Getting a handle of the application, the application's title changes depending
-            # on the .mid file opened by the application.
-            possible_handles = pywinauto.findwindows.find_elements()
-
-            # Getting the title of the PianoBooster application, might to try multiple times
-            time.sleep(0.5)
-            while True:
-                try:
-                    for i in range(len(possible_handles)):
-                        key = str(possible_handles[i])
-                        if key.find('Piano Booster') != -1:
-                            wanted_key = key
-                            #print('Found it ' + key)
-
-                    first_index = wanted_key.find("'")
-                    last_index = wanted_key.find(',')
-                    pia_app_title = wanted_key[first_index + 1 :last_index - 1]
-                    break
-
-                except UnboundLocalError:
-                    time.sleep(0.1)
-
-            # Once with the handle, control over the window is achieved.
-            while True:
-                try:
-                    w_handle = pywinauto.findwindows.find_windows(title=pia_app_title)[0]
-                    window = pia_app.window(handle=w_handle)
-                    break
-                except IndexError:
-                    time.sleep(0.1)
-
-            # Initializion of the Qwidget within the application
-            window.maximize()
-            time.sleep(0.5)
-
-            rect_object = window.rectangle()
-            dimensions = rect_to_int(rect_object)
-
-            self.pianobooster_image_gui_manipulator = GuiManipulator()
-            self.pianobooster_image_gui_manipulator.click_center_try('skill_groupBox_pia', dimensions)
-            self.pianobooster_image_gui_manipulator.click_center_try('hands_groupBox_pia', dimensions)
-            self.pianobooster_image_gui_manipulator.click_center_try('book_song_buttons_pia', dimensions)
-            self.pianobooster_image_gui_manipulator.click_center_try('flag_button_pia', dimensions)
-            self.pianobooster_image_gui_manipulator.click_center_try('part_button_pia', dimensions)
-
-            # Aquiring the qwigets from the application
-            main_qwidget = pia_app.QWidget
-            main_qwidget.wait('ready')
-
-            # Skill Group Box
-            listen_button = main_qwidget.Skill3
-            follow_you_button = main_qwidget.Skill2
-            play_along_button = main_qwidget.Skill
-
-            # Hands Group Box
-            right_hand_button = main_qwidget.Hands4
-            both_hands_button = main_qwidget.Hands3
-            left_hand_button = main_qwidget.Hands2
-            slider_hand = main_qwidget.Hands
-
-            # Parts Group Box
-            parts_mute_button = main_qwidget.Parts
-            parts_slider_button = main_qwidget.Parts2
-            parts_selection_button = main_qwidget.Parts3
-
-            # Song and Book Button
-            song_combo_button = main_qwidget.songCombo
-            book_combo_button = main_qwidget.bookCombo
-
-            # GuiTopBar
-            key_combo_button = main_qwidget.keyCombo
-            play_button = main_qwidget.playButton
-            restart_button = main_qwidget.playFromStartButton
-            save_bar_button = main_qwidget.savebarButton
-            speed_spin_button = main_qwidget.speedSpin
-            start_bar_spin_button = main_qwidget.startBarSpin
-            transpose_spin_button = main_qwidget.transposeSpin
-            looping_bars_popup_button = main_qwidget.loopingBarsPopupButton
-            major_button = main_qwidget.majorCombo
-
-            try:
-                menubar_button = main_qwidget[u'3']
-            except:
-                try:
-                    menubar_button = main_qwidget.QWidget34
-                except:
-                    raise RuntimeError("Main Menu QWidget Missed")
-
-            self.pianobooster_buttons = {'book_combo_button': book_combo_button, 'song_combo_button': song_combo_button, 'listen_button': listen_button,
-                                'follow_you_button': follow_you_button, 'play_along_button': play_along_button, 'restart_button': restart_button,
-                                'play_button': play_button, 'speed_spin_button': speed_spin_button, 'transpose_spin_button': transpose_spin_button,
-                                'looping_bars_popup_button': looping_bars_popup_button, 'start_bar_spin_button': start_bar_spin_button,
-                                'menubar_button': menubar_button, 'parts_selection_button': parts_selection_button, 'parts_mute_button': parts_mute_button,
-                                'parts_slider_button': parts_slider_button, 'right_hand_button': right_hand_button, 'both_hands_button': both_hands_button,
-                                'left_hand_button': left_hand_button, 'slider_hand': slider_hand, 'key_combo_button': key_combo_button,
-                                'major_button': major_button, 'save_bar_button': save_bar_button}
-
-            self.pianobooster_buttons['follow_you_button'].click()
-            self.pianobooster_buttons['both_hands_button'].click()
-
-            # Opening the .mid file
-            delay = 0.4
-            time.sleep(delay)
-            self.pianobooster_image_gui_manipulator.click_center_try('file_button_xeno', dimensions)
-            time.sleep(delay)
-            self.pianobooster_image_gui_manipulator.click_center_try('open_button_pianobooster_menu', dimensions)
-            time.sleep(delay)
-
-            while True:
-                try:
-                    o_handle = pywinauto.findwindows.find_windows(title='Open Midi File')[0]
-                    o_window = pia_app.window(handle = o_handle)
-                    break
-                except IndexError:
-                    time.sleep(0.1)
-
-            mid_file_path = self.file_container.file_path['.mid']
-            o_window.type_keys(mid_file_path)
-            o_window.type_keys('{ENTER}')
-
-            self.pianobooster_image_gui_manipulator.click_center_try('skill_groupBox_pia', dimensions)
-            self.pianobooster_buttons['speed_spin_button'].click_input()
-            self.pianobooster_buttons['speed_spin_button'].type_keys('^a {DEL}100{ENTER}')
-            self.live_settings['speed'] = 100
-            self.live_settings['transpose'] = 0
-            self.pianobooster_image_gui_manipulator.click_center_try('skill_groupBox_pia', dimensions)
-
-            return None
-
-    def setup_transparent_ui(self):
-        # This functions sets up all the transparent GUI
-
-        print("Setting Up Transparent UI")
-
-        self.book_combo_button = DisabledButton(self)
-        self.song_combo_button = DisabledButton(self)
-        self.listen_button = DisabledButton(self)
-        self.follow_you_button = DisabledButton(self)
-        self.play_along_button = DisabledButton(self)
-        self.restart_button = TransparentButton(self)
-        self.play_button = TransparentButton(self)
-        self.speed_spin_button = TransparentButton(self)
-        self.transpose_spin_button = TransparentButton(self)
-        self.looping_bars_popup_button = DisabledButton(self)
-        self.start_bar_spin_button = DisabledButton(self)
-        self.menubar_button = TransparentButton(self)
-        self.parts_selection_button = DisabledButton(self)
-        self.parts_mute_button = DisabledButton(self)
-        self.parts_slider_button = DisabledButton(self)
-        self.right_hand_button = TransparentButton(self)
-        self.both_hands_button = TransparentButton(self)
-        self.left_hand_button = TransparentButton(self)
-        self.slider_hand = DisabledButton(self)
-        self.key_combo_button = TransparentButton(self)
-        self.major_button = TransparentButton(self)
-        self.save_bar_button = DisabledButton(self)
-
-        self.skore_gui_buttonGroup = QButtonGroup()
-        self.skore_gui_buttonGroup.setExclusive(True)
-        self.skore_gui_buttonGroup.addButton(self.book_combo_button)
-        self.skore_gui_buttonGroup.addButton(self.song_combo_button)
-        self.skore_gui_buttonGroup.addButton(self.listen_button)
-        self.skore_gui_buttonGroup.addButton(self.follow_you_button)
-        self.skore_gui_buttonGroup.addButton(self.play_along_button)
-        self.skore_gui_buttonGroup.addButton(self.restart_button)
-        self.skore_gui_buttonGroup.addButton(self.play_button)
-        self.skore_gui_buttonGroup.addButton(self.speed_spin_button)
-        self.skore_gui_buttonGroup.addButton(self.transpose_spin_button)
-        self.skore_gui_buttonGroup.addButton(self.looping_bars_popup_button)
-        self.skore_gui_buttonGroup.addButton(self.start_bar_spin_button)
-        #self.skore_gui_buttonGroup.addButton(self.menubar_button)
-        self.skore_gui_buttonGroup.addButton(self.parts_selection_button)
-        self.skore_gui_buttonGroup.addButton(self.parts_mute_button)
-        self.skore_gui_buttonGroup.addButton(self.parts_slider_button)
-        self.skore_gui_buttonGroup.addButton(self.right_hand_button)
-        self.skore_gui_buttonGroup.addButton(self.both_hands_button)
-        self.skore_gui_buttonGroup.addButton(self.left_hand_button)
-        self.skore_gui_buttonGroup.addButton(self.slider_hand)
-        self.skore_gui_buttonGroup.addButton(self.key_combo_button)
-        self.skore_gui_buttonGroup.addButton(self.major_button)
-        self.skore_gui_buttonGroup.addButton(self.save_bar_button)
-
-
-        self.skore_gui_buttons = {'book_combo_button': self.book_combo_button, 'song_combo_button': self.song_combo_button, 'listen_button': self.listen_button,
-                            'follow_you_button': self.follow_you_button, 'play_along_button': self.play_along_button, 'restart_button': self.restart_button,
-                            'play_button': self.play_button, 'speed_spin_button': self.speed_spin_button, 'transpose_spin_button': self.transpose_spin_button,
-                            'looping_bars_popup_button': self.looping_bars_popup_button, 'start_bar_spin_button': self.start_bar_spin_button,
-                            'menubar_button': self.menubar_button, 'parts_selection_button': self.parts_selection_button, 'parts_mute_button': self.parts_mute_button,
-                            'parts_slider_button': self.parts_slider_button, 'right_hand_button': self.right_hand_button, 'both_hands_button': self.both_hands_button,
-                            'left_hand_button': self.left_hand_button, 'slider_hand': self.slider_hand, 'key_combo_button': self.key_combo_button,
-                            'major_button': self.major_button, 'save_bar_button': self.save_bar_button}
-
-
-        self.skore_gui_buttons_geometry()
-
-        self.skore_gui_buttonGroup.buttonClicked.connect(self.transparent_button_click)
-        self.button_signal.connect(self.create_message_box)
-
-    def setup_menu_bar(self):
-
-        print("Setting Up MenuBar")
-
-        # This function assigns the coordinates to the CoordinateButton class, which
-        # have to be calculated. This is because the menubar buttons QRect object
-        # was not obtainable with pywinauto.
-
-        self.view_menubar_button = CoordinateButton(self)
-        self.song_menubar_button = CoordinateButton(self)
-        self.setup_menubar_button = CoordinateButton(self)
-        self.help_menubar_button = CoordinateButton(self)
-
-        self.view_menubar_button.setObjectName('view_menubar_button')
-        self.song_menubar_button.setObjectName('song_menubar_button')
-        self.setup_menubar_button.setObjectName('setup_menubar_button')
-        self.help_menubar_button.setObjectName('help_menubar_button')
-
-        self.menubar_buttonGroup = QButtonGroup()
-        self.menubar_buttonGroup.setExclusive(True)
-        self.menubar_buttonGroup.addButton(self.view_menubar_button)
-        self.menubar_buttonGroup.addButton(self.song_menubar_button)
-        self.menubar_buttonGroup.addButton(self.setup_menubar_button)
-        self.menubar_buttonGroup.addButton(self.help_menubar_button)
-        self.menubar_buttonGroup.addButton(self.menubar_button)
-
-        #menubar_button_list = [self.view_menubar_button, self.song_menubar_button,
-        #                        self.setup_menubar_button, self.help_menubar_button]
-
-        self.menubar_button_set_geometry()
-        self.menubar_buttonGroup.buttonClicked.connect(self.menubar_click)
-
-        return
 
     def setup_visible_ui(self):
         # This functions sets up all the visible GUI

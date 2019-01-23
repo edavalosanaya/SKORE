@@ -8,12 +8,10 @@ AmazingMIDI Settings:
 ama_app_exe_path=r"C:\Program Files (x86)\AmazingMIDI\amazingmidi.exe"
 RedDotForever Settings:
 red_app_exe_path=r"C:\Program Files (x86)\Red Dot Forever\reddot.exe"
-PianoBooster Settings:
-pia_app_exe_path=r"C:\Program Files (x86)\Piano Booster\pianobooster.exe"
 AnthemScore Settings:
 ant_app_exe_path=r"C:\Program Files (x86)\AnthemScore\AnthemScore.exe"
 MuseScore Settings:
-mus_app_exe_path=r"C:\MuseScore2\bin\MuseScore.exe"
+mus_app_exe_path=r"C:\Program Files\MuseScore 3\bin\MuseScore3.exe"
 MP3_to_MIDI Settings:
 mp3_to_midi_converter=r"close_source"
 #
@@ -23,17 +21,14 @@ piano_port=r"CASIO USB-MIDI 1"
 piano_size=r"M"
 #
 Color Settings:
-whitekey_r=r"41"
-whitekey_g=r"34"
+whitekey_r=r"33"
+whitekey_g=r"36"
 whitekey_b=r"255"
-blackkey_r=r"255"
-blackkey_g=r"33"
-blackkey_b=r"55"
+blackkey_r=r"15"
+blackkey_g=r"255"
+blackkey_b=r"23"
 #
 Timing Settings:
 chord_tick_tolerance=r"10"
 delay_early_tolerance=r"20"
 delay_late_tolerance=r"20"
-#
-Tutoring Settings:
-midi_file_location=r"C:\Users\daval\Documents\GitHub\SKORE\Software\python\conversion_test\hard.mid"
