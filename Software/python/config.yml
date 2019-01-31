@@ -1,0 +1,21 @@
+app_path:
+  amazing_midi: C:\Program Files (x86)\AmazingMIDI\amazingmidi.exe
+  anthemscore: C:\Program Files (x86)\AnthemScore\AnthemScore.exe
+  audiveris: C:\Users\daval\audiveris
+  muse_score: C:\Program Files\MuseScore 3\bin\MuseScore3.exe
+  open_close_source: close_source
+color:
+  black: 0,0,255
+  immediate: 255,0,0
+  right: 0,0,255
+  upcoming: 0,255,0
+  white: 255,0,0
+  wrong: 255,0,0
+lighting scheme:
+  beginner: RWU
+  expert: BW
+  intermediate: UI
+port:
+  arduino: COM6
+  piano: CASIO USB-MIDI 1
+  piano_size: '76'

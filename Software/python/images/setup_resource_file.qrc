@@ -1,6 +1,0 @@
-<RCC>
-  <qresource prefix="setup_images">
-    <file>icon.png</file>
-    <file>untitled.svg</file>
-  </qresource>
-</RCC>

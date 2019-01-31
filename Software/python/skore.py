@@ -1,15 +1,35 @@
-# General Utility Libraries
+# General Utility
+import win32api
+import win32con
+import psutil
+import time
+import inspect
+import pywinauto
 import sys
+from pywinauto.controls.win32_controls import ButtonWrapper
+from time import sleep
 import os
+import difflib
+import math
+import webbrowser
+import ast
 
-# PyQt5, GUI LIbrary
+# PYQT5, GUI Library
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
+from PyQt5.QtWebEngineWidgets import *
 
-# Importing the Settings Dialog (CAUSES ERROR)
-#from settings_dialog import *
+# Tutor Application
+from midi import read_midifile, NoteEvent, NoteOffEvent, MetaEvent
+from mido import tick2second, MidiFile, merge_tracks
+import serial
+import serial.tools.list_ports
+import glob
+from ctypes import windll
+import rtmidi
+from shutil import copyfile
 
 # This is to prevent an error caused when importing skore_lib
 import warnings
@@ -17,238 +37,1572 @@ warnings.simplefilter("ignore", UserWarning)
 sys.coinit_flags = 2
 
 # SKORE Library
-from skore_lib import *
-from skore_glass import *
-from settings_dialog import *
+from lib_skore import FileContainer, GuiManipulator, read_config, is_mid, is_mp3, is_pdf, rect_to_int
+from recorder_dialog import RecorderDialog, RecorderMidiHandler
+from config_dialog import ConfigDialog
+from track_manager_dialog import TrackManagerDialog
+
+#-------------------------------------------------------------------------------
+# Constants
+
+TUTOR_THREAD_DELAY = 0.1
+
+KEYBOARD_SHIFT = 28 # 48, 36
+COMM_TIMEOUT = 30
+HANDSHAKE_DELAY = 0.001
+
+CHORD_TICK_TOLERANCE = 10
+DELAY_EARLY_TOLERANCE = 25
+DELAY_LATE_TOLERANCE = 25
+CHORD_SUM_TOLERANCE = 25
+
+CLOCK_DELAY = 16
+
+MIDDLE_C = 60
+
+NOTE_NAME_TO_Y_LOCATION = {
+    # Bass Clef
+    "A0":330, "B0":320, "C1":310, "D1":300, "E1":290, "F1":280, "G1":270,
+    "A1":260, "B1":250, "C2":240, "D2":230, "E2":220, "F2":210, "G2":200,
+    "A2":190, "B2":180, "C3":170, "D3":160, "E3":150, "F3":140, "G3":130,
+    "A3":120, "B3":110,
+    # Treble Clef
+    "C4":-180, "D4":-190, "E4":-200, "F4":-210, "G4": -220,
+    "A4":-230, "B4":-240, "C5":-250, "D5":-260, "E5":-270, "F5":-280, "G5":-290,
+    "A5":-300, "B5":-310, "C6":-320, "D6":-330, "E6":-340, "F6":-350, "G6":-360,
+    "A6":-370, "B6":-380, "C7":-390, "D7":-400, "E7":-410, "F7":-420, "G7":-430,
+    "A7":-440, "B7":-450, "C8":-460
+}
+# The highest note in 88 keyboard is C8
+
+NOTE_PITCH_TO_NOTE_NAME = {
+    21:"A0",22:"A0,B0",23:"B0",24:"C1",25:"C1,D1",26:"D1",27:"D1,E1",28:"E1",29:"F1",30:"F1,G1",31:"G1",32:"G1,A1",
+    33:"A1",34:"A1,B1",35:"B1",36:"C2",37:"C2,D2",38:"D2",39:"D2,E2",40:"E2",41:"F2",42:"F2,G2",43:"G2",44:"G2,A2",
+    45:"A2",46:"A2,B2",47:"B2",48:"C3",49:"C3,D3",50:"D3",51:"D3,E3",52:"E3",53:"F3",54:"F3,G3",55:"G3",56:"G3,A3",
+    57:"A3",58:"A3,B3",59:"B3",60:"C4",61:"C4,D4",62:"D4",63:"D4,E4",64:"E4",65:"F4",66:"F4,G4",67:"G4",68:"G4,A4",
+    69:"A4",70:"A4,B4",71:"B4",72:"C5",73:"C5,D5",74:"D5",75:"D5,E5",76:"E5",77:"F5",78:"F5,G5",79:"G5",80:"G5,A5",
+    81:"A5",82:"A5,B5",83:"B5",84:"C6",85:"C6,D6",86:"D6",87:"D6,E6",88:"E6",89:"F6",90:"F6,G6",91:"G6",92:"G6,A6",
+    93:"A6",94:"A6,B6",95:"B6",96:"D6",97:"C7,C7",98:"D7",99:"D7,E7",100:'E7',101:'F7',102:'F7,G7',103:'G7',104:"G7,A7",
+    105:"A7",106:"A7,B7",107:"B7",108:"C8"
+}
+
+LEFT_TICK_SHIFT = -400
+TIMING_NOTE_BOX = None
+TIMING_NOTE_LINE = None
+TIMING_NOTE_LINE_CATCH = None
+VISIBLE_NOTE_BOX = None
+GRAPHICS_CONTROLLER = None
+
+BOTTOM_STAFF_LINE_Y_LOCATION = NOTE_NAME_TO_Y_LOCATION["G2"]
+TOP_STAFF_LINE_Y_LOCATION = NOTE_NAME_TO_Y_LOCATION["F5"]
+
+HIDDEN = 0.01
+VISIBLE = 1
+
+#keyboard_state index
+NEUTRAL = 0
+RIGHT = 1
+WRONG = 2
+TARGET = 4
+ARDUINO = 5
+PREV_TARGET = 6
+
+PIXMAPS = [[],[],[]]
+GREEN = 0
+YELLOW = 1
+CYAN = 2
+
+NOTE = 0
+SHARP = 1
+FLAT = 2
+NATURAL = 3
+
+#-------------------------------------------------------------------------------
+# Useful Function
 
 #-------------------------------------------------------------------------------
 # Classes
 
-class Skore(QtWidgets.QMainWindow):
-    # This is the main window of the SKORE application
+class SkoreMidiEvent:
+
+    def __init__(self, event_type, event_data):
+        self.event_type = event_type
+        self.data = event_data
+
+        return None
+
+    def __repr__(self):
+        return "({0}, {1})".format(self.event_type, self.data)
+
+class SkoreMetaEvent:
+
+    def __init__(self, event_type, event_data):
+        self.event_type = event_type
+        self.data = event_data
+
+        return None
+
+    def __repr__(self):
+
+        return "(Meta: {0}, {1})".format(self.event_type, self.data)
+
+class TutorMidiHandler(object):
+
+    def __init__(self, gui):
+        self.gui = gui
+        self.notes_drawn = {}
+
+    def __call__(self, event, data=None):
+        #print("{0} - {1} - {2}".format(self.port, message, delta_time))
+        message, delta_time = event
+        note_pitch = message[1]
+
+        if self.gui.tutor_enable is True:
+
+            if message[0] == 0x90 and message[2] != 0: # Note ON Event
+                if note_pitch in self.gui.keyboard_state[TARGET]:
+                    if note_pitch not in self.gui.keyboard_state[RIGHT]:
+                        self.gui.keyboard_state[RIGHT].append(note_pitch)
+
+                        note_name = NOTE_PITCH_TO_NOTE_NAME[note_pitch][:2]
+                        self.gui.note_labels[RIGHT][note_name].setOpacity(VISIBLE)
+                        self.gui.note_name_labels[note_name].setOpacity(VISIBLE)
+                        #self.right_wrong_upcoming_arduino_comm('right', note_pitch)
+
+                else:
+                    if note_pitch not in self.gui.keyboard_state[WRONG]:
+                        self.gui.keyboard_state[WRONG].append(note_pitch)
+
+                        note_name = NOTE_PITCH_TO_NOTE_NAME[note_pitch][:2]
+                        self.gui.note_labels[WRONG][note_name].setOpacity(VISIBLE)
+                        self.gui.note_name_labels[note_name].setOpacity(VISIBLE)
+                        self.right_wrong_upcoming_arduino_comm('wrong', note_pitch)
+
+            else: # Note OFF Event
+                if note_pitch in self.gui.keyboard_state[RIGHT]:
+                    self.gui.keyboard_state[RIGHT].remove(note_pitch)
+
+                    note_name = NOTE_PITCH_TO_NOTE_NAME[note_pitch][:2]
+                    self.gui.note_labels[RIGHT][note_name].setOpacity(HIDDEN)
+                    self.gui.note_name_labels[note_name].setOpacity(HIDDEN)
+                    #self.right_wrong_upcoming_arduino_comm('right', note_pitch)
+
+
+                elif note_pitch in self.gui.keyboard_state[WRONG]:
+                    self.gui.keyboard_state[WRONG].remove(note_pitch)
+
+                    note_name = NOTE_PITCH_TO_NOTE_NAME[note_pitch][:2]
+                    self.gui.note_labels[WRONG][note_name].setOpacity(HIDDEN)
+                    self.gui.note_name_labels[note_name].setOpacity(HIDDEN)
+                    self.right_wrong_upcoming_arduino_comm('wrong', note_pitch)
+
+        else:
+
+            if message[0] == 0x90 and message[2] != 0: # Note ON Event
+                if note_pitch not in self.gui.keyboard_state[NEUTRAL]:
+                    self.gui.keyboard_state[NEUTRAL].append(note_pitch)
+
+                    note_name = NOTE_PITCH_TO_NOTE_NAME[note_pitch][:2]
+                    self.gui.note_labels[NEUTRAL][note_name].setOpacity(VISIBLE)
+                    self.gui.note_name_labels[note_name].setOpacity(VISIBLE)
+
+            else: # Note OFF Event
+                if note_pitch in self.gui.keyboard_state[NEUTRAL]:
+                    self.gui.keyboard_state[NEUTRAL].remove(note_pitch)
+
+                    note_name = NOTE_PITCH_TO_NOTE_NAME[note_pitch][:2]
+                    self.gui.note_labels[NEUTRAL][note_name].setOpacity(HIDDEN)
+                    self.gui.note_name_labels[note_name].setOpacity(HIDDEN)
+
+        #print("Current Keyboard State: {0}".format(self.gui.current_keyboard_state))
+
+        return None
+
+    def right_wrong_upcoming_arduino_comm(self, right_wrong, pitch):
+
+        if self.gui.tutor.lighting_scheme == 'RWU':
+            if right_wrong == 'right':
+                self.gui.arduino_comm(pitch, 'toggle')
+            else:
+                self.gui.arduino_comm(pitch, 'toggle')
+
+        return None
+
+class GraphicsSystemMessage(QGraphicsItem):
 
     def __init__(self):
-        super(QtWidgets.QMainWindow, self).__init__()
+        super(GraphicsSystemMessage, self).__init__()
+
+        self.width = 400
+        self.height = 50
+        self.x = -900
+        self.y = -500
+
+        self.font = QFont()
+        self.font.setPixelSize(25)
+
+        self.text = ""
+
+        return None
+
+    def set_text(self, text):
+
+        self.text = text
+
+        return None
+
+    def paint(self, painter, option, widget):
+
+        painter.setPen(Qt.green)
+        painter.setFont(self.font)
+        painter.drawText(self.x, self.y, self.width, self.height, Qt.AlignLeft, self.text)
+
+        return None
+
+    def boundingRect(self):
+
+        return QRectF(self.x + self.width, self.y, self.width, self.height)
+
+class GraphicsPlayedLabel(QGraphicsItem):
+
+    def __init__(self, note, correct = None):
+        super(GraphicsPlayedLabel, self).__init__()
+
+        self.x = -510
+        self.width = 20
+        self.height = 5
+        self.correct = correct
+
+        if type(note) is int:
+            note_name = NOTE_PITCH_TO_NOTE_NAME[note]
+
+            if ',' in note_name:
+                #print("flat/sharp note detected")
+                #pritn("for now, always flats")
+                note_name = note_name[:2]
+
+            self.note_name = note_name
+            self.y = NOTE_NAME_TO_Y_LOCATION[note_name]
+
+        elif type(note) is str:
+
+            self.note_name = note
+            self.y = NOTE_NAME_TO_Y_LOCATION[note]
+
+        return None
+
+    def paint(self, painter, option, widget):
+
+        if self.correct is True:
+            painter.setBrush(QColor(0,255,255))
+        elif self.correct is None:
+            painter.setBrush(QColor(255,255,0))
+        else:
+            painter.setBrush(QColor(255,0,0))
+
+        painter.drawRect(round(self.x - self.width/2), round(self.y - self.height/2), self.width, self.height)
+
+        return None
+
+    def boundingRect(self):
+        return QRectF(self.x, self.y, self.width, self.height)
+
+class GraphicsPlayedNameLabel(QGraphicsItem):
+
+    def __init__(self, note):
+        super(GraphicsPlayedNameLabel, self).__init__()
+
+        self.x = -530
+        self.width = 20
+        self.height = 20
+
+        if type(note) is int:
+            note_name = NOTE_PITCH_TO_NOTE_NAME[note]
+
+            if ',' in note_name:
+                #print("flat/sharp note detected")
+                #pritn("for now, always flats")
+                note_name = note_name[:2]
+
+            self.note_name = note_name
+            self.y = NOTE_NAME_TO_Y_LOCATION[note_name]
+
+        elif type(note) is str:
+
+            self.note_name = note
+            self.y = NOTE_NAME_TO_Y_LOCATION[note]
+
+        return None
+
+    def paint(self, painter, option, widget):
+
+        painter.setPen(Qt.white)
+        painter.drawText(round(self.x - self.width/2), round(self.y - self.height/2), self.width, self.height, 0, self.note_name)
+        return None
+
+    def boundingRect(self):
+        return QRectF(self.x, self.y, self.width, self.height)
+
+class GraphicsController(QGraphicsObject):
+
+    stop_signal = QtCore.pyqtSignal()
+
+    def __init__(self):
+        super(GraphicsController, self).__init__()
+
+class GraphicsNote(QGraphicsItem):
+
+    def __init__(self, note, x, gui):
+        super(GraphicsNote, self).__init__()
+
+        self.gui = gui
+        self.xr = 8
+        self.yr = 8
+        self.x = x
+        self.h_speed = 0
+        self.played = False
+        self.should_be_played_now = False
+        self.top_note = False
+        self.shaded = False
+
+        self.set_note_pitch(note)
+
+        return None
+
+    def __repr__(self):
+
+        return str(self.note_name)
+
+    def set_speed(self, h_speed = None):
+        if h_speed is not None:
+            self.h_speed = h_speed
+
+    def set_note_pitch(self, note):
+
+        #-----------------------------------------------------------------------
+        # Determining the note's y value
+        self.sharp_flat = 'natural'
+
+        if type(note) is int:
+            self.note_pitch = note
+            note_name = NOTE_PITCH_TO_NOTE_NAME[note]
+            #print("original note name: ", note_name)
+
+            if ',' in note_name: # Flat/Sharp Detected
+
+                if note_name[0] == 'A': #A/B (select B flat)
+                    #print('A')
+                    self.sharp_flat = 'flat'
+                elif note_name[0] == 'C': #C/D (select D flat)
+                    #print('C')
+                    self.sharp_flat = 'flat'
+                elif note_name[0] == 'D': #D/E (select E flat)
+                    #print('D')
+                    self.sharp_flat = 'flat'
+                elif note_name[0] == 'F': #F/G (select F sharp)
+                    #print('F')
+                    self.sharp_flat = 'sharp'
+                elif note_name[0] == 'G': #G/A (select A flat)
+                    #print('G')
+                    self.sharp_flat = 'flat'
+
+                if self.sharp_flat == 'sharp':
+                    #print('sharp')
+                    note_name = note_name[:2]
+
+                elif self.sharp_flat == 'flat':
+                    #print('flat')
+                    note_name = note_name[3:]
+
+                #print("After flat/sharp selection: ",note_name)
+            else:
+                self.sharp_flat = None
+
+            #print("")
+
+            self.note_name = note_name
+            self.y = NOTE_NAME_TO_Y_LOCATION[note_name]
+
+        elif type(note) is str:
+
+            self.note_name = note
+            self.y = NOTE_NAME_TO_Y_LOCATION[note]
+
+        #print("Pitch: {2}\tNote: {0}\t Y: {1}".format(self.note_name, self.y, self.note_pitch))
+
+        return None
+
+    def stop(self):
+        self.h_speed = 0
+
+    def paint(self, painter, option, widget):
+
+        # Beginner Mode Halting
+        if self.gui.live_settings['mode'] == 'Beginner' and TIMING_NOTE_LINE_CATCH.contains(QPointF(self.x, self.y)) and self.h_speed != 0 and self.played is False:
+            #print("Stop signal emit")
+            GRAPHICS_CONTROLLER.stop_signal.emit()
+
+        #-----------------------------------------------------------------------
+        # Hiding the note if not withing the visible notes box and Hand Skill Effect
+
+        if VISIBLE_NOTE_BOX.contains(QPointF(self.x, self.y)) is True:
+            if self.shaded is True:
+                self.setOpacity(0.4)
+            else:
+                self.setOpacity(1)
+                self.visible = True
+        else:
+            self.setOpacity(HIDDEN)
+            self.visible = False
+
+        #-----------------------------------------------------------------------
+        # Changing color the notes if within the timing notes box
+
+        should_change_color = TIMING_NOTE_BOX.contains(QPointF(self.x, self.y))
+
+        if self.played is True:
+            color = CYAN
+            ledger_pen_color = QColor(0,255,255)
+
+        elif should_change_color is True:
+            color = YELLOW
+            self.should_be_played_now = True
+            ledger_pen_color = Qt.yellow
+        else:
+            color = GREEN
+            self.should_be_played_now = False
+            ledger_pen_color = Qt.green
+
+        # Move
+        self.x = round(self.x - self.h_speed)
+        painter.drawPixmap(self.x - 7, self.y - 9, PIXMAPS[color][NOTE])
+
+        if self.sharp_flat is not False:
+            # Flat
+            if self.sharp_flat is 'flat':
+                painter.drawPixmap(self.x - 25, self.y - 25, PIXMAPS[color][FLAT])
+            # Sharp
+            if self.sharp_flat is 'sharp':
+                painter.drawPixmap(self.x - 30, self.y - 23, PIXMAPS[color][SHARP])
+            # Natural
+            if self.sharp_flat is 'natural':
+                painter.drawPixmap(self.x - 37, self.y - 23, PIXMAPS[color][NATURAL])
+
+        #-----------------------------------------------------------------------
+        # Ledger lines
+        painter.setPen(ledger_pen_color)
+
+        # Top Ledger lines
+        if self.y < TOP_STAFF_LINE_Y_LOCATION - 20:
+            temp_y = TOP_STAFF_LINE_Y_LOCATION - 20
+            while temp_y >= self.y:
+                painter.drawLine(self.x - 20, temp_y, self.x + 20, temp_y)
+                temp_y -= 20
+
+        # Bottom Ledger Lines
+        elif self.y > BOTTOM_STAFF_LINE_Y_LOCATION + 20:
+            temp_y = BOTTOM_STAFF_LINE_Y_LOCATION + 20
+            while temp_y <= self.y:
+                painter.drawLine(self.x - 20, temp_y, self.x + 20, temp_y)
+                temp_y += 20
+
+        elif self.note_name == "C4":
+            painter.drawLine(self.x - 20, self.y, self.x + 20, self.y)
+
+        #-----------------------------------------------------------------------
+        # Note label
+
+        if self.top_note is True:
+            painter.setPen(Qt.white)
+            w = 20
+            h = 20
+            painter.drawText(self.x - 5, self.y - 25, w, h, 0, self.note_name)
+
+        return None
+
+    def boundingRect(self):
+        return QRectF(-self.xr, -self.xr, 2*self.xr, 2*self.xr)
+
+class Tutor(QThread):
+
+    def __init__(self, gui):
+        QThread.__init__(self)
+        self.gui = gui
+
+        return None
+
+    def keyboard_valid(self):
+        # This functions follows the confirmation system of PianoBooster
+        # which determines if the keys pressed are acceptable compared to the
+        # target keyboard configuration
+        if self.gui.keyboard_state[TARGET] == []:
+            return True
+
+        if len(set(self.gui.keyboard_state[TARGET]).intersection(set(self.gui.keyboard_state[RIGHT]))) != len(self.gui.keyboard_state[TARGET]):
+            return False
+
+        if len(self.gui.keyboard_state[WRONG]) >= 2:
+            return False
+
+        return True
+
+    def target_keyboard_in_timing_box(self, event_graphic_notes):
+
+        test_note = event_graphic_notes[0]
+        if test_note.should_be_played_now is True:
+            return True
+
+        return False
+
+    def tutor(self):
+
+        cfg = read_config()
+        self.lighting_scheme = cfg['lighting scheme'][self.gui.live_settings['mode'].lower()]
+
+        self.gui.keyboard_state[RIGHT] = []
+        self.gui.keyboard_state[WRONG] = []
+        self.gui.keyboard_state[ARDUINO] = []
+        #self.gui.keyboard_state[PREV_TARGET] = []
+
+        for self.sequence_pointer in range(len(self.gui.filtered_sequence)):
+
+            #print("Pointer: ", self.sequence_pointer)
+            #-------------------------------------------------------------------
+            # Meta Event Effects
+            if self.gui.filtered_sequence[self.sequence_pointer][0] == "META":
+                print("Meta event detected")
+                if self.gui.filtered_sequence[self.sequence_pointer][1] == "set_tempo":
+                    print("tempo change")
+                    self.tempo = self.gui.filtered_sequence[self.sequence_pointer][2].tempo
+                #elif
+                continue
+            #-------------------------------------------------------------------
+            # Setting up keyboard_state[TARGET]
+
+            self.gui.keyboard_state[TARGET] = self.gui.filtered_sequence[self.sequence_pointer][0]
+            print("Target: {}", self.gui.keyboard_state[TARGET])
+
+            #-------------------------------------------------------------------
+            # Hand Skill Effect
+            if self.gui.live_settings['hand'] != "Both":
+                if self.gui.live_settings['hand'] == 'Right Hand':
+                    self.gui.keyboard_state[TARGET] = [pitch for pitch in self.gui.keyboard_state[TARGET] if pitch >= MIDDLE_C]
+                else:
+                    self.gui.keyboard_state[TARGET] = [pitch for pitch in self.gui.keyboard_state[TARGET] if pitch < MIDDLE_C]
+
+            #-------------------------------------------------------------------
+            # Arduino Comm (dependent on tutoring mode)
+            if self.lighting_scheme == 'UI' or self.lighting_scheme == 'RWU': # Upcoming
+                self.gui.arduino_comm(self.gui.keyboard_state[TARGET], 'set')
+
+            #-------------------------------------------------------------------
+            # PREV_TARGET and TARGET Matching delay
+            if set(self.gui.keyboard_state[TARGET]).intersection(set(self.gui.keyboard_state[PREV_TARGET])) == set(self.gui.keyboard_state[TARGET]) and self.gui.live_settings['mode'] == 'Beginner':
+                print("waiting for keyboard_state[RIGHT] to change")
+                self.gui.arduino_comm([], 'set')
+                time.sleep(TUTOR_THREAD_DELAY)
+                self.gui.arduino_comm(self.gui.keyboard_state[TARGET], 'set')
+
+                while len( set(self.gui.keyboard_state[RIGHT]).intersection(set(self.gui.keyboard_state[TARGET])) ) != 0:
+                    print("waiting for change") # Aren't we all
+                    time.sleep(TUTOR_THREAD_DELAY)
+
+                print("keyboard_state[RIGHT] change detected")
+
+            #-------------------------------------------------------------------
+            # Tutoring Mode Change
+            while True:
+                if self.gui.live_settings['mode'] == "Beginner":
+                    go_to_next_note = self.beginner()
+                elif self.gui.live_settings['mode'] == "Intermediate":
+                    go_to_next_note = self.intermediate()
+                else:
+                    go_to_next_note =  self.expert()
+                if go_to_next_note is True:
+                    break
+
+            self.gui.keyboard_state[PREV_TARGET] = self.gui.keyboard_state[TARGET]
+
+        #-----------------------------------------------------------------------
+        # End of Song process
+        #drawn_notes = [note for array in self.gui.drawn_notes_group for note in array]
+        drawn_notes = []
+
+        for event in self.gui.drawn_notes_group:
+            if event == ["META"]:
+                continue
+            for note in event:
+                drawn_notes.append(note)
+
+        visible_notes = [note.visible for note in drawn_notes]
+
+        while True in visible_notes:
+            time.sleep(TUTOR_THREAD_DELAY)
+            visible_notes = [note.visible for note in drawn_notes]
+
+        print("End of Song")
+        self.gui.stop_all_notes()
+        self.gui.arduino_comm([], 'set')
+
+        return None
+
+    def beginner(self):
+
+        while True:
+            if self.gui.live_settings['mode'] != 'Beginner':
+                return False
+
+            event_graphic_notes = self.gui.drawn_notes_group[self.sequence_pointer]
+            if self.target_keyboard_in_timing_box(event_graphic_notes) and self.gui.live_settings['play'] is True:
+
+                # Change color to inform timing
+                if self.lighting_scheme == 'UI':
+                    self.gui.arduino_comm(self.gui.keyboard_state[TARGET], 'set')
+
+                if self.keyboard_valid() is True:
+                    for note in event_graphic_notes:
+                        note.played = True
+
+                    self.gui.move_all_notes()
+                    return True
+
+            time.sleep(TUTOR_THREAD_DELAY)
+
+        return None
+
+    def intermediate(self):
+
+        while True:
+            if self.gui.live_settings['mode'] != 'Intermediate':
+                return False
+
+            event_graphic_notes = self.gui.drawn_notes_group[self.sequence_pointer]
+            if self.target_keyboard_in_timing_box(event_graphic_notes) and self.gui.live_settings['play'] is True:
+
+                # Change color to inform timing
+                if self.lighting_scheme == 'UI':
+                    self.gui.arduino_comm(self.gui.keyboard_state[TARGET], 'set')
+
+                played_notes = [note for note in event_graphic_notes if note.note_pitch in self.gui.keyboard_state[RIGHT]]
+                for note in played_notes:
+                    note.played = True
+
+                self.gui.move_all_notes()
+                return True
+
+            time.sleep(TUTOR_THREAD_DELAY)
+
+        return None
+
+    def expert(self):
+
+        while True:
+            if self.gui.live_settings['mode'] != 'Expert':
+                return False
+
+            event_graphic_notes = self.gui.drawn_notes_group[self.sequence_pointer]
+            if self.target_keyboard_in_timing_box(event_graphic_notes) is True and self.gui.live_settings['play'] is True:
+
+                self.gui.arduino_comm(self.gui.keyboard_state[TARGET], 'set')
+                # Now turn LEDs to inform when to play (at all)
+
+                played_notes = [note for note in event_graphic_notes if note.note_pitch in self.gui.keyboard_state[RIGHT]]
+                for note in played_notes:
+                    note.played = True
+
+                self.gui.move_all_notes()
+                return True
+
+            time.sleep(TUTOR_THREAD_DELAY)
+
+        return None
+
+    def run(self):
+
+        while self.gui.live_settings['play'] == False:
+            time.sleep(TUTOR_THREAD_DELAY)
+
+        self.tutor()
+
+        return None
+
+class SkoreWindow(QMainWindow):
+
+    def __init__(self):
+
+        super(QMainWindow, self).__init__()
+        self.setObjectName("MainWindow")
+        self.setWindowTitle("SKORE")
+        self.resize(1944, 984)
+        self.setWindowState(QtCore.Qt.WindowMaximized)
+
+        #self.setStyleSheet("""
+        #    background-color: rgb(0,0,0);
+        #    color: white;
+        #    """)
+
+        # Variable Initialization
+        self.midi_in = None
+        self.arduino = None
+        self.keyboard_state = [[],[],[],[],[],[],[]]
+
+        # Setup functions
         self.setup_ui()
+        self.setup_graphics()
+        self.setup_comm()
+        self.setup_func()
+
+        # File Handling
+        self.file_container = FileContainer()
+        self.file_container.clean_temp_folder()
+
+        # Tutor setup
+        self.tutor = None
+        self.tutor_enable = False
+
+        self.live_settings = {
+            'play': False, 'restart': False, 'mode': 'Beginner', 'hand': 'Both',
+            'speed': 100, 'transpose': 0
+        }
+
+        self.tracks_selected_labels = None
+
+        # Timer Setup
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(self.clock)
+        self.timer.start(CLOCK_DELAY) # 60 FPS, 16ms, 30 FPS, 33ms
 
     def setup_ui(self):
 
-        self.setWindowTitle('SKORE')
-        self.setObjectName("MainWindow")
-        self.resize(916,530)
-        self.setStyleSheet("""
-            background-color: rgb(50,50,50);
-            color: white;
-            """)
-
         self.centralwidget = QtWidgets.QWidget(self)
+        self.setCentralWidget(self.centralwidget)
         self.centralwidget.setObjectName("centralwidget")
 
-###############################Main Buttons#####################################
-        #Upload Button
-        #self.uploadAudioFile_toolButton = QtWidgets.QToolButton(self.centralwidget)
-        self.uploadAudioFile_toolButton = BlinkButton("Upload File", self.centralwidget)
-        self.uploadAudioFile_toolButton.setGeometry(QtCore.QRect(20, 20, 421, 171))
-        self.uploadAudioFile_toolButton.setObjectName("uploadAudioFile_toolButton")
-        self.uploadAudioFile_toolButton.clicked.connect(self.upload_file)
-        self.uploadAudioFile_animation = BlinkAnimation(self.uploadAudioFile_toolButton, b'color', self)
+        self.gridLayoutWidget = QtWidgets.QWidget(self.centralwidget)
+        #self.gridLayoutWidget.setGeometry(QtCore.QRect(-1, 0, 1922, 921))
+        self.gridLayoutWidget.setGeometry(QtCore.QRect(-1, 0, 1922, 950))
+        self.gridLayoutWidget.setObjectName("gridLayoutWidget")
 
-        #Record Button
-        #self.record_toolButton = QtWidgets.QToolButton(self.centralwidget)
-        self.record_toolButton = BlinkButton("Record", self.centralwidget)
-        self.record_toolButton.setGeometry(QtCore.QRect(470, 20, 421, 171))
-        self.record_toolButton.setObjectName("record_toolButton")
-        self.record_toolButton.clicked.connect(self.open_red_dot_forever)
-        self.record_animation = BlinkAnimation(self.record_toolButton, b'color', self)
+        #-----------------------------------------------------------------------
+        # gridLayout_central
+        self.gridLayout_central = QtWidgets.QGridLayout(self.gridLayoutWidget)
+        self.gridLayout_central.setContentsMargins(0, 0, 0, 0)
+        self.gridLayout_central.setObjectName("gridLayout_central")
 
-        #Settings Button
-        self.settings_toolButton = QtWidgets.QToolButton(self.centralwidget)
-        self.settings_toolButton.setGeometry(QtCore.QRect(20, 280, 871, 41))
-        self.settings_toolButton.setObjectName("settings_toolButton")
-        self.settings_toolButton.clicked.connect(self.settingsDialog)
+        self.scene = QGraphicsScene()
+        self.scene.setItemIndexMethod(-1)
+        self.graphicsView_game = QtWidgets.QGraphicsView(self.scene, self.gridLayoutWidget)
+        self.graphicsView_game.setObjectName("graphicsView_game")
+        self.gridLayout_central.addWidget(self.graphicsView_game, 1, 0, 1, 1)
 
-#############################Tutoring Button####################################
+        #-----------------------------------------------------------------------
+        # gridLayout_central -> horizontalLayout_live_settings
+        self.horizontalLayout_live_settings = QtWidgets.QHBoxLayout()
+        self.horizontalLayout_live_settings.setObjectName("horizontalLayout_live_settings")
 
-        #Tutor Button
-        #self.tutor_pushButton = QtWidgets.QPushButton(self.centralwidget)
-        self.tutor_pushButton = BlinkButton("Tutoring", self.centralwidget)
-        self.tutor_pushButton.setGeometry(QtCore.QRect(20, 330, 421, 171))
-        self.tutor_pushButton.setObjectName("tutor_pushButton")
-        #self.tutor_pushButton.setText("Tutoring")
-        self.tutor_pushButton.clicked.connect(self.open_pianobooster)
-        self.tutor_animation = BlinkAnimation(self.tutor_pushButton, b'color', self)
+        spacerItem = QtWidgets.QSpacerItem(10, 40, QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
+        self.horizontalLayout_live_settings.addItem(spacerItem)
 
-##########################Conversion Buttons####################################
+        self.toolButton_restart = QtWidgets.QToolButton(self.gridLayoutWidget)
+        self.toolButton_restart.setObjectName("toolButton_restart")
+        self.horizontalLayout_live_settings.addWidget(self.toolButton_restart)
 
-        #Generate Music Sheet Button
-        #self.generateMusicSheet_pushButton = QtWidgets.QPushButton(self.centralwidget)
-        self.generateMusicSheet_pushButton = BlinkButton("Generate Music Sheet (and MIDI File)",self.centralwidget)
-        self.generateMusicSheet_pushButton.setGeometry(QtCore.QRect(470, 330, 421, 51))
-        self.generateMusicSheet_pushButton.setObjectName("generateMusicSheet_pushButton")
-        self.generateMusicSheet_pushButton.clicked.connect(self.generateMusicSheet)
-        self.generateMusicSheet_animation = BlinkAnimation(self.generateMusicSheet_pushButton, b'color', self)
+        self.toolButton_play = QtWidgets.QToolButton(self.gridLayoutWidget)
+        self.toolButton_play.setObjectName("toolButton_play")
+        self.horizontalLayout_live_settings.addWidget(self.toolButton_play)
 
-        #Generate MID Button
-        #self.generateMIDFile_pushButton = QtWidgets.QPushButton(self.centralwidget)
-        self.generateMIDFile_pushButton = BlinkButton("Generate MIDI File", self.centralwidget)
-        self.generateMIDFile_pushButton.setGeometry(QtCore.QRect(470, 390, 421, 51))
-        self.generateMIDFile_pushButton.setObjectName("generateMIDFile_pushButton")
-        self.generateMIDFile_pushButton.clicked.connect(self.generateMIDFile)
-        self.generateMIDFile_animation = BlinkAnimation(self.generateMIDFile_pushButton, b'color', self)
+        self.toolButton_track_manager = QtWidgets.QToolButton(self.gridLayoutWidget)
+        self.toolButton_track_manager.setObjectName("toolButton_track_manager")
+        self.horizontalLayout_live_settings.addWidget(self.toolButton_track_manager)
 
-        #Save Generated
-        #self.saveGeneratedFiles_pushButton = QtWidgets.QPushButton(self.centralwidget)
-        self.saveGeneratedFiles_pushButton = BlinkButton("Save Generated Files", self.centralwidget)
-        self.saveGeneratedFiles_pushButton.setGeometry(QtCore.QRect(470, 450, 421, 51))
-        self.saveGeneratedFiles_pushButton.setObjectName("saveGeneratedFiles_pushButton")
-        self.saveGeneratedFiles_pushButton.clicked.connect(self.saveGeneratedFiles)
-        self.saveGeneratedFiles_animation = BlinkAnimation(self.saveGeneratedFiles_pushButton, b'color', self)
+        self.label_tutoring_mode = QtWidgets.QLabel(self.gridLayoutWidget)
+        self.label_tutoring_mode.setObjectName("label_tutoring_mode")
+        self.horizontalLayout_live_settings.addWidget(self.label_tutoring_mode)
 
-############################Misc Buttons and Objects############################
+        self.comboBox_tutoring_mode = QtWidgets.QComboBox(self.gridLayoutWidget)
+        self.comboBox_tutoring_mode.setObjectName("comboBox_tutoring_mode")
+        self.horizontalLayout_live_settings.addWidget(self.comboBox_tutoring_mode)
 
-        #Text Browser
-        self.textBrowser = QtWidgets.QTextBrowser(self.centralwidget)
-        self.textBrowser.setGeometry(QtCore.QRect(20, 200, 871, 70))
-        self.textBrowser.setObjectName("textBrowser")
+        self.label_hand_skill = QtWidgets.QLabel(self.gridLayoutWidget)
+        self.label_hand_skill.setObjectName("label_hand_skill")
+        self.horizontalLayout_live_settings.addWidget(self.label_hand_skill)
 
-        #Menubar
-        self.setCentralWidget(self.centralwidget)
+        self.comboBox_hand_skill = QtWidgets.QComboBox(self.gridLayoutWidget)
+        self.comboBox_hand_skill.setObjectName("comboBox_hand_skill")
+        self.horizontalLayout_live_settings.addWidget(self.comboBox_hand_skill)
+
+        self.label_speed = QtWidgets.QLabel(self.gridLayoutWidget)
+        self.label_speed.setObjectName("label_speed")
+        self.horizontalLayout_live_settings.addWidget(self.label_speed)
+
+        self.spinBox_speed = QtWidgets.QSpinBox(self.gridLayoutWidget)
+        self.spinBox_speed.setObjectName("spinBox_speed")
+        self.horizontalLayout_live_settings.addWidget(self.spinBox_speed)
+
+        self.label_transpose = QtWidgets.QLabel(self.gridLayoutWidget)
+        self.label_transpose.setObjectName("label_transpose")
+        self.horizontalLayout_live_settings.addWidget(self.label_transpose)
+
+        self.spinBox_transpose = QtWidgets.QSpinBox(self.gridLayoutWidget)
+        self.spinBox_transpose.setObjectName("spinBox_transpose")
+        self.horizontalLayout_live_settings.addWidget(self.spinBox_transpose)
+
+        spacerItem2 = QtWidgets.QSpacerItem(40, 40, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Fixed)
+        self.horizontalLayout_live_settings.addItem(spacerItem2)
+
+        self.gridLayout_central.addLayout(self.horizontalLayout_live_settings, 0, 0, 1, 1)
+
+        #-----------------------------------------------------------------------
+        # Menubar
         self.menubar = QtWidgets.QMenuBar(self)
-        self.menubar.setGeometry(QtCore.QRect(0, 0, 916, 26))
+        self.menubar.setGeometry(QtCore.QRect(0, 0, 1944, 26))
         self.menubar.setObjectName("menubar")
+        self.menuFile = QtWidgets.QMenu(self.menubar)
+        self.menuFile.setObjectName("menuFile")
+        self.menuSettings = QtWidgets.QMenu(self.menubar)
+        self.menuSettings.setObjectName("menuSettings")
+        self.menuHelp = QtWidgets.QMenu(self.menubar)
+        self.menuHelp.setObjectName("menuHelp")
         self.setMenuBar(self.menubar)
-
-        #Status Bar
         self.statusbar = QtWidgets.QStatusBar(self)
         self.statusbar.setObjectName("statusbar")
         self.setStatusBar(self.statusbar)
 
-        self.file_container = FileContainer()
-        self.file_container.clean_temp_folder()
+
+        self.actionOpenFile = QtWidgets.QAction(self)
+        self.actionOpenFile.setObjectName("actionOpenFile")
+        self.actionRecord = QtWidgets.QAction(self)
+        self.actionRecord.setObjectName("actionRecord")
+        self.actionPlay = QtWidgets.QAction(self)
+        self.actionPlay.setObjectName("actionPlay")
+        self.actionCreate_MIDI = QtWidgets.QAction(self)
+        self.actionCreate_MIDI.setObjectName("actionCreate_MIDI")
+        self.actionCreate_PDF = QtWidgets.QAction(self)
+        self.actionCreate_PDF.setObjectName("actionCreate_PDF")
+
+        self.actionSave_File = QtWidgets.QAction(self)
+        self.actionSave_File.setObjectName("actionSave_File")
+        self.actionExit = QtWidgets.QAction(self)
+        self.actionExit.setObjectName("actionExit")
+
+        self.actionConfig = QtWidgets.QAction(self)
+        self.actionConfig.setObjectName("actionConfig")
+        #self.actionTrackManager = QtWidgets.QAction(self)
+        #self.actionTrackManager.setObjectName("actionTrackManager")
+
+        self.actionWebsite = QtWidgets.QAction(self)
+        self.actionWebsite.setObjectName("actionWebsite")
+        self.actionAbout = QtWidgets.QAction(self)
+        self.actionAbout.setObjectName("actionAbout")
+
+        #-----------------------------------------------------------------------
+        # MenuFile
+
+        self.menuFile.addAction(self.actionOpenFile)
+        self.menuFile.addAction(self.actionRecord)
+        self.menuFile.addSeparator()
+
+        # Troubleshooting for now
+        self.menuFile.addAction(self.actionPlay)
+
+        self.menuFile.addAction(self.actionCreate_MIDI)
+        self.menuFile.addAction(self.actionCreate_PDF)
+        self.menuFile.addAction(self.actionSave_File)
+        self.menuFile.addSeparator()
+        self.menuFile.addAction(self.actionExit)
+
+        #self.menuSettings.addAction(self.actionTrackManager)
+        self.menuSettings.addAction(self.actionConfig)
+
+        self.menuHelp.addAction(self.actionWebsite)
+        self.menuHelp.addAction(self.actionAbout)
+        self.menubar.addAction(self.menuFile.menuAction())
+        self.menubar.addAction(self.menuSettings.menuAction())
+        self.menubar.addAction(self.menuHelp.menuAction())
+
 
         self.retranslate_ui()
         QtCore.QMetaObject.connectSlotsByName(self)
+        self.setTabOrder(self.toolButton_restart, self.toolButton_play)
+        self.setTabOrder(self.toolButton_play, self.spinBox_transpose)
+        self.setTabOrder(self.spinBox_transpose, self.graphicsView_game)
+        self.setTabOrder(self.graphicsView_game, self.spinBox_speed)
 
-        #self.progress_bar = ProgressBarDialog()
-        #self.progress_bar.show()
+        return None
 
-        self.uploadAudioFile_animation.start()
-        self.record_animation.start()
+    def setup_func(self):
 
-        self.animation_group = [self.uploadAudioFile_animation, self.generateMusicSheet_animation,
-                            self.generateMIDFile_animation, self.saveGeneratedFiles_animation,
-                            self.tutor_animation, self.record_animation]
+        """
+        QActions that still need assignment
+        self.actionAbout = QtWidgets.QAction(self)
+        self.actionAbout.setObjectName("actionAbout")
+        """
+        #-----------------------------------------------------------------------
+        # MenuBar Actions
+        self.actionOpenFile.setShortcut('Ctrl+O')
+        self.actionOpenFile.triggered.connect(self.upload_file)
 
-        self.blink_button_group = [self.uploadAudioFile_toolButton, self.generateMusicSheet_pushButton,
-                                self.generateMIDFile_pushButton, self.saveGeneratedFiles_pushButton,
-                                self.tutor_pushButton, self.record_toolButton]
+        self.actionRecord.setShortcut("Ctrl+Shift+R")
+        self.actionRecord.triggered.connect(self.skore_recorder)
 
-################################################################################
+        # Troubleshooting
+        self.actionPlay.setShortcut("Ctrl+Shift+P")
+        self.actionPlay.triggered.connect(self.play_midi_file)
 
-    def retranslate_ui(self):
-        # This function applies all the text changes in the main SKORE app.
+        self.actionCreate_MIDI.setShortcut("Ctrl+M")
+        self.actionCreate_MIDI.triggered.connect(self.generate_midi_file)
 
-        midi_file_location = ''
-        if self.file_container.has_midi_file() is True:
-            midi_file_location = self.file_container.file_path['.mid']
+        self.actionCreate_PDF.setShortcut("Ctrl+P")
+        self.actionCreate_PDF.triggered.connect(self.generate_pdf_file)
 
-        _translate = QtCore.QCoreApplication.translate
-        #self.uploadAudioFile_toolButton.setText(_translate("MainWindow", "Upload audio file"))
-        #self.record_toolButton.setText(_translate("MainWindow", "Record"))
-        self.settings_toolButton.setText(_translate("MainWindow", "Settings"))
-        #self.generateMusicSheet_pushButton.setText(_translate("MainWindow", "Generate Music Sheet (and MIDI file)"))
-        self.textBrowser.setHtml(_translate("MainWindow", "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
-"<html><head><meta name=\"qrichtext\" content=\"1\" /><style type=\"text/css\">\n"
-"p, li { white-space: pre-wrap; }\n"
-"</style></head><body style=\" font-family:\'MS Shell Dlg 2\'; font-size:7.8pt; font-weight:400; font-style:normal;\">\n"
-"<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">To open previous files, access the files from the output folder within app_control folder. </p>\n"
-"<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">Uploaded File: " + self.file_container.original_file + " </p>\n"
-"<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">MIDI File Location: " + midi_file_location + "</p></body></html>"))
+        self.actionSave_File.setShortcut("Ctrl+S")
+        self.actionSave_File.triggered.connect(self.save_generated_files)
 
-    def closeEvent(self, event):
-        # Closes any open threads and additional GUIs
+        self.actionExit.triggered.connect(self.close)
 
-        print("\n---------------------------SKORE CLOSURE---------------------------")
+        self.actionConfig.triggered.connect(self.open_settings_dialog)
+
+        #self.actionTrackManager.setShortcut("Ctrl+Shift+T")
+        #self.actionTrackManager.triggered.connect(self.open_track_manager_dialog)
+
+        self.actionWebsite.triggered.connect(self.open_skore_website)
+
+        #-----------------------------------------------------------------------
+        # Live Settings
+        self.toolButton_play.clicked.connect(self.play_stop)
+        self.toolButton_restart.clicked.connect(self.restart)
+        self.toolButton_track_manager.clicked.connect(self.open_track_manager_dialog)
+
+        self.spinBox_speed.setRange(10,400)
+        self.spinBox_speed.setSingleStep(1)
+        self.spinBox_speed.setValue(100)
+        self.spinBox_speed.valueChanged.connect(self.speed_change)
+
+        self.spinBox_transpose.setRange(-12, 12)
+        self.spinBox_transpose.setSingleStep(1)
+        self.spinBox_transpose.setValue(0)
+        self.spinBox_transpose.valueChanged.connect(self.transpose_change)
+
+        #-----------------------------------------------------------------------
+        # ComboBox Settings
+
+        self.comboBox_tutoring_mode.addItem("Beginner")
+        self.comboBox_tutoring_mode.addItem("Intermediate")
+        self.comboBox_tutoring_mode.addItem("Expert")
+
+        self.comboBox_hand_skill.addItem("Both")
+        self.comboBox_hand_skill.addItem("Left Hand")
+        self.comboBox_hand_skill.addItem("Right Hand")
+
+        self.comboBox_tutoring_mode.currentIndexChanged.connect(self.mode_change)
+        self.comboBox_hand_skill.currentIndexChanged.connect(self.hand_change)
+
+        return None
+
+    #---------------------------------------------------------------------------
+    # Communications
+
+    def setup_comm(self):
+
+        self.arduino_status = self.arduino_setup()
+        self.piano_status = self.piano_port_setup()
+
+        if self.arduino_status is False and self.piano_status is False:
+            self.graphics_system_message.set_text("Piano and Arduino Comm Failed")
+        elif self.arduino_status is False:
+            self.graphics_system_message.set_text("Arduino Comm Failed")
+            print("ARDUINO COMMUNICATION SETUP FAILURE")
+        elif self.piano_status is False:
+            self.graphics_system_message.set_text("Piano Comm Failed")
+            print("PIANO COMMUNICATION SETUP FAILURE")
+        else:
+            self.graphics_system_message.set_text("")
+            print("ARDUINO AND PIANO COMMUNICATION SETUP SUCCESS")
+
+        return False
+
+    def arduino_handshake(self):
+
+        return True
+        #print("waiting for arduino handshake")
+        timeout = time.time() + COMM_TIMEOUT
+        while time.time() < timeout:
+            time.sleep(HANDSHAKE_DELAY)
+            read_data = self.arduino.read()
+            #print(read_data)
+            if read_data == b'#':
+                #print("finished handshake")
+                return True
+
+        raise RuntimeError("Communication Desync with Arduino")
+        return None
+
+    def arduino_comm(self, notes, operation):
+        # This function sends the information about which notes need to be added and
+        # removed from the LED Rod.
+
+        #print("ARDUINO MESSAGE SENDED\tTYPE: {}\tOPERATION: {}".format(self.tutor.lighting_scheme, operation))
+
+        if self.arduino_status is False:
+            return None
+
+        if operation == 'set':
+            notes_to_send = list(set(notes).symmetric_difference(self.keyboard_state[ARDUINO]))
+            self.keyboard_state[ARDUINO] = notes
+        elif operation == 'toggle':
+            notes_to_send = [notes]
+            if notes in self.keyboard_state[ARDUINO]:
+                self.keyboard_state[ARDUINO].remove(notes)
+            else:
+                self.keyboard_state[ARDUINO] += notes_to_send
+
+        send_string = ',' + ','.join(str(note - 27) for note in notes_to_send) + ',#'
+        #print('STRING SENT: ', send_string)
+        self.arduino.write(send_string.encode('utf-8'))
+
+        print("ARDUINO KEYBOARD: ", self.keyboard_state[ARDUINO])
+
+        return None
+
+    def arduino_setup(self):
+        # This functions sets up the communication between Python and the Arduino.
+        # For now the Arduino is assumed to be connected to COM3.
+        cfg = read_config()
+
+        #piano_size = setting_read('piano_size') + ','
+        piano_size = cfg['port']['piano_size'] + ','
+
+        # Closing, if applicable, the arduino port
+        if self.arduino:
+            self.arduino.close()
+            self.arduino = []
+
+        #com_port = setting_read("arduino_port")
+        com_port = cfg['port']['arduino']
 
         try:
-            #self.skore_companion_dialog.close()
-            self.skore_glass_overlay.close()
-            print("SKORE_GLASS CLOSURE")
-        except:
-            print("SKORE_GLASS CLOSURE FAILED")
+            self.arduino = serial.Serial(com_port, 230400, writeTimeout = COMM_TIMEOUT)
+        except serial.serialutil.SerialException:
+            print("ARDUINO AT {0} NOT FOUND".format(com_port))
+            return False
 
-        #try:
-        #    self.progress_bar.close()
-        #    print("progress_bar closure successful")
-        #except:
-        #    print("progress_bar closure failed")
+        whitekey_transmitted_string = cfg['color']['white'].replace(',0', ',1')
+        blackkey_transmitted_string = cfg['color']['black'].replace(',0', ',1')
+
+        if whitekey_transmitted_string.startswith('0'):
+            whitekey_transmitted_string = '1' + whitekey_transmitted_string[1:]
+        if blackkey_transmitted_string.startswith('0'):
+            blackkey_transmitted_string = '1' + blackkey_transmitted_string[1:]
+
+
+        print("White Key: ", whitekey_transmitted_string)
+        print("Black Key: ", blackkey_transmitted_string)
+
+        setup_transmitted_string = piano_size + whitekey_transmitted_string + ',' + blackkey_transmitted_string
+        setup_transmitted_string += ',#,'
+
+        time.sleep(2)
+        self.arduino.write(setup_transmitted_string.encode('utf-8'))
+
+        print("""
+--------------------------Arduino Configuration-------------------------
+COM PORT: {0}
+PIANO SIZE: {1}
+WHITEKEY COLORS: {2}
+BLACKKEY COLORS: {3}
+SETUP STRING: {4}
+
+        """.format(com_port, piano_size, whitekey_transmitted_string, blackkey_transmitted_string, setup_transmitted_string))
+
+        if self.arduino_handshake() is True:
+            return True
+
+        else:
+            print("INITIAL ARDUINO HANDSHAKE FAILED")
+
+        return False
+
+    def piano_port_setup(self):
+        # This function sets up the communication between Python and the MIDI device
+        # For now Python will connect the first listed device.
+
+        # Rtmidi method
+        if not self.midi_in:
+            try:
+                self.midi_in.close_port()
+            except:
+                self.midi_in = None
+
+        #-----------------------------------------------------------------------
+        # Midi In
+
+        self.midi_in = rtmidi.MidiIn()
+        in_avaliable_ports = self.midi_in.get_ports()
+        cfg = read_config()
+        #selected_port = setting_read("piano_port")
+        selected_port = cfg['port']['piano']
 
         try:
-            self.settings_dialog.close()
-            print("SETTINGS DIALOG CLOSURE")
-        except:
-            print("SETTINGS DIALOG CLOSURE FAILED")
+            self.closes_match_in_port = difflib.get_close_matches(selected_port, in_avaliable_ports)[0]
+        except IndexError:
+            print("{0} NOT FOUND".format(selected_port))
+            self.midi_in = None
+            return False
+
 
         try:
-            self.red_dot_thread.terminate()
-            print("RED DOT THREAD CLOSURE")
+            self.midi_in.open_port(in_avaliable_ports.index(self.closes_match_in_port))
         except:
-            print("RED DOT THREAD CLOSURE FAILED")
-        return
+            print("Piano Port Setup Failure")
+            self.midi_in = None
+            return False
 
-################################################################################
+        self.midi_in.set_callback(TutorMidiHandler(self))
 
-    def open_red_dot_forever(self):
-        # This function start red dot forever thread
-        self.stop_all_animation()
-        self.red_dot_thread = RedDotThread()
-        self.red_dot_thread.start()
-        self.red_dot_thread.red_dot_signal.connect(self.red_dot_forever_translate)
+        #-----------------------------------------------------------------------
+        # Midi Out
 
-        return
+        self.midi_out = rtmidi.MidiOut()
+        out_avaliable_ports = self.midi_out.get_ports()
+        try:
+            self.closes_match_out_port = difflib.get_close_matches(selected_port, out_avaliable_ports)[0]
+        except IndexError:
+            print("OUTPUT PORT TO {0} NOT FOUND".format(selected_port))
+            self.midi_in = None
+            self.midi_out = None
+            return False
 
-    @pyqtSlot('QString','QString')
-    def red_dot_forever_translate(self, address_string, filename_string):
+        try:
+            self.midi_out.open_port(out_avaliable_ports.index(self.closes_match_out_port))
+        except:
+            print("Piano MIDI OUT Port Setup Failure")
+            self.midi_out = None
+            return False
 
-        # MIDI File Recorded!
-        self.file_container.clean_temp_folder()
-        self.file_container.remove_all()
-        self.file_container.red_dot_address_conversion(address_string, filename_string)
+        print("""
+----------------------------Piano Configuration-------------------------
+MIDI IN & OUT
+PIANO PORT: {0} (SUCCESSFUL)
+PIANO PORT HANDLER SETUP (SUCCESSFUL)
 
-        self.stop_all_animation()
-        self.tutor_animation.start()
-        self.generateMusicSheet_animation.start()
-        self.retranslate_ui()
+        """.format(self.closes_match_in_port))
 
-        return
+        return True
 
-    def open_pianobooster(self):
-        # This function initializes PianoBooster and opens the SKORE Companion app
+    #---------------------------------------------------------------------------
+    # Graphics Functions
 
-        if self.file_container.has_midi_file() is False:
-            print("No midi file uploaded or generated")
-            QMessageBox.about(self, "MIDI File Needed", "Please upload or generate a MIDI file before tutoring.")
-            return
+    def clock(self):
+        self.scene.update()
+        return None
 
-        #self.skore_companion_dialog = Companion_Dialog()
-        #self.skore_companion_dialog.show()
-        #self.progress_bar.current_action_label.setText("Initializing SKORE Glass")
-        #self.progress_bar.progress.setValue(50)
-        self.skore_glass_overlay = SkoreGlassGui(self.file_container)
-        self.skore_glass_overlay.show()
-        #self.progress_bar.current_action_label.setText("SKORE Glass Enabled")
-        #self.progress_bar.progress.setValue(100)
+    def setup_graphics(self):
 
-        return
+        global VISIBLE_NOTE_BOX, TIMING_NOTE_BOX, TIMING_NOTE_LINE, TIMING_NOTE_LINE_CATCH
+        global PIXMAPS, GRAPHICS_CONTROLLER
+
+        self.graphicsView_game.setBackgroundBrush(QBrush(Qt.black))
+
+        #-----------------------------------------------------------------------
+        # Setting up the Staff
+        greenPen = QPen(Qt.green)
+        w = 1500
+        x = round(w/2) * -1
+        y = 200
+        group = []
+
+        for i in range(5):
+            group.append(self.scene.addLine(x, y, x+w, y, greenPen))
+            y -= 20
+
+        y = -200
+
+        for i in range(5):
+            group.append(self.scene.addLine(x, y, x+w, y, greenPen))
+            y -= 20
+
+        #-----------------------------------------------------------------------
+        # Setting up Visible note box
+        #w = 1350
+        w = 1210
+        #x = round(w/2) * -1 + round(w/20) + 20
+        x = round(w/2) * -1 + round(w/20) + 80
+        h = 810
+        y = round(h/2) * -1 - round(h/10) + 15
+
+        #print("X1: {0} Y1: {1}\tX2: {2} Y2: {3}".format(x,y,x+w,y+h))
+
+        redPen = QPen(Qt.red)
+        redBrush = QBrush(Qt.red)
+
+        self.visible_note_box = self.scene.addRect(x,y,w,h, redPen, redBrush)
+        self.visible_note_box.setOpacity(HIDDEN)
+
+        #-----------------------------------------------------------------------
+        # Setting up timing note bar
+        w = 50 # tolerances of 25 on each side
+        x = LEFT_TICK_SHIFT - round(w/2)
+        h = 810
+        y = -470
+
+        magentaBrush = QBrush(QColor(153, 0, 153))
+        magentaPen = QPen(QColor(153, 0, 153))
+
+        self.timing_note_box = self.scene.addRect(x, y, w , h, magentaPen, magentaBrush)
+        self.timing_note_box.setOpacity(0.5)
+
+        self.timing_note_line = self.scene.addLine(LEFT_TICK_SHIFT, y, LEFT_TICK_SHIFT, h + y, magentaPen)
+
+        #-----------------------------------------------------------------------
+        # Setting up timing note line catch
+        w = 25
+        x = LEFT_TICK_SHIFT - round(w/2) - round(25/2) - 1
+        h = 810
+        y = -470
+
+        whiteBrush = QBrush(Qt.white)
+        whitePen = QPen(Qt.white)
+
+        self.timing_note_line_catch = self.scene.addRect(x, y, w, h, whitePen, whiteBrush)
+        self.timing_note_line_catch.setOpacity(HIDDEN)
+
+        #-----------------------------------------------------------------------
+        # Placing Treble and Bass Clef
+        treble_clef = QPixmap(r".\images\graphics_assets\green_treble_clef.png")
+        treble_clef = treble_clef.scaledToHeight(180)
+
+        treble_clef_pointer = self.scene.addPixmap(treble_clef)
+        treble_clef_pointer.setOffset(-750, -331)
+
+        bass_clef = QPixmap(r".\images\graphics_assets\green_bass_clef.png")
+        bass_clef = bass_clef.scaledToHeight(70)
+
+        bass_clef_pointer = self.scene.addPixmap(bass_clef)
+        bass_clef_pointer.setOffset(-720, 120)
+
+        #-----------------------------------------------------------------------
+        # Placing Note Labels
+        self.note_labels = [{},{},{}]
+
+        for note in NOTE_NAME_TO_Y_LOCATION.keys():
+
+            self.note_labels[NEUTRAL][note] = GraphicsPlayedLabel(note, None)
+            self.note_labels[NEUTRAL][note].setOpacity(HIDDEN)
+            self.scene.addItem(self.note_labels[NEUTRAL][note])
+
+            self.note_labels[RIGHT][note] = GraphicsPlayedLabel(note, True)
+            self.note_labels[RIGHT][note].setOpacity(HIDDEN)
+            self.scene.addItem(self.note_labels[RIGHT][note])
+
+            self.note_labels[WRONG][note] = GraphicsPlayedLabel(note, False)
+            self.note_labels[WRONG][note].setOpacity(HIDDEN)
+            self.scene.addItem(self.note_labels[WRONG][note])
+
+        #-----------------------------------------------------------------------
+        # Placing Note Label Names
+        self.note_name_labels = {}
+
+        for note in NOTE_NAME_TO_Y_LOCATION.keys():
+
+            self.note_name_labels[note] = GraphicsPlayedNameLabel(note)
+            self.note_name_labels[note].setOpacity(HIDDEN)
+            self.scene.addItem(self.note_name_labels[note])
+
+        #-----------------------------------------------------------------------
+        # Setup Graphics Controller
+
+        GRAPHICS_CONTROLLER = GraphicsController()
+        GRAPHICS_CONTROLLER.stop_signal.connect(self.stop_all_notes)
+
+        #-----------------------------------------------------------------------
+        # Setup Graphics System Messages
+
+        self.graphics_system_message = GraphicsSystemMessage()
+        self.scene.addItem(self.graphics_system_message)
+
+        #-----------------------------------------------------------------------
+
+        VISIBLE_NOTE_BOX = self.visible_note_box
+        TIMING_NOTE_BOX = self.timing_note_box
+        TIMING_NOTE_LINE = self.timing_note_line
+        TIMING_NOTE_LINE_CATCH = self.timing_note_line_catch
+
+        # Note
+        PIXMAPS[GREEN].append(QPixmap(r".\images\graphics_assets\green_music_note_head.png").scaled(19,19))
+        PIXMAPS[YELLOW].append(QPixmap(r".\images\graphics_assets\yellow_music_note_head.png").scaled(19,19))
+        PIXMAPS[CYAN].append(QPixmap(r".\images\graphics_assets\cyan_music_note_head.png").scaled(19,19))
+
+        # Sharp
+        PIXMAPS[GREEN].append(QPixmap(r".\images\graphics_assets\green_sharp.png").scaled(20,45))
+        PIXMAPS[YELLOW].append(QPixmap(r".\images\graphics_assets\yellow_sharp.png").scaled(20,45))
+        PIXMAPS[CYAN].append(QPixmap(r".\images\graphics_assets\cyan_sharp.png").scaled(20,45))
+
+        # Flat
+        PIXMAPS[GREEN].append(QPixmap(r".\images\graphics_assets\green_flat.png").scaled(13,35))
+        PIXMAPS[YELLOW].append(QPixmap(r".\images\graphics_assets\yellow_flat.png").scaled(13,35))
+        PIXMAPS[CYAN].append(QPixmap(r".\images\graphics_assets\cyan_flat.png").scaled(13,35))
+
+        # Natural
+        PIXMAPS[GREEN].append(QPixmap(r".\images\graphics_assets\green_natural.png").scaled(40,48))
+        PIXMAPS[YELLOW].append(QPixmap(r".\images\graphics_assets\yellow_natural.png").scaled(40,48))
+        PIXMAPS[CYAN].append(QPixmap(r".\images\graphics_assets\cyan_natural.png").scaled(40,48))
+
+        return None
+
+    def draw_filtered_sequence(self):
+
+        tick_count = LEFT_TICK_SHIFT
+        #print("Drawing the following filtered_sequence")
+        #print(self.filtered_sequence)
+
+        for event in self.filtered_sequence:
+
+            if event[0] == "META":
+                self.drawn_notes_group.append(["META"])
+                continue
+
+            note_array = event[0]
+            tick = event[1]
+            tick_count += tick
+            temp_list = []
+
+            if note_array == []:
+                continue
+
+            top_note = max(note_array)
+            for note in note_array:
+                drawn_note = GraphicsNote(note, tick_count, self)
+                self.scene.addItem(drawn_note)
+                temp_list.append(drawn_note)
+
+                if note == top_note:
+                    #print("Top note: ", drawn_note)
+                    drawn_note.top_note = True
+
+            self.drawn_notes_group.append(temp_list)
+
+        return True
+
+    def stop_all_notes(self):
+        for event in self.drawn_notes_group:
+
+            if event == ["META"]:
+                continue
+
+            for note in event:
+                note.stop()
+        return None
+
+    def move_all_notes(self):
+
+        for event in self.drawn_notes_group:
+
+            if event == ["META"]:
+                continue
+
+            for note in event:
+                note.set_speed(self.tick_per_frame)
+
+        return None
+
+    #---------------------------------------------------------------------------
+    # GUI Tutoring Functions
+
+    def play_stop(self):
+
+        if self.tutor_enable is True:
+            if self.live_settings['play'] is True:
+                self.live_settings['play'] = False
+                self.toolButton_play.setText("Play")
+                self.stop_all_notes()
+            else:
+                self.live_settings['play'] = True
+                self.toolButton_play.setText("Stop")
+                self.move_all_notes()
+        else:
+            print("Tutor not enabled")
+
+        return None
+
+    def restart(self):
+
+        if self.tutor_enable is True:
+
+            #self.tutor.exit()
+            self.tutor.terminate()
+            self.live_settings['play'] = False
+            self.toolButton_play.setText("Play")
+
+            for event in self.drawn_notes_group:
+                if event == ['META']:
+                    continue
+                for note in event:
+                    self.scene.removeItem(note)
+                    del note
+
+            self.drawn_notes_group.clear()
+            self.arduino_comm([], 'set')
+            self.draw_filtered_sequence()
+            self.tutor = Tutor(self)
+            self.tutor.start()
+            self.tutor.finished.connect(self.end_of_song)
+
+        else:
+            print("Tutor not enabled")
+
+        return None
+
+    def mode_change(self):
+
+        print("tutoring mode changed")
+        self.live_settings['mode'] = self.comboBox_tutoring_mode.currentText()
+
+        return None
+
+    def hand_change(self):
+
+        if self.tutor_enable is True:
+
+            print("hand skill changed")
+            self.live_settings['hand'] = self.comboBox_hand_skill.currentText()
+
+            if self.live_settings['hand'] == "Both":
+                for event in self.drawn_notes_group:
+                    if event == ['META']:
+                        continue
+                    for note in event:
+                        note.shaded = False
+
+            elif self.live_settings['hand'] == "Right Hand":
+                for event in self.drawn_notes_group:
+                    if event == ['META']:
+                        continue
+                    for note in event:
+                        if note.note_pitch >= MIDDLE_C:
+                            note.shaded = False
+                        else:
+                            note.shaded = True
+
+            elif self.live_settings['hand'] == "Left Hand":
+                for event in self.drawn_notes_group:
+                    if event == ['META']:
+                        continue
+                    for note in event:
+                        if note.note_pitch >= MIDDLE_C:
+                            note.shaded = True
+                        else:
+                            note.shaded = False
+        else:
+            print("Tutor not enabled")
+
+        return None
+
+    def speed_change(self):
+
+        self.live_settings['speed'] = self.spinBox_speed.value()
+        print("Speed Changed")
+
+        self.set_tick_per_frame()
+
+        return None
+
+    def transpose_change(self):
+
+        if self.tutor_enable is True:
+            self.live_settings['transpose'] = self.spinBox_transpose.value()
+
+            transpose_diff = self.live_settings['transpose'] - self.transpose_tracker
+            self.transpose_tracker = self.live_settings['transpose']
+
+            # Change all notes in Graphics
+            for event in self.drawn_notes_group:
+                if event == ['META']:
+                    continue
+                for note in event:
+                    note.set_note_pitch(note.note_pitch + transpose_diff)
+
+            # Change the filtered_sequence
+            for i in range(len(self.filtered_sequence)):
+                note_array = self.filtered_sequence[i][0]
+                if note_array == 'META':
+                    continue
+                new_note_array = []
+                for note in note_array:
+                    new_note_array.append(note + transpose_diff)
+                self.filtered_sequence[i][0] = new_note_array
+
+
+            print("Post-transpose filtered_sequence")
+            print(self.filtered_sequence)
+
+            # Change the keyboard_state
+            self.keyboard_state[TARGET] = [note + transpose_diff for note in self.keyboard_state[TARGET]]
+            self.keyboard_state[RIGHT].clear()
+            self.keyboard_state[WRONG].clear()
+
+        else:
+            print("Tutor disabled, transpose change discarted")
+
+        return None
+
+    #---------------------------------------------------------------------------
+    # Tutoring Manipulation Functions
+
+    def setup_tutor(self):
+
+        print("CURRENT TASK: TUTOR SETUP")
+
+        if self.tutor_enable:
+
+            #self.tutor.exit()
+            self.tutor.terminate()
+            self.live_settings['play'] = False
+            self.toolButton_play.setText("Play")
+
+            for event in self.drawn_notes_group:
+                if event == ['META']:
+                    continue
+                for note in event:
+                    self.scene.removeItem(note)
+                    del note
+
+            self.drawn_notes_group.clear()
+
+        # Normal tutor setup procedure
+        self.tutor_enable = True
+
+        self.original_sequence = []
+        self.filtered_sequence = []
+
+        # Graphics
+        self.drawn_notes_group = []
+
+        self.midi_setup()
+        self.draw_filtered_sequence()
+
+        self.tutor = Tutor(self)
+        self.tutor.start()
+        self.tutor.finished.connect(self.end_of_song)
+
+        return None
+
+    def end_of_song(self):
+
+        self.live_settings['play'] = False
+        self.toolButton_play.setText("Play")
+
+        return None
+
+    #---------------------------------------------------------------------------
+    # File Input
 
     def upload_file(self):
         # This function allows the user to upload a file for file conversions
 
-        upload_file_path = self.openFileNameDialog_UserInput()
+        upload_file_path = self.open_filename_dialog_user_input("Select Audio File", "All Supported Files (*.mid *.mp3 *.pdf);;All Files (*.*);;MIDI Files(*.mid);;MP3 Files(*.mp3);;PDF Files (*.pdf)")
 
         if upload_file_path:
 
-            self.stop_all_animation()
             print("UPLOAD FILE LOCATION: {0}".format(upload_file_path))
 
             self.file_container.clean_temp_folder()
@@ -257,110 +1611,28 @@ class Skore(QtWidgets.QMainWindow):
             self.file_container.add_file_type(upload_file_path)
 
             if is_mid(upload_file_path):
-                self.tutor_animation.start()
-                self.generateMusicSheet_animation.start()
-            elif is_pdf(upload_file_path):
-                self.generateMIDFile_animation.start()
-            elif is_mp3(upload_file_path):
-                self.generateMIDFile_animation.start()
-                self.generateMusicSheet_animation.start()
 
-            self.retranslate_ui()
+                self.spinBox_speed.setValue(100)
+                self.spinBox_transpose.setValue(0)
+                self.transpose_tracker = 0
+                self.comboBox_tutoring_mode.setCurrentText("Beginner")
+                self.comboBox_hand_skill.setCurrentText("Both")
 
-        return
-
-    def generateMusicSheet(self):
-        # This functions converts the file uploaded to .pdf. It checkes if the
-        # user has actually uploaded a file and if the conversion is valid.
-
-        if self.file_container.is_empty() is not True:
-            if self.file_container.has_pdf_file() is True:
-                QMessageBox.about(self, "Invalid/Unnecessary Conversion", "Cannot convert .pdf to .pdf or already present .pdf file in output directory")
-                return
-
-            else:
-                # Obtaining mid file location
-                self.stop_all_animation()
-                #self.file_container.input_to_pdf(self.progress_bar)
-                self.file_container.input_to_pdf()
-                #setting_write('midi_file_location',mid_file_obtained_path)
-
-                self.saveGeneratedFiles_animation.start()
-                self.tutor_animation.start()
-
-                self.retranslate_ui()
-
-        else:
-            print("No file uploaded")
-            QMessageBox.about(self, "File Needed", "Please upload a file before taking an action.")
-        return
-
-    def generateMIDFile(self):
-        # This functions converts the file uploaded to .mid. It checkes if the
-        # user has actually uploaded a file and if the conversion is valid.
-
-        if self.file_container.is_empty() is not True:
-            if self.file_container.has_midi_file() is True:
-                QMessageBox.about(self, "Invalid/Unnecessary Conversion", "Cannot convert .mid to .mid or already present .mid file in output directory")
-                return
-
-            # Obtaining mid file location
-            self.stop_all_animation()
-            #self.file_container.input_to_mid(self.progress_bar)
-            self.file_container.input_to_mid()
-            self.saveGeneratedFiles_animation.start()
-            self.tutor_animation.start()
-
-            if self.file_container.has_pdf_file() is not True:
-                self.generateMusicSheet_animation.start()
-
-            self.retranslate_ui()
-
-        else:
-            #QMessageBox.about(MainWindow, "File Needed", "Please upload a file before taking an action")
-            QMessageBox.about(self, "File Needed", "Please upload a file before taking an action")
-        return
-
-    def saveGeneratedFiles(self):
-        # This functions saves all the files generated by the user. Effectively
-        # it relocates all the files found temp to the user's choice of directory
-
-        if len(self.file_container.file_path) >= 2:
-            filename = os.path.splitext(os.path.basename(self.file_container.original_file))[0]
-            user_given_filename, okPressed = QInputDialog.getText(self, "Save Files","Files Group Name:", QLineEdit.Normal, filename)
-
-            if okPressed:
-                save_folder_path = self.openDirectoryDialog_UserInput()
-                print(save_folder_path)
-
-                if user_given_filename == '' or save_folder_path == '':
-                    QMessageBox.about(self, "Invalid Information",  "Please enter a valid filename or/and save folder path")
-                    return None
-
-                # Obtaining mid file location
-                self.file_container.temp_to_folder(save_folder_path, user_given_filename)
-                self.stop_all_animation()
-
-                if self.file_container.has_midi_file() is True:
-                    self.tutor_animation.start()
-
-                self.uploadAudioFile_animation.start()
-                self.record_animation.start()
-
-                self.retranslate_ui()
-
-        else:
-            QMessageBox.about(self, "No Conversion Present", "Please upload and convert a file before saving it.")
+                self.midi_file_path = upload_file_path
+                #self.midi_setup()
+                self.setup_tutor()
 
         return None
 
-################################################################################
-
-    def openFileNameDialog_UserInput(self):
+    def open_filename_dialog_user_input(self, title, supported_files):
         # This file dialog is used to obtain the file location of the .mid, .mp3,
         # and .pdf file.
 
-        fileName, _ = QFileDialog.getOpenFileName(caption = "Select Audio File", filter = "All Supported Files (*.mid *.mp3 *.pdf);;All Files (*.*);;MIDI Files(*.mid);;MP3 Files(*.mp3);;PDF Files (*.pdf)")
+
+        #fileName, _ = QFileDialog.getOpenFileName(caption = "Select Audio File", filter = "All Supported Files (*.mid *.mp3 *.pdf);;All Files (*.*);;MIDI Files(*.mid);;MP3 Files(*.mp3);;PDF Files (*.pdf)")
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        fileName, _ = QFileDialog.getOpenFileName(self, title, "", supported_files, options=options)
 
         if fileName:
             file_dialog_output = str(fileName)
@@ -368,14 +1640,15 @@ class Skore(QtWidgets.QMainWindow):
             return ""
 
         file_dialog_output = file_dialog_output.replace('/' , '\\' )
-        file_upload_event = 1
         return file_dialog_output
 
-    def openDirectoryDialog_UserInput(self):
+    def open_directory_dialog_user_input(self):
         # This file dialog is used to obtain the folder directory of the desired
         # save location for the generated files
 
-        options = QFileDialog.ShowDirsOnly
+        options = QFileDialog.Options()
+        options |= QFileDialog.ShowDirsOnly
+        options |= QFileDialog.DontUseNativeDialog
         #directory = QFileDialog.getExistingDirectory(self, caption = 'Open a folder', directory = skore_path, options = options)
         directory = QFileDialog.getExistingDirectory(self, caption = 'Open a folder', options = options)
 
@@ -387,227 +1660,433 @@ class Skore(QtWidgets.QMainWindow):
         file_dialog_output = file_dialog_output.replace('/' , '\\' )
         return file_dialog_output
 
-    def settingsDialog(self):
-        # This function opens the settings dialog
+    def save_generated_files(self):
+        # This functions saves all the files generated by the user. Effectively
+        # it relocates all the files found temp to the user's choice of directory
 
-        self.settings_dialog = SettingsDialog()
-        self.settings_dialog.show()
+        if len(self.file_container.file_path) >= 2:
+            filename = os.path.splitext(os.path.basename(self.file_container.original_file))[0]
+            user_given_filename, okPressed = QInputDialog.getText(self, "Save Files","Files Group Name:", QLineEdit.Normal, filename)
 
-        return
+            if okPressed:
+                save_folder_path = self.open_directory_dialog_user_input()
+                print("SAVE FOLDER LOCATION: {0}".format(save_folder_path))
 
-    def stop_all_animation(self):
+                if user_given_filename == '' or save_folder_path == '':
+                    QMessageBox.about(self, "Invalid Information",  "Please enter a valid filename or/and save folder path")
+                    return None
 
-        for animation in self.animation_group:
-            animation.stop()
+                # Obtaining mid file location
+                self.file_container.temp_to_folder(save_folder_path, user_given_filename)
 
-        for blink_button in self.blink_button_group:
-            blink_button.reset_color()
-        return
-
-
-
-class ProgressBarDialog(QtWidgets.QDialog):
-    # This QtWidget deals with the display of the progress bar during the file
-    # conversion. This is to inform the user the state of the file conversion
-    # to ensure no malfunction due to user interference.
-
-    def __init__(self):
-        super(QtWidgets.QDialog, self).__init__()
-        self.init_dialog()
-
-    def init_dialog(self):
-        # This initializes the individual qtwidgets ontop of the progress bar dialog
-
-        self.setObjectName("ProgressBarDialog")
-        self.resize(350,150)
-        print("Initializing Progress Bar Dialog")
-        self.setWindowTitle("Progress Bar")
-        self.setWindowFlags(QtCore.Qt.WindowStaysOnTopHint)
-        self.setWindowFlag(QtCore.Qt.WindowCloseButtonHint, False)
-        self.relocate()
-        self.setStyleSheet("""
-            background-color: rgb(50,50,50);
-            color: white;
-            """)
-
-        self.progress = QProgressBar(self)
-        self.progress.setGeometry(40,40,250,25)
-        self.progress.setStyleSheet("""
-        .QProgressBar {
-            color: red;
-        }
-        """)
-
-        self.current_action_label = QtWidgets.QLabel(self)
-        self.current_action_label.setGeometry(QtCore.QRect(40,70,300,25))
-        self.current_action_label.setObjectName("current_action_label")
-        self.current_action_label.setText("Please wait while we calibrate ... The Nozzle")
-
-        #self.quit_pushButton = QPushButton("Quit",self)
-        #self.quit_pushButton.setGeometry(193,100,100,30)
-
-        print("Finished Initializing Progress Bar Dialog")
-
-        #self.show()
-
-    def relocate(self):
-        # Relocates the ProgressBarDialog in the center of the fourth quadrant
-        # of the screen. This is to ensure that the ProgressBarDialog does not
-        # affect the image processing to click the buttons.
-
-        frameGm = self.frameGeometry()
-        screen = QApplication.desktop().screenNumber(QApplication.desktop().cursor().pos())
-        centerPoint = QApplication.desktop().screenGeometry(screen).center()
-        x_center = centerPoint.x()
-        y_center = centerPoint.y()
-        x_desired = int(x_center + x_center/1.5)
-        y_desired = int(y_center + y_center/1.5)
-        centerPoint.setX(x_desired)
-        centerPoint.setY(y_desired)
-        frameGm.moveCenter(centerPoint)
-        self.move(frameGm.topLeft())
-        return
-
-
-
-class RedDotThread(QThread):
-    # This thread checks and determines the address given for the midi file
-    # recorded by Red Dot Forever. It successfully changes the upload_file
-    # variable and other necessary changes to account for any changes.
-
-    red_dot_signal = QtCore.pyqtSignal('QString','QString')
-
-    def __init__(self):
-        QThread.__init__(self)
-
-    def run(self):
-
-        address_list = []
-        filename_list = []
-        s_handle = []
-
-        red_app = pywinauto.application.Application()
-        red_app_exe_path = setting_read('red_app_exe_path')
-        red_app.start(red_app_exe_path)
-        print("Initialized Red Dot Forever")
-
-        while(True):
-            try:
-                w_handle = pywinauto.findwindows.find_windows(title="Red Dot Forever")[0]
-                window = red_app.window(handle=w_handle)
-                break
-            except IndexError:
-                time.sleep(0.2)
-
-
-        while(True):
-            try:
-                s_handle = pywinauto.findwindows.find_windows(parent=w_handle)[0]
-                s_window = red_app.window(handle=s_handle)
-            except IndexError:
-                s_handle = []
-
-            if s_handle != []:
-                toolbarwindow = s_window.Toolbar4
-                edit = s_window.Edit
-                while(True):
-                    try:
-                        address_list = toolbarwindow.texts()
-                        filename_list = edit.texts()
-                    except:
-                        break
-
-            # Checking if the Red Dot Forever application is running
-            processes = [p.name() for p in psutil.process_iter()]
-
-            for process in processes:
-                if process == 'reddot.exe':
-                    # Red Dot Forever is running
-                    break
-
-            if process != 'reddot.exe':
-                print("Red Dot Forever Closed")
-                break
-
-        if address_list == [] or filename_list == []:
-            return
-
-        print("Final Data")
-        print("Address: " + str(address_list))
-        print("File Name: " + str(filename_list))
-
-        address_string = ''
-        filename_string = ''
-
-        for item in address_list:
-            address_string += item + ';'
-
-        address_string = address_string[:-1]
-
-        for item in filename_list:
-            filename_string += item + ';'
-
-        filename_string = filename_string[:-1]
-        self.red_dot_signal.emit(address_string,filename_string)
+        else:
+            QMessageBox.about(self, "No Conversion Present", "Please upload and convert a file before saving it.")
 
         return None
 
+    #--------------------------------------------------------------------------
+    # Midi Handling
 
+    def midi_setup(self):
+        # This fuction deletes pre-existing MIDI files and places the new desired MIDI
+        # file into the cwd of tutor.py . Then it converts the midi information
+        # of that file into a sequence of note events.
 
-class BlinkButton(QPushButton):
+        # Mido Method
+        self.original_sequence = []
+        self.filtered_sequence = []
+        self.midi_file = MidiFile(self.midi_file_path)
 
-    def __init__(self, *args, **kwargs):
-        QPushButton.__init__(self, *args, **kwargs)
-        self.default_color = self.getColor()
+        #print("Ticks per beat: ", self.midi_file.ticks_per_beat)
+        print("CURRENT TASK: MIDI SETUP")
 
-    def getColor(self):
-        #return self.palette().color(QPalette.Button)
-        #return self.palette().color(QColor(50,50,50))
-        return QColor(50,50,50)
+        # Now obtaining the pattern of the midi file found.
+        self.track_identification()
+        self.track_selection()
+        self.stage_track_to_sequence()
+        self.sequence_filtering()
 
-    def setColor(self, value):
-        if value == self.getColor():
-            return
-        palette = self.palette()
-        palette.setColor(self.backgroundRole(), value)
-        self.setFlat(True)
-        self.setAutoFillBackground(True)
-        self.setPalette(palette)
+        print("""
+---------------------------Tutor Midi Setup-----------------------------
+MIDI FILE LOCATION: {0}
 
-    def reset_color(self):
-        palette = self.palette()
-        palette.setColor(self.backgroundRole(), self.default_color)
-        self.setPalette(palette)
-        self.setFlat(False)
+ORIGINAL MIDI SEQUENCE LENGTH:
+{1}
 
-    color = pyqtProperty(QColor, getColor, setColor)
+FILTERED MIDI SEQUENCE LENGTH:
+{2}
 
+        """.format(self.midi_file_path, self.original_sequence, self.filtered_sequence))#.format(self.midi_file_path, len(self.original_sequence), len(self.filtered_sequence)))
 
+        # Setting default tempo
+        self.tempo = 500000
+        self.set_tick_per_frame()
 
-class BlinkAnimation(QPropertyAnimation):
+        return True
 
-    qwidget = []
+    def track_identification(self):
 
-    def __init__(self, *args, **kwargs):
-        QPropertyAnimation.__init__(self, *args, **kwargs)
+        #self.midi_file.tempo = None
 
-        #global qwidget
-        qwidget = args[0]
+        #print("Looking into the midi file's tracks")
+        #print("Quantity of Tracks: ", len(self.midi_file.tracks))
 
-        self.setDuration(3000)
-        self.setLoopCount(-1) # Run infinitely
-        self.setStartValue(qwidget.default_color)
-        self.setEndValue(qwidget.default_color)
-        self.setKeyValueAt(0.5, QColor(10,200,30))
+        self.tracks_information = []
+        self.setup_tracks = []
+        self.note_tracks = []
+
+        for i in range(len(self.midi_file.tracks)):
+            meta_counter = 0
+            note_counter = 0
+            track_name = "Track " + str(i)
+
+            for msg in self.midi_file.tracks[i]:
+                if msg.is_meta:
+                    meta_counter += 1
+                    if msg.type == 'track_name':
+                        self.midi_file.tracks[i].name = msg.name
+                if msg.type == 'note_on':
+                    note_counter += 1
+
+            if note_counter == 0:
+                # setup track
+                self.midi_file.tracks[i].track_type = "setup_track"
+                self.setup_tracks.append(self.midi_file.tracks[i])
+            else:
+                self.midi_file.tracks[i].track_type = 'note_track'
+                self.midi_file.tracks[i].played = False
+                self.note_tracks.append(self.midi_file.tracks[i])
+
+        return None
+
+    def track_selection(self):
+
+        print("Note tracks: ", self.note_tracks)
+
+        if self.tracks_selected_labels is None:
+            # Setup and first note event track for original setup
+            self.staged_track = merge_tracks([self.note_tracks[0]] + self.setup_tracks)
+            self.note_tracks[0].played = True
+
+        else:
+            self.tracks_selected = []
+
+            for track in self.note_tracks:
+                track.played = self.tracks_selected_labels[track.name]
+                if track.played is True:
+                    self.tracks_selected.append(track)
+
+            self.staged_track = merge_tracks(self.tracks_selected + self.setup_tracks)
+
+        print("Staged Track", self.staged_track)
+
+        return None
+
+    def stage_track_to_sequence(self):
+
+        self.midi_file.tick_divider = 1
+
+        if self.midi_file.ticks_per_beat > 500:
+            print("TICKS PER BEAT TOO HIGH -> SET TO DEFAULT 98")
+            self.midi_file.tick_divider = self.midi_file.ticks_per_beat / 98
+            self.midi_file.ticks_per_beat = 98
+
+        for msg in self.staged_track:
+
+            if msg.type == 'note_on':
+                self.original_sequence.append(SkoreMidiEvent(None, round(msg.time / self.midi_file.tick_divider)))
+                self.original_sequence.append(SkoreMidiEvent(True, msg.note))
+            elif msg.type == 'note_off':
+                self.original_sequence.append(SkoreMidiEvent(None, round(msg.time / self.midi_file.tick_divider)))
+                self.original_sequence.append(SkoreMidiEvent(False, msg.note))
+
+            if msg.is_meta:
+                self.original_sequence.append(SkoreMetaEvent(msg.type, msg))
+
+        return None
+
+    def sequence_filtering(self):
+
+        final_index = -1
+
+        for i in range(len(self.original_sequence)):
+
+            #-------------------------------------------------------------------
+            # Meta Event Detection
+            #print(self.original_sequence[i])
+
+            if isinstance(self.original_sequence[i], SkoreMetaEvent):
+                #print("Meta Event Added to self.filtered_sequence at {} index", i)
+                self.filtered_sequence.append(["META", self.original_sequence[i].event_type, self.original_sequence[i].data])
+                continue
+
+            if final_index >= i:
+                continue
+
+            if self.original_sequence[i].event_type is None or self.original_sequence[i].event_type is False:
+                continue
+
+            #-------------------------------------------------------------------
+            # Determing Pre-Note/Chord Delay
+
+            delta_time = 0
+
+            for event in reversed(self.original_sequence[:i]):
+
+                if event.event_type is None:
+                    delta_time += event.data
+
+                elif event.event_type is True:
+                    break
+
+            #-------------------------------------------------------------------
+            # Chord Detection
+
+            chord_delta_time = 0
+            note_array = []
+            final_index = i
+
+            for index_tracker, event in enumerate(self.original_sequence[i:]):
+
+                if event.event_type is None:
+                    if event.data >= CHORD_TICK_TOLERANCE:
+                        final_index += index_tracker - 1
+                        break
+                    else:
+                        if chord_delta_time + event.data >= CHORD_SUM_TOLERANCE:
+                            final_index += index_tracker - 1
+                            break
+                        else:
+                            chord_delta_time += event.data
+
+                elif event.event_type is True:
+                    note_array.append(event.data)
+
+            #self.filtered_sequence.append([note_array, sec_delay])
+            self.filtered_sequence.append([note_array, delta_time])
+
+        return None
+
+    def set_tick_per_frame(self):
+
+        # 60 fps = 16ms, 1fps = a number of ticks
+        frame_per_sec = 1000/(CLOCK_DELAY)
+
+        sec_per_tick = tick2second(1, self.midi_file.ticks_per_beat, self.tempo)
+        sec_per_tick = sec_per_tick * 100/self.live_settings['speed']
+
+        self.tick_per_frame = (1/sec_per_tick) * (1/frame_per_sec)
+        #print("sec_per_tick: {0}\nframe_per_sec: {1}\ntick_per_frame: {2}".format(sec_per_tick, frame_per_sec, tick_per_frame))
+
+        return None
+
+    def play_midi_file(self):
+
+        if self.tutor_enable is True:
+            print("play midi file")
+
+            for msg in self.midi_file.play():
+                print(msg)
+                self.midi_out.send_message(msg.bytes())
+
+            print("Finished")
+
+        else:
+            print("No midi file found")
+
+        return None
+
+    #---------------------------------------------------------------------------
+    # Track Management
+
+    def open_track_manager_dialog(self):
+
+        if self.tutor_enable is True:
+            print("Open track_manager")
+            self.track_manager = TrackManagerDialog(self.note_tracks)
+            self.track_manager.finished_and_transmit_data_signal.connect(self.end_track_manager_dialog)
+            self.track_manager.setModal(True)
+            self.track_manager.show()
+
+        return None
+
+    @pyqtSlot('QString')
+    def end_track_manager_dialog(self, tracks_selected_labels):
+
+        print("Accepted")
+        print("tracks_selected_labels: ", tracks_selected_labels)
+
+        self.tracks_selected_labels = ast.literal_eval(tracks_selected_labels)
+
+        self.tutor.terminate()
+        self.live_settings['play'] = False
+        self.toolButton_play.setText("Play")
+
+        for event in self.drawn_notes_group:
+            if event == ['META']:
+                continue
+            for note in event:
+                self.scene.removeItem(note)
+                del note
+
+        self.original_sequence = []
+        self.filtered_sequence = []
+
+        # Graphics
+        self.drawn_notes_group = []
+
+        #self.midi_setup()
+        self.track_selection()
+        self.stage_track_to_sequence()
+        self.sequence_filtering()
+
+        # Setting default tempo
+        self.tempo = 500000
+        self.set_tick_per_frame()
+
+        self.draw_filtered_sequence()
+
+        self.tutor = Tutor(self)
+        self.tutor.start()
+        self.tutor.finished.connect(self.end_of_song)
+
+        return None
+
+    #---------------------------------------------------------------------------
+    # File Conversion
+
+    def generate_midi_file(self):
+        # This functions converts the file uploaded to .mid. It checkes if the
+        # user has actually uploaded a file and if the conversion is valid.
+
+        if self.file_container.is_empty() is not True:
+            if self.file_container.has_midi_file() is True:
+                QMessageBox.about(self, "Invalid/Unnecessary Conversion", "Cannot convert .mid to .mid or already present .mid file in output directory")
+                return
+
+            # Obtaining mid file location
+            self.file_container.input_to_mid()
+            self.midi_file_path = self.file_container.file_path['.mid']
+            self.setup_tutor()
+
+        else:
+            #QMessageBox.about(MainWindow, "File Needed", "Please upload a file before taking an action")
+            QMessageBox.about(self, "File Needed", "Please upload a file before taking an action")
+
+        return None
+
+    def generate_pdf_file(self):
+
+        if self.file_container.is_empty() is not True:
+            if self.file_container.has_pdf_file() is True:
+                QMessageBox.about(self, "Invalid/Unnecessary Conversion", "Cannot convert .pdf to .pdf or already present .pdf file in output directory")
+                return
+
+            else:
+                # Obtaining mid file location
+                self.file_container.input_to_pdf()
+
+        else:
+            print("No file uploaded")
+            QMessageBox.about(self, "File Needed", "Please upload a file before taking an action.")
+        return
+
+    #---------------------------------------------------------------------------
+    # Settings Functions
+
+    def open_settings_dialog(self):
+
+        """
+        self.settings_dialog = SettingsDialog()
+        self.settings_dialog.finish_apply_signal.connect(self.settings_dialog_change)
+        self.settings_dialog.setModal(True)
+        self.settings_dialog.show()
+        """
+        self.config_dialog = ConfigDialog()
+        self.config_dialog.finish_apply_signal.connect(self.settings_dialog_change)
+        self.config_dialog.setModal(True)
+        self.config_dialog.show()
+
+        return None
+
+    def settings_dialog_change(self):
+
+        print("SETTINGS UPDATE: CHANGES APPLIED")
+        self.setup_comm()
+
+        return None
+
+    #---------------------------------------------------------------------------
+
+    def skore_recorder(self):
+
+        try:
+            self.recorder_handler = RecorderMidiHandler(self)
+            self.midi_in.set_callback(self.recorder_handler)
+        except AttributeError:
+            QMessageBox.about(self, "No MIDI device paired to SKORE", "Please connect a MIDI device and update the settings before recording.")
+            return None
+
+        self.recorder_dialog = RecorderDialog(self)
+        self.recorder_dialog.finished.connect(self.end_skore_recorder)
+        self.recorder_dialog.setModal(True)
+        self.recorder_dialog.show()
+
+        return None
+
+    def end_skore_recorder(self):
+
+        try:
+            self.midi_in.set_callback(TutorMidiHandler(self))
+        except AttributeError:
+            print("Returning TutorMidiHandler to midi_in.set_callback failed!")
+
+        print("Return from recorder_dialog")
+
+        return None
+
+    #---------------------------------------------------------------------------
+    # Misc Functions
+
+    def open_skore_website(self):
+        webbrowser.open('https://mrcodingrobot.github.io/SKORE/')
+        return None
+
+    def retranslate_ui(self):
+        _translate = QtCore.QCoreApplication.translate
+        self.toolButton_restart.setText(_translate("MainWindow", "Restart"))
+        self.toolButton_play.setText(_translate("MainWindow", "Play"))
+        self.toolButton_track_manager.setText(_translate("MainWindow", "Track Manager"))
+        self.label_speed.setText(_translate("MainWindow", "Speed:"))
+        self.label_transpose.setText(_translate("MainWindow", "Transpose:"))
+        self.label_tutoring_mode.setText(_translate("MainWindow", "Tutoring Mode:"))
+        self.label_hand_skill.setText(_translate("MainWindow", "Hand Skill:"))
+        self.menuFile.setTitle(_translate("MainWindow", "File"))
+        self.menuSettings.setTitle(_translate("MainWindow", "Settings"))
+        self.menuHelp.setTitle(_translate("MainWindow", "Help"))
+        self.actionOpenFile.setText(_translate("MainWindow", "Open File..."))
+        self.actionRecord.setText(_translate("MainWindow", "Record "))
+
+        # Troubleshooting
+        self.actionPlay.setText(_translate("MainWindow", "Play MIDI"))
+
+        self.actionCreate_MIDI.setText(_translate("MainWindow", "Create MIDI"))
+        self.actionCreate_PDF.setText(_translate("MainWindow", "Create PDF"))
+        self.actionSave_File.setText(_translate("MainWindow", "Save Files..."))
+        self.actionExit.setText(_translate("MainWindow", "Exit"))
+        self.actionConfig.setText(_translate("MainWindow", "Config..."))
+        #self.actionTrackManager.setText(_translate("MainWindow", "Track Manager"))
+        self.actionWebsite.setText(_translate("MainWindow", "Website"))
+        self.actionAbout.setText(_translate("MainWindow", "About"))
 
 #-------------------------------------------------------------------------------
 # Main Code
 
 if __name__ == "__main__":
-    import sys
     app = QtWidgets.QApplication(sys.argv)
-    list = QStyleFactory.keys()
-    app.setStyle(QStyleFactory.create(list[2])) #Fusion
-    ui = Skore()
-    ui.show()
+    theme_list = QStyleFactory.keys()
+    app.setStyle(QStyleFactory.create(theme_list[2])) #Fusion
+
+    window = SkoreWindow()
+    window.show()
     sys.exit(app.exec_())

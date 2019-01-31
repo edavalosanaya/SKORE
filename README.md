@@ -35,17 +35,13 @@ Preferably follow the installation instructions in Audiveris' wiki. You will nee
      - [Java JDK version 8]
      - [Gradle]
      - [Tesseract OCR]
- - [Red Dot Forever] (v1.04)
  - [AmazingMIDI] (v1.70)
  - [AnthemScore] (Optional, not free)
- - [PianoBooster] (v0.6.4)
- - [LoopBe1] (v1.6)
 
 ### TODO:
 ---
 
  - [ ] Make the PBC fabrication streamline
- - [ ] Develop native visual-aid application to replace PianoBooster
 
 ### License
 
@@ -56,8 +52,5 @@ Currently working on this. Stay tuned.
 [Java JDK version 8]: <http://www.oracle.com/technetwork/java/javase/downloads/index.html>
 [Gradle]: <https://gradle.org/>
 [Tesseract OCR]: <https://github.com/tesseract-ocr/tesseract>
-[Red Dot Forever]: <https://sourceforge.net/projects/reddot/files/latest/download>
 [AmazingMIDI]: <http://www.pluto.dti.ne.jp/~araki/amazingmidi/>
 [AnthemScore]: <https://www.lunaverus.com/>
-[PianoBooster]: <http://pianobooster.sourceforge.net/screenshots.html>
-[LoopBe1]: <https://www.nerds.de/en/download.html>

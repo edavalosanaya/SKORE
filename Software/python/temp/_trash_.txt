@@ -1,1 +1,0 @@
-This file is here to ensure when downloading the repository, the temp folder is not removed.
