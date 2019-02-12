@@ -1,16 +1,9 @@
 # General Utility
-import win32api
-import win32con
-import psutil
 import time
-import inspect
-import pywinauto
 import sys
-from pywinauto.controls.win32_controls import ButtonWrapper
 from time import sleep
 import os
 import difflib
-import math
 import webbrowser
 import ast
 
@@ -26,10 +19,7 @@ from midi import read_midifile, NoteEvent, NoteOffEvent, MetaEvent
 from mido import tick2second, MidiFile, merge_tracks
 import serial
 import serial.tools.list_ports
-import glob
-from ctypes import windll
 import rtmidi
-from shutil import copyfile
 
 # This is to prevent an error caused when importing skore_lib
 import warnings
@@ -37,694 +27,17 @@ warnings.simplefilter("ignore", UserWarning)
 sys.coinit_flags = 2
 
 # SKORE Library
+import globals
+from tutor_and_midi_classes import Tutor, TutorMidiHandler, SkoreMetaEvent, SkoreMidiEvent
+from main_window_graphics import GraphicsSystemMessage, GraphicsPlayedLabel, GraphicsPlayedNameLabel
+from main_window_graphics import GraphicsController, GraphicsNote
 from lib_skore import FileContainer, GuiManipulator, read_config, is_mid, is_mp3, is_pdf, rect_to_int
 from recorder_dialog import RecorderDialog, RecorderMidiHandler
 from config_dialog import ConfigDialog
 from track_manager_dialog import TrackManagerDialog
 
 #-------------------------------------------------------------------------------
-# Constants
-
-TUTOR_THREAD_DELAY = 0.1
-
-KEYBOARD_SHIFT = 28 # 48, 36
-COMM_TIMEOUT = 30
-HANDSHAKE_DELAY = 0.001
-
-CHORD_TICK_TOLERANCE = 10
-DELAY_EARLY_TOLERANCE = 25
-DELAY_LATE_TOLERANCE = 25
-CHORD_SUM_TOLERANCE = 25
-
-CLOCK_DELAY = 16
-
-MIDDLE_C = 60
-
-NOTE_NAME_TO_Y_LOCATION = {
-    # Bass Clef
-    "A0":330, "B0":320, "C1":310, "D1":300, "E1":290, "F1":280, "G1":270,
-    "A1":260, "B1":250, "C2":240, "D2":230, "E2":220, "F2":210, "G2":200,
-    "A2":190, "B2":180, "C3":170, "D3":160, "E3":150, "F3":140, "G3":130,
-    "A3":120, "B3":110,
-    # Treble Clef
-    "C4":-180, "D4":-190, "E4":-200, "F4":-210, "G4": -220,
-    "A4":-230, "B4":-240, "C5":-250, "D5":-260, "E5":-270, "F5":-280, "G5":-290,
-    "A5":-300, "B5":-310, "C6":-320, "D6":-330, "E6":-340, "F6":-350, "G6":-360,
-    "A6":-370, "B6":-380, "C7":-390, "D7":-400, "E7":-410, "F7":-420, "G7":-430,
-    "A7":-440, "B7":-450, "C8":-460
-}
-# The highest note in 88 keyboard is C8
-
-NOTE_PITCH_TO_NOTE_NAME = {
-    21:"A0",22:"A0,B0",23:"B0",24:"C1",25:"C1,D1",26:"D1",27:"D1,E1",28:"E1",29:"F1",30:"F1,G1",31:"G1",32:"G1,A1",
-    33:"A1",34:"A1,B1",35:"B1",36:"C2",37:"C2,D2",38:"D2",39:"D2,E2",40:"E2",41:"F2",42:"F2,G2",43:"G2",44:"G2,A2",
-    45:"A2",46:"A2,B2",47:"B2",48:"C3",49:"C3,D3",50:"D3",51:"D3,E3",52:"E3",53:"F3",54:"F3,G3",55:"G3",56:"G3,A3",
-    57:"A3",58:"A3,B3",59:"B3",60:"C4",61:"C4,D4",62:"D4",63:"D4,E4",64:"E4",65:"F4",66:"F4,G4",67:"G4",68:"G4,A4",
-    69:"A4",70:"A4,B4",71:"B4",72:"C5",73:"C5,D5",74:"D5",75:"D5,E5",76:"E5",77:"F5",78:"F5,G5",79:"G5",80:"G5,A5",
-    81:"A5",82:"A5,B5",83:"B5",84:"C6",85:"C6,D6",86:"D6",87:"D6,E6",88:"E6",89:"F6",90:"F6,G6",91:"G6",92:"G6,A6",
-    93:"A6",94:"A6,B6",95:"B6",96:"D6",97:"C7,C7",98:"D7",99:"D7,E7",100:'E7',101:'F7',102:'F7,G7',103:'G7',104:"G7,A7",
-    105:"A7",106:"A7,B7",107:"B7",108:"C8"
-}
-
-LEFT_TICK_SHIFT = -400
-TIMING_NOTE_BOX = None
-TIMING_NOTE_LINE = None
-TIMING_NOTE_LINE_CATCH = None
-VISIBLE_NOTE_BOX = None
-GRAPHICS_CONTROLLER = None
-
-BOTTOM_STAFF_LINE_Y_LOCATION = NOTE_NAME_TO_Y_LOCATION["G2"]
-TOP_STAFF_LINE_Y_LOCATION = NOTE_NAME_TO_Y_LOCATION["F5"]
-
-HIDDEN = 0.01
-VISIBLE = 1
-
-#keyboard_state index
-NEUTRAL = 0
-RIGHT = 1
-WRONG = 2
-TARGET = 4
-ARDUINO = 5
-PREV_TARGET = 6
-
-PIXMAPS = [[],[],[]]
-GREEN = 0
-YELLOW = 1
-CYAN = 2
-
-NOTE = 0
-SHARP = 1
-FLAT = 2
-NATURAL = 3
-
-#-------------------------------------------------------------------------------
-# Useful Function
-
-#-------------------------------------------------------------------------------
 # Classes
-
-class SkoreMidiEvent:
-
-    def __init__(self, event_type, event_data):
-        self.event_type = event_type
-        self.data = event_data
-
-        return None
-
-    def __repr__(self):
-        return "({0}, {1})".format(self.event_type, self.data)
-
-class SkoreMetaEvent:
-
-    def __init__(self, event_type, event_data):
-        self.event_type = event_type
-        self.data = event_data
-
-        return None
-
-    def __repr__(self):
-
-        return "(Meta: {0}, {1})".format(self.event_type, self.data)
-
-class TutorMidiHandler(object):
-
-    def __init__(self, gui):
-        self.gui = gui
-        self.notes_drawn = {}
-
-    def __call__(self, event, data=None):
-        #print("{0} - {1} - {2}".format(self.port, message, delta_time))
-        message, delta_time = event
-        note_pitch = message[1]
-
-        if self.gui.tutor_enable is True:
-
-            if message[0] == 0x90 and message[2] != 0: # Note ON Event
-                if note_pitch in self.gui.keyboard_state[TARGET]:
-                    if note_pitch not in self.gui.keyboard_state[RIGHT]:
-                        self.gui.keyboard_state[RIGHT].append(note_pitch)
-
-                        note_name = NOTE_PITCH_TO_NOTE_NAME[note_pitch][:2]
-                        self.gui.note_labels[RIGHT][note_name].setOpacity(VISIBLE)
-                        self.gui.note_name_labels[note_name].setOpacity(VISIBLE)
-                        #self.right_wrong_upcoming_arduino_comm('right', note_pitch)
-
-                else:
-                    if note_pitch not in self.gui.keyboard_state[WRONG]:
-                        self.gui.keyboard_state[WRONG].append(note_pitch)
-
-                        note_name = NOTE_PITCH_TO_NOTE_NAME[note_pitch][:2]
-                        self.gui.note_labels[WRONG][note_name].setOpacity(VISIBLE)
-                        self.gui.note_name_labels[note_name].setOpacity(VISIBLE)
-                        self.right_wrong_upcoming_arduino_comm('wrong', note_pitch)
-
-            else: # Note OFF Event
-                if note_pitch in self.gui.keyboard_state[RIGHT]:
-                    self.gui.keyboard_state[RIGHT].remove(note_pitch)
-
-                    note_name = NOTE_PITCH_TO_NOTE_NAME[note_pitch][:2]
-                    self.gui.note_labels[RIGHT][note_name].setOpacity(HIDDEN)
-                    self.gui.note_name_labels[note_name].setOpacity(HIDDEN)
-                    #self.right_wrong_upcoming_arduino_comm('right', note_pitch)
-
-
-                elif note_pitch in self.gui.keyboard_state[WRONG]:
-                    self.gui.keyboard_state[WRONG].remove(note_pitch)
-
-                    note_name = NOTE_PITCH_TO_NOTE_NAME[note_pitch][:2]
-                    self.gui.note_labels[WRONG][note_name].setOpacity(HIDDEN)
-                    self.gui.note_name_labels[note_name].setOpacity(HIDDEN)
-                    self.right_wrong_upcoming_arduino_comm('wrong', note_pitch)
-
-        else:
-
-            if message[0] == 0x90 and message[2] != 0: # Note ON Event
-                if note_pitch not in self.gui.keyboard_state[NEUTRAL]:
-                    self.gui.keyboard_state[NEUTRAL].append(note_pitch)
-
-                    note_name = NOTE_PITCH_TO_NOTE_NAME[note_pitch][:2]
-                    self.gui.note_labels[NEUTRAL][note_name].setOpacity(VISIBLE)
-                    self.gui.note_name_labels[note_name].setOpacity(VISIBLE)
-
-            else: # Note OFF Event
-                if note_pitch in self.gui.keyboard_state[NEUTRAL]:
-                    self.gui.keyboard_state[NEUTRAL].remove(note_pitch)
-
-                    note_name = NOTE_PITCH_TO_NOTE_NAME[note_pitch][:2]
-                    self.gui.note_labels[NEUTRAL][note_name].setOpacity(HIDDEN)
-                    self.gui.note_name_labels[note_name].setOpacity(HIDDEN)
-
-        #print("Current Keyboard State: {0}".format(self.gui.current_keyboard_state))
-
-        return None
-
-    def right_wrong_upcoming_arduino_comm(self, right_wrong, pitch):
-
-        if self.gui.tutor.lighting_scheme == 'RWU':
-            if right_wrong == 'right':
-                self.gui.arduino_comm(pitch, 'toggle')
-            else:
-                self.gui.arduino_comm(pitch, 'toggle')
-
-        return None
-
-class GraphicsSystemMessage(QGraphicsItem):
-
-    def __init__(self):
-        super(GraphicsSystemMessage, self).__init__()
-
-        self.width = 400
-        self.height = 50
-        self.x = -900
-        self.y = -500
-
-        self.font = QFont()
-        self.font.setPixelSize(25)
-
-        self.text = ""
-
-        return None
-
-    def set_text(self, text):
-
-        self.text = text
-
-        return None
-
-    def paint(self, painter, option, widget):
-
-        painter.setPen(Qt.green)
-        painter.setFont(self.font)
-        painter.drawText(self.x, self.y, self.width, self.height, Qt.AlignLeft, self.text)
-
-        return None
-
-    def boundingRect(self):
-
-        return QRectF(self.x + self.width, self.y, self.width, self.height)
-
-class GraphicsPlayedLabel(QGraphicsItem):
-
-    def __init__(self, note, correct = None):
-        super(GraphicsPlayedLabel, self).__init__()
-
-        self.x = -510
-        self.width = 20
-        self.height = 5
-        self.correct = correct
-
-        if type(note) is int:
-            note_name = NOTE_PITCH_TO_NOTE_NAME[note]
-
-            if ',' in note_name:
-                #print("flat/sharp note detected")
-                #pritn("for now, always flats")
-                note_name = note_name[:2]
-
-            self.note_name = note_name
-            self.y = NOTE_NAME_TO_Y_LOCATION[note_name]
-
-        elif type(note) is str:
-
-            self.note_name = note
-            self.y = NOTE_NAME_TO_Y_LOCATION[note]
-
-        return None
-
-    def paint(self, painter, option, widget):
-
-        if self.correct is True:
-            painter.setBrush(QColor(0,255,255))
-        elif self.correct is None:
-            painter.setBrush(QColor(255,255,0))
-        else:
-            painter.setBrush(QColor(255,0,0))
-
-        painter.drawRect(round(self.x - self.width/2), round(self.y - self.height/2), self.width, self.height)
-
-        return None
-
-    def boundingRect(self):
-        return QRectF(self.x, self.y, self.width, self.height)
-
-class GraphicsPlayedNameLabel(QGraphicsItem):
-
-    def __init__(self, note):
-        super(GraphicsPlayedNameLabel, self).__init__()
-
-        self.x = -530
-        self.width = 20
-        self.height = 20
-
-        if type(note) is int:
-            note_name = NOTE_PITCH_TO_NOTE_NAME[note]
-
-            if ',' in note_name:
-                #print("flat/sharp note detected")
-                #pritn("for now, always flats")
-                note_name = note_name[:2]
-
-            self.note_name = note_name
-            self.y = NOTE_NAME_TO_Y_LOCATION[note_name]
-
-        elif type(note) is str:
-
-            self.note_name = note
-            self.y = NOTE_NAME_TO_Y_LOCATION[note]
-
-        return None
-
-    def paint(self, painter, option, widget):
-
-        painter.setPen(Qt.white)
-        painter.drawText(round(self.x - self.width/2), round(self.y - self.height/2), self.width, self.height, 0, self.note_name)
-        return None
-
-    def boundingRect(self):
-        return QRectF(self.x, self.y, self.width, self.height)
-
-class GraphicsController(QGraphicsObject):
-
-    stop_signal = QtCore.pyqtSignal()
-
-    def __init__(self):
-        super(GraphicsController, self).__init__()
-
-class GraphicsNote(QGraphicsItem):
-
-    def __init__(self, note, x, gui):
-        super(GraphicsNote, self).__init__()
-
-        self.gui = gui
-        self.xr = 8
-        self.yr = 8
-        self.x = x
-        self.h_speed = 0
-        self.played = False
-        self.should_be_played_now = False
-        self.top_note = False
-        self.shaded = False
-
-        self.set_note_pitch(note)
-
-        return None
-
-    def __repr__(self):
-
-        return str(self.note_name)
-
-    def set_speed(self, h_speed = None):
-        if h_speed is not None:
-            self.h_speed = h_speed
-
-    def set_note_pitch(self, note):
-
-        #-----------------------------------------------------------------------
-        # Determining the note's y value
-        self.sharp_flat = 'natural'
-
-        if type(note) is int:
-            self.note_pitch = note
-            note_name = NOTE_PITCH_TO_NOTE_NAME[note]
-            #print("original note name: ", note_name)
-
-            if ',' in note_name: # Flat/Sharp Detected
-
-                if note_name[0] == 'A': #A/B (select B flat)
-                    #print('A')
-                    self.sharp_flat = 'flat'
-                elif note_name[0] == 'C': #C/D (select D flat)
-                    #print('C')
-                    self.sharp_flat = 'flat'
-                elif note_name[0] == 'D': #D/E (select E flat)
-                    #print('D')
-                    self.sharp_flat = 'flat'
-                elif note_name[0] == 'F': #F/G (select F sharp)
-                    #print('F')
-                    self.sharp_flat = 'sharp'
-                elif note_name[0] == 'G': #G/A (select A flat)
-                    #print('G')
-                    self.sharp_flat = 'flat'
-
-                if self.sharp_flat == 'sharp':
-                    #print('sharp')
-                    note_name = note_name[:2]
-
-                elif self.sharp_flat == 'flat':
-                    #print('flat')
-                    note_name = note_name[3:]
-
-                #print("After flat/sharp selection: ",note_name)
-            else:
-                self.sharp_flat = None
-
-            #print("")
-
-            self.note_name = note_name
-            self.y = NOTE_NAME_TO_Y_LOCATION[note_name]
-
-        elif type(note) is str:
-
-            self.note_name = note
-            self.y = NOTE_NAME_TO_Y_LOCATION[note]
-
-        #print("Pitch: {2}\tNote: {0}\t Y: {1}".format(self.note_name, self.y, self.note_pitch))
-
-        return None
-
-    def stop(self):
-        self.h_speed = 0
-
-    def paint(self, painter, option, widget):
-
-        # Beginner Mode Halting
-        if self.gui.live_settings['mode'] == 'Beginner' and TIMING_NOTE_LINE_CATCH.contains(QPointF(self.x, self.y)) and self.h_speed != 0 and self.played is False:
-            #print("Stop signal emit")
-            GRAPHICS_CONTROLLER.stop_signal.emit()
-
-        #-----------------------------------------------------------------------
-        # Hiding the note if not withing the visible notes box and Hand Skill Effect
-
-        if VISIBLE_NOTE_BOX.contains(QPointF(self.x, self.y)) is True:
-            if self.shaded is True:
-                self.setOpacity(0.4)
-            else:
-                self.setOpacity(1)
-                self.visible = True
-        else:
-            self.setOpacity(HIDDEN)
-            self.visible = False
-
-        #-----------------------------------------------------------------------
-        # Changing color the notes if within the timing notes box
-
-        should_change_color = TIMING_NOTE_BOX.contains(QPointF(self.x, self.y))
-
-        if self.played is True:
-            color = CYAN
-            ledger_pen_color = QColor(0,255,255)
-
-        elif should_change_color is True:
-            color = YELLOW
-            self.should_be_played_now = True
-            ledger_pen_color = Qt.yellow
-        else:
-            color = GREEN
-            self.should_be_played_now = False
-            ledger_pen_color = Qt.green
-
-        # Move
-        self.x = round(self.x - self.h_speed)
-        painter.drawPixmap(self.x - 7, self.y - 9, PIXMAPS[color][NOTE])
-
-        if self.sharp_flat is not False:
-            # Flat
-            if self.sharp_flat is 'flat':
-                painter.drawPixmap(self.x - 25, self.y - 25, PIXMAPS[color][FLAT])
-            # Sharp
-            if self.sharp_flat is 'sharp':
-                painter.drawPixmap(self.x - 30, self.y - 23, PIXMAPS[color][SHARP])
-            # Natural
-            if self.sharp_flat is 'natural':
-                painter.drawPixmap(self.x - 37, self.y - 23, PIXMAPS[color][NATURAL])
-
-        #-----------------------------------------------------------------------
-        # Ledger lines
-        painter.setPen(ledger_pen_color)
-
-        # Top Ledger lines
-        if self.y < TOP_STAFF_LINE_Y_LOCATION - 20:
-            temp_y = TOP_STAFF_LINE_Y_LOCATION - 20
-            while temp_y >= self.y:
-                painter.drawLine(self.x - 20, temp_y, self.x + 20, temp_y)
-                temp_y -= 20
-
-        # Bottom Ledger Lines
-        elif self.y > BOTTOM_STAFF_LINE_Y_LOCATION + 20:
-            temp_y = BOTTOM_STAFF_LINE_Y_LOCATION + 20
-            while temp_y <= self.y:
-                painter.drawLine(self.x - 20, temp_y, self.x + 20, temp_y)
-                temp_y += 20
-
-        elif self.note_name == "C4":
-            painter.drawLine(self.x - 20, self.y, self.x + 20, self.y)
-
-        #-----------------------------------------------------------------------
-        # Note label
-
-        if self.top_note is True:
-            painter.setPen(Qt.white)
-            w = 20
-            h = 20
-            painter.drawText(self.x - 5, self.y - 25, w, h, 0, self.note_name)
-
-        return None
-
-    def boundingRect(self):
-        return QRectF(-self.xr, -self.xr, 2*self.xr, 2*self.xr)
-
-class Tutor(QThread):
-
-    def __init__(self, gui):
-        QThread.__init__(self)
-        self.gui = gui
-
-        return None
-
-    def keyboard_valid(self):
-        # This functions follows the confirmation system of PianoBooster
-        # which determines if the keys pressed are acceptable compared to the
-        # target keyboard configuration
-        if self.gui.keyboard_state[TARGET] == []:
-            return True
-
-        if len(set(self.gui.keyboard_state[TARGET]).intersection(set(self.gui.keyboard_state[RIGHT]))) != len(self.gui.keyboard_state[TARGET]):
-            return False
-
-        if len(self.gui.keyboard_state[WRONG]) >= 2:
-            return False
-
-        return True
-
-    def target_keyboard_in_timing_box(self, event_graphic_notes):
-
-        test_note = event_graphic_notes[0]
-        if test_note.should_be_played_now is True:
-            return True
-
-        return False
-
-    def tutor(self):
-
-        cfg = read_config()
-        self.lighting_scheme = cfg['lighting scheme'][self.gui.live_settings['mode'].lower()]
-
-        self.gui.keyboard_state[RIGHT] = []
-        self.gui.keyboard_state[WRONG] = []
-        self.gui.keyboard_state[ARDUINO] = []
-        #self.gui.keyboard_state[PREV_TARGET] = []
-
-        for self.sequence_pointer in range(len(self.gui.filtered_sequence)):
-
-            #print("Pointer: ", self.sequence_pointer)
-            #-------------------------------------------------------------------
-            # Meta Event Effects
-            if self.gui.filtered_sequence[self.sequence_pointer][0] == "META":
-                print("Meta event detected")
-                if self.gui.filtered_sequence[self.sequence_pointer][1] == "set_tempo":
-                    print("tempo change")
-                    self.tempo = self.gui.filtered_sequence[self.sequence_pointer][2].tempo
-                #elif
-                continue
-            #-------------------------------------------------------------------
-            # Setting up keyboard_state[TARGET]
-
-            self.gui.keyboard_state[TARGET] = self.gui.filtered_sequence[self.sequence_pointer][0]
-            print("Target: {}", self.gui.keyboard_state[TARGET])
-
-            #-------------------------------------------------------------------
-            # Hand Skill Effect
-            if self.gui.live_settings['hand'] != "Both":
-                if self.gui.live_settings['hand'] == 'Right Hand':
-                    self.gui.keyboard_state[TARGET] = [pitch for pitch in self.gui.keyboard_state[TARGET] if pitch >= MIDDLE_C]
-                else:
-                    self.gui.keyboard_state[TARGET] = [pitch for pitch in self.gui.keyboard_state[TARGET] if pitch < MIDDLE_C]
-
-            #-------------------------------------------------------------------
-            # Arduino Comm (dependent on tutoring mode)
-            if self.lighting_scheme == 'UI' or self.lighting_scheme == 'RWU': # Upcoming
-                self.gui.arduino_comm(self.gui.keyboard_state[TARGET], 'set')
-
-            #-------------------------------------------------------------------
-            # PREV_TARGET and TARGET Matching delay
-            if set(self.gui.keyboard_state[TARGET]).intersection(set(self.gui.keyboard_state[PREV_TARGET])) == set(self.gui.keyboard_state[TARGET]) and self.gui.live_settings['mode'] == 'Beginner':
-                print("waiting for keyboard_state[RIGHT] to change")
-                self.gui.arduino_comm([], 'set')
-                time.sleep(TUTOR_THREAD_DELAY)
-                self.gui.arduino_comm(self.gui.keyboard_state[TARGET], 'set')
-
-                while len( set(self.gui.keyboard_state[RIGHT]).intersection(set(self.gui.keyboard_state[TARGET])) ) != 0:
-                    print("waiting for change") # Aren't we all
-                    time.sleep(TUTOR_THREAD_DELAY)
-
-                print("keyboard_state[RIGHT] change detected")
-
-            #-------------------------------------------------------------------
-            # Tutoring Mode Change
-            while True:
-                if self.gui.live_settings['mode'] == "Beginner":
-                    go_to_next_note = self.beginner()
-                elif self.gui.live_settings['mode'] == "Intermediate":
-                    go_to_next_note = self.intermediate()
-                else:
-                    go_to_next_note =  self.expert()
-                if go_to_next_note is True:
-                    break
-
-            self.gui.keyboard_state[PREV_TARGET] = self.gui.keyboard_state[TARGET]
-
-        #-----------------------------------------------------------------------
-        # End of Song process
-        #drawn_notes = [note for array in self.gui.drawn_notes_group for note in array]
-        drawn_notes = []
-
-        for event in self.gui.drawn_notes_group:
-            if event == ["META"]:
-                continue
-            for note in event:
-                drawn_notes.append(note)
-
-        visible_notes = [note.visible for note in drawn_notes]
-
-        while True in visible_notes:
-            time.sleep(TUTOR_THREAD_DELAY)
-            visible_notes = [note.visible for note in drawn_notes]
-
-        print("End of Song")
-        self.gui.stop_all_notes()
-        self.gui.arduino_comm([], 'set')
-
-        return None
-
-    def beginner(self):
-
-        while True:
-            if self.gui.live_settings['mode'] != 'Beginner':
-                return False
-
-            event_graphic_notes = self.gui.drawn_notes_group[self.sequence_pointer]
-            if self.target_keyboard_in_timing_box(event_graphic_notes) and self.gui.live_settings['play'] is True:
-
-                # Change color to inform timing
-                if self.lighting_scheme == 'UI':
-                    self.gui.arduino_comm(self.gui.keyboard_state[TARGET], 'set')
-
-                if self.keyboard_valid() is True:
-                    for note in event_graphic_notes:
-                        note.played = True
-
-                    self.gui.move_all_notes()
-                    return True
-
-            time.sleep(TUTOR_THREAD_DELAY)
-
-        return None
-
-    def intermediate(self):
-
-        while True:
-            if self.gui.live_settings['mode'] != 'Intermediate':
-                return False
-
-            event_graphic_notes = self.gui.drawn_notes_group[self.sequence_pointer]
-            if self.target_keyboard_in_timing_box(event_graphic_notes) and self.gui.live_settings['play'] is True:
-
-                # Change color to inform timing
-                if self.lighting_scheme == 'UI':
-                    self.gui.arduino_comm(self.gui.keyboard_state[TARGET], 'set')
-
-                played_notes = [note for note in event_graphic_notes if note.note_pitch in self.gui.keyboard_state[RIGHT]]
-                for note in played_notes:
-                    note.played = True
-
-                self.gui.move_all_notes()
-                return True
-
-            time.sleep(TUTOR_THREAD_DELAY)
-
-        return None
-
-    def expert(self):
-
-        while True:
-            if self.gui.live_settings['mode'] != 'Expert':
-                return False
-
-            event_graphic_notes = self.gui.drawn_notes_group[self.sequence_pointer]
-            if self.target_keyboard_in_timing_box(event_graphic_notes) is True and self.gui.live_settings['play'] is True:
-
-                self.gui.arduino_comm(self.gui.keyboard_state[TARGET], 'set')
-                # Now turn LEDs to inform when to play (at all)
-
-                played_notes = [note for note in event_graphic_notes if note.note_pitch in self.gui.keyboard_state[RIGHT]]
-                for note in played_notes:
-                    note.played = True
-
-                self.gui.move_all_notes()
-                return True
-
-            time.sleep(TUTOR_THREAD_DELAY)
-
-        return None
-
-    def run(self):
-
-        while self.gui.live_settings['play'] == False:
-            time.sleep(TUTOR_THREAD_DELAY)
-
-        self.tutor()
-
-        return None
 
 class SkoreWindow(QMainWindow):
 
@@ -744,7 +57,7 @@ class SkoreWindow(QMainWindow):
         # Variable Initialization
         self.midi_in = None
         self.arduino = None
-        self.keyboard_state = [[],[],[],[],[],[],[]]
+        #globals.KEYBOARD_STATE = {'NEUTRAL':[],'RIGHT':[],'WRONG':[],'TARGET':[],'ARDUINO':[],'PREV_TARGET':[]}
 
         # Setup functions
         self.setup_ui()
@@ -770,7 +83,7 @@ class SkoreWindow(QMainWindow):
         # Timer Setup
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.clock)
-        self.timer.start(CLOCK_DELAY) # 60 FPS, 16ms, 30 FPS, 33ms
+        self.timer.start(globals.CLOCK_DELAY) # 60 FPS, 16ms, 30 FPS, 33ms
 
     def setup_ui(self):
 
@@ -973,7 +286,7 @@ class SkoreWindow(QMainWindow):
         self.toolButton_restart.clicked.connect(self.restart)
         self.toolButton_track_manager.clicked.connect(self.open_track_manager_dialog)
 
-        self.spinBox_speed.setRange(10,400)
+        self.spinBox_speed.setRange(globals.MIN_SPEED, globals.MAX_SPEED)
         self.spinBox_speed.setSingleStep(1)
         self.spinBox_speed.setValue(100)
         self.spinBox_speed.valueChanged.connect(self.speed_change)
@@ -1021,85 +334,32 @@ class SkoreWindow(QMainWindow):
 
         return False
 
-    def arduino_handshake(self):
-
-        return True
-        #print("waiting for arduino handshake")
-        timeout = time.time() + COMM_TIMEOUT
-        while time.time() < timeout:
-            time.sleep(HANDSHAKE_DELAY)
-            read_data = self.arduino.read()
-            #print(read_data)
-            if read_data == b'#':
-                #print("finished handshake")
-                return True
-
-        raise RuntimeError("Communication Desync with Arduino")
-        return None
-
-    def arduino_comm(self, notes, operation):
-        # This function sends the information about which notes need to be added and
-        # removed from the LED Rod.
-
-        #print("ARDUINO MESSAGE SENDED\tTYPE: {}\tOPERATION: {}".format(self.tutor.lighting_scheme, operation))
-
-        if self.arduino_status is False:
-            return None
-
-        if operation == 'set':
-            notes_to_send = list(set(notes).symmetric_difference(self.keyboard_state[ARDUINO]))
-            self.keyboard_state[ARDUINO] = notes
-        elif operation == 'toggle':
-            notes_to_send = [notes]
-            if notes in self.keyboard_state[ARDUINO]:
-                self.keyboard_state[ARDUINO].remove(notes)
-            else:
-                self.keyboard_state[ARDUINO] += notes_to_send
-
-        send_string = ',' + ','.join(str(note - 27) for note in notes_to_send) + ',#'
-        #print('STRING SENT: ', send_string)
-        self.arduino.write(send_string.encode('utf-8'))
-
-        print("ARDUINO KEYBOARD: ", self.keyboard_state[ARDUINO])
-
-        return None
-
     def arduino_setup(self):
         # This functions sets up the communication between Python and the Arduino.
         # For now the Arduino is assumed to be connected to COM3.
         cfg = read_config()
-
-        #piano_size = setting_read('piano_size') + ','
-        piano_size = cfg['port']['piano_size'] + ','
 
         # Closing, if applicable, the arduino port
         if self.arduino:
             self.arduino.close()
             self.arduino = []
 
-        #com_port = setting_read("arduino_port")
         com_port = cfg['port']['arduino']
 
         try:
-            self.arduino = serial.Serial(com_port, 230400, writeTimeout = COMM_TIMEOUT)
+            self.arduino = serial.Serial(com_port, globals.ARDUINO_BAUD_RATE, writeTimeout = globals.COMM_TIMEOUT)
         except serial.serialutil.SerialException:
             print("ARDUINO AT {0} NOT FOUND".format(com_port))
             return False
 
-        whitekey_transmitted_string = cfg['color']['white'].replace(',0', ',1')
-        blackkey_transmitted_string = cfg['color']['black'].replace(',0', ',1')
+        transmitted_string = {}
 
-        if whitekey_transmitted_string.startswith('0'):
-            whitekey_transmitted_string = '1' + whitekey_transmitted_string[1:]
-        if blackkey_transmitted_string.startswith('0'):
-            blackkey_transmitted_string = '1' + blackkey_transmitted_string[1:]
+        for key, values in cfg['color'].items():
+            transmitted_string[key] = cfg['color'][key]
 
-
-        print("White Key: ", whitekey_transmitted_string)
-        print("Black Key: ", blackkey_transmitted_string)
-
-        setup_transmitted_string = piano_size + whitekey_transmitted_string + ',' + blackkey_transmitted_string
-        setup_transmitted_string += ',#,'
+        # Color Setup Order: White/Black/Right/Wrong/Upcoming
+        setup_transmitted_string = transmitted_string['white'] + ',' + transmitted_string['black']
+        setup_transmitted_string = setup_transmitted_string + ',' + transmitted_string['wrong'] + ',' + transmitted_string['upcoming'] + ','
 
         time.sleep(2)
         self.arduino.write(setup_transmitted_string.encode('utf-8'))
@@ -1107,20 +367,14 @@ class SkoreWindow(QMainWindow):
         print("""
 --------------------------Arduino Configuration-------------------------
 COM PORT: {0}
-PIANO SIZE: {1}
-WHITEKEY COLORS: {2}
-BLACKKEY COLORS: {3}
-SETUP STRING: {4}
+SETUP STRING: {1}
 
-        """.format(com_port, piano_size, whitekey_transmitted_string, blackkey_transmitted_string, setup_transmitted_string))
+        """.format(com_port, setup_transmitted_string))
 
-        if self.arduino_handshake() is True:
-            return True
+        if self.arduino_handshake() is not True:
+            print("Arduino Handshake failed")
 
-        else:
-            print("INITIAL ARDUINO HANDSHAKE FAILED")
-
-        return False
+        return True
 
     def piano_port_setup(self):
         # This function sets up the communication between Python and the MIDI device
@@ -1139,7 +393,6 @@ SETUP STRING: {4}
         self.midi_in = rtmidi.MidiIn()
         in_avaliable_ports = self.midi_in.get_ports()
         cfg = read_config()
-        #selected_port = setting_read("piano_port")
         selected_port = cfg['port']['piano']
 
         try:
@@ -1157,7 +410,10 @@ SETUP STRING: {4}
             self.midi_in = None
             return False
 
-        self.midi_in.set_callback(TutorMidiHandler(self))
+        globals.WRONG_NOTE_READY = True
+        self.tutor_midi_handler = TutorMidiHandler(self)
+        self.midi_in.set_callback(self.tutor_midi_handler)
+        #self.midi_in.set_callback(TutorMidiHandler(self))
 
         #-----------------------------------------------------------------------
         # Midi Out
@@ -1189,6 +445,176 @@ PIANO PORT HANDLER SETUP (SUCCESSFUL)
 
         return True
 
+    def white_keys_string(self, notes):
+        white_keys_string_value = ','.join(str(note - globals.KEYBOARD_SHIFT) for note in notes if note in globals.NOTE_PITCH_WHITE_KEYS)
+        return white_keys_string_value
+
+    def black_keys_string(self, notes):
+        black_keys_string_value = ','.join(str(note - globals.KEYBOARD_SHIFT) for note in notes if note in globals.NOTE_PITCH_BLACK_KEYS)
+        return black_keys_string_value
+
+    def black_white_send_string(self, notes):
+        notes_to_send = notes
+
+        black_keys_string_value = self.black_keys_string(notes_to_send)
+        white_keys_string_value = self.white_keys_string(notes_to_send)
+
+        send_string = '<'
+        if black_keys_string_value != '':
+            send_string += 'b,' + black_keys_string_value + ','
+        if white_keys_string_value != '':
+            send_string += 'w,' + white_keys_string_value
+        send_string += ',>'
+
+        return send_string
+
+    def arduino_write_and_handshake(self, send_string):
+
+        print("STRING SENT:", send_string)
+        self.arduino.write(send_string.encode('utf-8'))
+
+        if self.arduino_handshake() is not True:
+            raise RuntimeError("Communication Desync with Arduino")
+            #print("Continue eventhough Arduino Handshake Failed")
+
+        return None
+
+    def arduino_handshake(self):
+
+        count = 0
+
+        while True:
+            time.sleep(globals.HANDSHAKE_DELAY)
+            read_data = self.arduino.read()
+
+            if read_data == b'+':
+                print("HANDSHAKE COMPLETED")
+                return True
+
+            #print(count)
+            if count > globals.COUNT_TIMEOUT:
+                break
+            else:
+                count += 1
+
+
+        print("HANDSHAKE FAILED!")
+        return False
+
+    def arduino_comm(self, notes, operation = 'set'):
+        # This function sends the information about which notes need to be added and
+        # removed from the LED Rod.
+        # <,w,1,>
+
+        #print("Arduino Comm - Notes: {0}\tOperation: {1}".format(notes, operation))
+
+        if self.arduino_status is False:
+            return None
+
+        #-----------------------------------------------------------------------
+        # Handling right/wrong notification option
+
+        if operation[0] == 'i': # Incorrect
+            globals.WRONG_NOTE_READY = False
+            #print("wrong_note_ready is False")
+            notes_to_send = [notes]
+
+            if operation.endswith('on'):
+                if notes not in globals.KEYBOARD_STATE['ARDUINO']['RW'] and notes not in globals.KEYBOARD_STATE['TARGET']:
+                    send_string = '<i' + ',' + ','.join(str(note - globals.KEYBOARD_SHIFT) for note in notes_to_send) + ',>'
+                    self.arduino_write_and_handshake(send_string)
+                    globals.KEYBOARD_STATE['ARDUINO']['RW'] += notes_to_send
+            else: # off
+                if notes in globals.KEYBOARD_STATE['TARGET']:
+                    try:
+                        globals.KEYBOARD_STATE['ARDUINO']['RW'].remove(notes)
+                    except ValueError:
+                        print("Attempted removal of note not in KEYBOARD_STATE['ARDUINO']['RW']")
+
+                elif notes in globals.KEYBOARD_STATE['ARDUINO']['RW']:
+                    send_string = '<f,' + ','.join(str(note - globals.KEYBOARD_SHIFT) for note in notes_to_send) + ',>'
+                    self.arduino_write_and_handshake(send_string)
+                    globals.KEYBOARD_STATE['ARDUINO']['RW'].remove(notes)
+
+            globals.WRONG_NOTE_READY = True
+            #print("wrong_note_ready is True")
+            return None
+
+
+        #-----------------------------------------------------------------------
+        # Handling timing notification option
+        count = 0
+
+        while globals.WRONG_NOTE_READY is False:
+            time.sleep(globals.HANDSHAKE_DELAY)
+            #print("handling timing notification & globals.WRONG_NOTE_READY")
+
+            if count > globals.COUNT_TIMEOUT:
+                print("PANIC!")
+                globals.HANDLER_ENABLE = False
+                globals.WRONG_NOTE_READY = True
+                globals.KEYBOARD_STATE['ARDUINO']['RW'] = []
+
+                print("Cleaning LED")
+                temp_target = globals.KEYBOARD_STATE['TARGET']
+                self.arduino_comm([], 'set')
+                print("Placing Back the Target")
+                globals.KEYBOARD_STATE['TARGET'] = temp_target
+                self.arduino_comm(globals.KEYBOARD_STATE['TARGET'])
+
+                #globals.WRONG_NOTE_READY = False
+                globals.HANDLER_ENABLE = True
+                break
+            else:
+                count += 1
+
+
+        globals.HANDLER_ENABLE = False
+
+        #-----------------------------------------------------------------------
+        # Clear All
+
+        if notes == []:
+            #print("Clear all except Right/Wrong Notes")
+            globals.HANDLER_ENABLE = False
+
+            right_wrong_notes = globals.KEYBOARD_STATE['ARDUINO']['RW']
+            send_string = '<!,>'
+
+            self.arduino_write_and_handshake(send_string)
+            globals.KEYBOARD_STATE['ARDUINO']['TARGET'] = []
+            globals.KEYBOARD_STATE['ARDUINO']['RW'] = []
+
+            if right_wrong_notes != []:
+                send_string = '<i,' + ','.join(str(note - globals.KEYBOARD_SHIFT) for note in right_wrong_notes) + ',>'
+                self.arduino_write_and_handshake(send_string)
+                globals.KEYBOARD_STATE['ARDUINO']['RW'] = right_wrong_notes
+
+            globals.HANDLER_ENABLE = True
+
+            return None
+
+        #-----------------------------------------------------------------------
+        # Notes
+
+        if self.tutor.options['timing notification'] is False:
+            if operation != 'correct' and operation != 'incorrect':
+                send_string = self.black_white_send_string(notes)
+
+        else:
+            if operation == 'timing':
+                send_string = self.black_white_send_string(notes)
+            elif operation == 'set':
+                notes_to_send = list(set(notes).symmetric_difference(globals.KEYBOARD_STATE['ARDUINO']['TARGET']))
+                send_string = '<u,' + ','.join(str(note - globals.KEYBOARD_SHIFT) for note in notes_to_send) + ',>'
+
+        self.arduino_write_and_handshake(send_string)
+        globals.KEYBOARD_STATE['ARDUINO']['TARGET'] = notes
+
+        globals.HANDLER_ENABLE = True
+
+        return None
+
     #---------------------------------------------------------------------------
     # Graphics Functions
 
@@ -1197,9 +623,6 @@ PIANO PORT HANDLER SETUP (SUCCESSFUL)
         return None
 
     def setup_graphics(self):
-
-        global VISIBLE_NOTE_BOX, TIMING_NOTE_BOX, TIMING_NOTE_LINE, TIMING_NOTE_LINE_CATCH
-        global PIXMAPS, GRAPHICS_CONTROLLER
 
         self.graphicsView_game.setBackgroundBrush(QBrush(Qt.black))
 
@@ -1236,12 +659,12 @@ PIANO PORT HANDLER SETUP (SUCCESSFUL)
         redBrush = QBrush(Qt.red)
 
         self.visible_note_box = self.scene.addRect(x,y,w,h, redPen, redBrush)
-        self.visible_note_box.setOpacity(HIDDEN)
+        self.visible_note_box.setOpacity(globals.HIDDEN)
 
         #-----------------------------------------------------------------------
         # Setting up timing note bar
         w = 50 # tolerances of 25 on each side
-        x = LEFT_TICK_SHIFT - round(w/2)
+        x = globals.LEFT_TICK_SHIFT - round(w/2)
         h = 810
         y = -470
 
@@ -1251,12 +674,12 @@ PIANO PORT HANDLER SETUP (SUCCESSFUL)
         self.timing_note_box = self.scene.addRect(x, y, w , h, magentaPen, magentaBrush)
         self.timing_note_box.setOpacity(0.5)
 
-        self.timing_note_line = self.scene.addLine(LEFT_TICK_SHIFT, y, LEFT_TICK_SHIFT, h + y, magentaPen)
+        self.timing_note_line = self.scene.addLine(globals.LEFT_TICK_SHIFT, y, globals.LEFT_TICK_SHIFT, h + y, magentaPen)
 
         #-----------------------------------------------------------------------
         # Setting up timing note line catch
         w = 25
-        x = LEFT_TICK_SHIFT - round(w/2) - round(25/2) - 1
+        x = globals.LEFT_TICK_SHIFT - round(w/2) - round(25/2) - 1
         h = 810
         y = -470
 
@@ -1264,7 +687,7 @@ PIANO PORT HANDLER SETUP (SUCCESSFUL)
         whitePen = QPen(Qt.white)
 
         self.timing_note_line_catch = self.scene.addRect(x, y, w, h, whitePen, whiteBrush)
-        self.timing_note_line_catch.setOpacity(HIDDEN)
+        self.timing_note_line_catch.setOpacity(globals.HIDDEN)
 
         #-----------------------------------------------------------------------
         # Placing Treble and Bass Clef
@@ -1282,37 +705,37 @@ PIANO PORT HANDLER SETUP (SUCCESSFUL)
 
         #-----------------------------------------------------------------------
         # Placing Note Labels
-        self.note_labels = [{},{},{}]
+        self.note_labels = {'NEUTRAL':{},'RIGHT':{},'WRONG':{}}
 
-        for note in NOTE_NAME_TO_Y_LOCATION.keys():
+        for note in globals.NOTE_NAME_TO_Y_LOCATION.keys():
 
-            self.note_labels[NEUTRAL][note] = GraphicsPlayedLabel(note, None)
-            self.note_labels[NEUTRAL][note].setOpacity(HIDDEN)
-            self.scene.addItem(self.note_labels[NEUTRAL][note])
+            self.note_labels['NEUTRAL'][note] = GraphicsPlayedLabel(note, None)
+            self.note_labels['NEUTRAL'][note].setOpacity(globals.HIDDEN)
+            self.scene.addItem(self.note_labels['NEUTRAL'][note])
 
-            self.note_labels[RIGHT][note] = GraphicsPlayedLabel(note, True)
-            self.note_labels[RIGHT][note].setOpacity(HIDDEN)
-            self.scene.addItem(self.note_labels[RIGHT][note])
+            self.note_labels['RIGHT'][note] = GraphicsPlayedLabel(note, True)
+            self.note_labels['RIGHT'][note].setOpacity(globals.HIDDEN)
+            self.scene.addItem(self.note_labels['RIGHT'][note])
 
-            self.note_labels[WRONG][note] = GraphicsPlayedLabel(note, False)
-            self.note_labels[WRONG][note].setOpacity(HIDDEN)
-            self.scene.addItem(self.note_labels[WRONG][note])
+            self.note_labels['WRONG'][note] = GraphicsPlayedLabel(note, False)
+            self.note_labels['WRONG'][note].setOpacity(globals.HIDDEN)
+            self.scene.addItem(self.note_labels['WRONG'][note])
 
         #-----------------------------------------------------------------------
         # Placing Note Label Names
         self.note_name_labels = {}
 
-        for note in NOTE_NAME_TO_Y_LOCATION.keys():
+        for note in globals.NOTE_NAME_TO_Y_LOCATION.keys():
 
             self.note_name_labels[note] = GraphicsPlayedNameLabel(note)
-            self.note_name_labels[note].setOpacity(HIDDEN)
+            self.note_name_labels[note].setOpacity(globals.HIDDEN)
             self.scene.addItem(self.note_name_labels[note])
 
         #-----------------------------------------------------------------------
         # Setup Graphics Controller
 
-        GRAPHICS_CONTROLLER = GraphicsController()
-        GRAPHICS_CONTROLLER.stop_signal.connect(self.stop_all_notes)
+        globals.GRAPHICS_CONTROLLER = GraphicsController()
+        globals.GRAPHICS_CONTROLLER.stop_signal.connect(self.stop_all_notes)
 
         #-----------------------------------------------------------------------
         # Setup Graphics System Messages
@@ -1322,36 +745,36 @@ PIANO PORT HANDLER SETUP (SUCCESSFUL)
 
         #-----------------------------------------------------------------------
 
-        VISIBLE_NOTE_BOX = self.visible_note_box
-        TIMING_NOTE_BOX = self.timing_note_box
-        TIMING_NOTE_LINE = self.timing_note_line
-        TIMING_NOTE_LINE_CATCH = self.timing_note_line_catch
+        globals.VISIBLE_NOTE_BOX = self.visible_note_box
+        globals.TIMING_NOTE_BOX = self.timing_note_box
+        globals.TIMING_NOTE_LINE = self.timing_note_line
+        globals.TIMING_NOTE_LINE_CATCH = self.timing_note_line_catch
 
         # Note
-        PIXMAPS[GREEN].append(QPixmap(r".\images\graphics_assets\green_music_note_head.png").scaled(19,19))
-        PIXMAPS[YELLOW].append(QPixmap(r".\images\graphics_assets\yellow_music_note_head.png").scaled(19,19))
-        PIXMAPS[CYAN].append(QPixmap(r".\images\graphics_assets\cyan_music_note_head.png").scaled(19,19))
+        globals.PIXMAPS['GREEN'].append(QPixmap(r".\images\graphics_assets\green_music_note_head.png").scaled(19,19))
+        globals.PIXMAPS['YELLOW'].append(QPixmap(r".\images\graphics_assets\yellow_music_note_head.png").scaled(19,19))
+        globals.PIXMAPS['CYAN'].append(QPixmap(r".\images\graphics_assets\cyan_music_note_head.png").scaled(19,19))
 
         # Sharp
-        PIXMAPS[GREEN].append(QPixmap(r".\images\graphics_assets\green_sharp.png").scaled(20,45))
-        PIXMAPS[YELLOW].append(QPixmap(r".\images\graphics_assets\yellow_sharp.png").scaled(20,45))
-        PIXMAPS[CYAN].append(QPixmap(r".\images\graphics_assets\cyan_sharp.png").scaled(20,45))
+        globals.PIXMAPS['GREEN'].append(QPixmap(r".\images\graphics_assets\green_sharp.png").scaled(20,45))
+        globals.PIXMAPS['YELLOW'].append(QPixmap(r".\images\graphics_assets\yellow_sharp.png").scaled(20,45))
+        globals.PIXMAPS['CYAN'].append(QPixmap(r".\images\graphics_assets\cyan_sharp.png").scaled(20,45))
 
         # Flat
-        PIXMAPS[GREEN].append(QPixmap(r".\images\graphics_assets\green_flat.png").scaled(13,35))
-        PIXMAPS[YELLOW].append(QPixmap(r".\images\graphics_assets\yellow_flat.png").scaled(13,35))
-        PIXMAPS[CYAN].append(QPixmap(r".\images\graphics_assets\cyan_flat.png").scaled(13,35))
+        globals.PIXMAPS['GREEN'].append(QPixmap(r".\images\graphics_assets\green_flat.png").scaled(13,35))
+        globals.PIXMAPS['YELLOW'].append(QPixmap(r".\images\graphics_assets\yellow_flat.png").scaled(13,35))
+        globals.PIXMAPS['CYAN'].append(QPixmap(r".\images\graphics_assets\cyan_flat.png").scaled(13,35))
 
         # Natural
-        PIXMAPS[GREEN].append(QPixmap(r".\images\graphics_assets\green_natural.png").scaled(40,48))
-        PIXMAPS[YELLOW].append(QPixmap(r".\images\graphics_assets\yellow_natural.png").scaled(40,48))
-        PIXMAPS[CYAN].append(QPixmap(r".\images\graphics_assets\cyan_natural.png").scaled(40,48))
+        globals.PIXMAPS['GREEN'].append(QPixmap(r".\images\graphics_assets\green_natural.png").scaled(40,48))
+        globals.PIXMAPS['YELLOW'].append(QPixmap(r".\images\graphics_assets\yellow_natural.png").scaled(40,48))
+        globals.PIXMAPS['CYAN'].append(QPixmap(r".\images\graphics_assets\cyan_natural.png").scaled(40,48))
 
         return None
 
     def draw_filtered_sequence(self):
 
-        tick_count = LEFT_TICK_SHIFT
+        tick_count = globals.LEFT_TICK_SHIFT
         #print("Drawing the following filtered_sequence")
         #print(self.filtered_sequence)
 
@@ -1440,8 +863,10 @@ PIANO PORT HANDLER SETUP (SUCCESSFUL)
                     self.scene.removeItem(note)
                     del note
 
-            self.drawn_notes_group.clear()
+            globals.KEYBOARD_STATE['ARDUINO']['RW'] = []
             self.arduino_comm([], 'set')
+
+            self.drawn_notes_group.clear()
             self.draw_filtered_sequence()
             self.tutor = Tutor(self)
             self.tutor.start()
@@ -1478,7 +903,7 @@ PIANO PORT HANDLER SETUP (SUCCESSFUL)
                     if event == ['META']:
                         continue
                     for note in event:
-                        if note.note_pitch >= MIDDLE_C:
+                        if note.note_pitch >= globals.MIDDLE_C:
                             note.shaded = False
                         else:
                             note.shaded = True
@@ -1488,7 +913,7 @@ PIANO PORT HANDLER SETUP (SUCCESSFUL)
                     if event == ['META']:
                         continue
                     for note in event:
-                        if note.note_pitch >= MIDDLE_C:
+                        if note.note_pitch >= globals.MIDDLE_C:
                             note.shaded = True
                         else:
                             note.shaded = False
@@ -1502,7 +927,8 @@ PIANO PORT HANDLER SETUP (SUCCESSFUL)
         self.live_settings['speed'] = self.spinBox_speed.value()
         print("Speed Changed")
 
-        self.set_tick_per_frame()
+        if self.tutor_enable is True:
+            self.set_tick_per_frame()
 
         return None
 
@@ -1536,9 +962,9 @@ PIANO PORT HANDLER SETUP (SUCCESSFUL)
             print(self.filtered_sequence)
 
             # Change the keyboard_state
-            self.keyboard_state[TARGET] = [note + transpose_diff for note in self.keyboard_state[TARGET]]
-            self.keyboard_state[RIGHT].clear()
-            self.keyboard_state[WRONG].clear()
+            globals.KEYBOARD_STATE['TARGET'] = [note + transpose_diff for note in globals.KEYBOARD_STATE['TARGET']]
+            globals.KEYBOARD_STATE['RIGHT'].clear()
+            globals.KEYBOARD_STATE['WRONG'].clear()
 
         else:
             print("Tutor disabled, transpose change discarted")
@@ -1550,7 +976,7 @@ PIANO PORT HANDLER SETUP (SUCCESSFUL)
 
     def setup_tutor(self):
 
-        print("CURRENT TASK: TUTOR SETUP")
+        #print("CURRENT TASK: TUTOR SETUP")
 
         if self.tutor_enable:
 
@@ -1576,6 +1002,8 @@ PIANO PORT HANDLER SETUP (SUCCESSFUL)
 
         # Graphics
         self.drawn_notes_group = []
+
+        self.tracks_selected_labels = None
 
         self.midi_setup()
         self.draw_filtered_sequence()
@@ -1696,27 +1124,18 @@ PIANO PORT HANDLER SETUP (SUCCESSFUL)
         self.original_sequence = []
         self.filtered_sequence = []
         self.midi_file = MidiFile(self.midi_file_path)
+        self.midi_file.tick_divider = 1
 
         #print("Ticks per beat: ", self.midi_file.ticks_per_beat)
-        print("CURRENT TASK: MIDI SETUP")
+        #print("CURRENT TASK: MIDI SETUP")
 
         # Now obtaining the pattern of the midi file found.
         self.track_identification()
         self.track_selection()
+        self.calculate_tick_divider()
         self.stage_track_to_sequence()
         self.sequence_filtering()
-
-        print("""
----------------------------Tutor Midi Setup-----------------------------
-MIDI FILE LOCATION: {0}
-
-ORIGINAL MIDI SEQUENCE LENGTH:
-{1}
-
-FILTERED MIDI SEQUENCE LENGTH:
-{2}
-
-        """.format(self.midi_file_path, self.original_sequence, self.filtered_sequence))#.format(self.midi_file_path, len(self.original_sequence), len(self.filtered_sequence)))
+        self.midi_report()
 
         # Setting default tempo
         self.tempo = 500000
@@ -1739,11 +1158,16 @@ FILTERED MIDI SEQUENCE LENGTH:
             meta_counter = 0
             note_counter = 0
             track_name = "Track " + str(i)
+            self.midi_file.tracks[i].name = track_name
 
             for msg in self.midi_file.tracks[i]:
                 if msg.is_meta:
                     meta_counter += 1
                     if msg.type == 'track_name':
+
+                        if msg.name == '':
+                            continue
+
                         self.midi_file.tracks[i].name = msg.name
                 if msg.type == 'note_on':
                     note_counter += 1
@@ -1761,10 +1185,11 @@ FILTERED MIDI SEQUENCE LENGTH:
 
     def track_selection(self):
 
-        print("Note tracks: ", self.note_tracks)
+        #print("Note tracks: ", self.note_tracks)
 
         if self.tracks_selected_labels is None:
             # Setup and first note event track for original setup
+            #print("Setup track: ", self.note_tracks[0])
             self.staged_track = merge_tracks([self.note_tracks[0]] + self.setup_tracks)
             self.note_tracks[0].played = True
 
@@ -1778,25 +1203,53 @@ FILTERED MIDI SEQUENCE LENGTH:
 
             self.staged_track = merge_tracks(self.tracks_selected + self.setup_tracks)
 
-        print("Staged Track", self.staged_track)
+        #print("Staged Track", self.staged_track)
+
+        return None
+
+    def calculate_tick_divider(self):
+
+        cfg = read_config()
+
+        if cfg['options']['normalize ppqn'] is True:
+
+            if self.midi_file.ticks_per_beat != globals.PPQN_STANDARD:
+                print("TICKS PER BEAT TOO HIGH -> SET TO DEFAULT 98")
+                self.midi_file.tick_divider = self.midi_file.ticks_per_beat / globals.PPQN_STANDARD
+                self.midi_file.ticks_per_beat = globals.PPQN_STANDARD
+
+        else:
+            print("PPQN not normalized to 98")
+
+        #print("self.midi_file.tick_divider: ", self.midi_file.tick_divider)
 
         return None
 
     def stage_track_to_sequence(self):
 
-        self.midi_file.tick_divider = 1
+        cfg = read_config()
+        piano_size = cfg['port']['piano_size']
 
-        if self.midi_file.ticks_per_beat > 500:
-            print("TICKS PER BEAT TOO HIGH -> SET TO DEFAULT 98")
-            self.midi_file.tick_divider = self.midi_file.ticks_per_beat / 98
-            self.midi_file.ticks_per_beat = 98
+        if piano_size == '88':
+            lowest_note = 21
+            highest_note = 108
+
+        elif piano_size == '76':
+            lowest_note = 29
+            highest_note = 104
+
+        #print("Tracked used: ", self.staged_track)
 
         for msg in self.staged_track:
 
             if msg.type == 'note_on':
+                if msg.note > highest_note or msg.note < lowest_note:
+                    continue
                 self.original_sequence.append(SkoreMidiEvent(None, round(msg.time / self.midi_file.tick_divider)))
                 self.original_sequence.append(SkoreMidiEvent(True, msg.note))
             elif msg.type == 'note_off':
+                if msg.note > highest_note or msg.note < lowest_note:
+                    continue
                 self.original_sequence.append(SkoreMidiEvent(None, round(msg.time / self.midi_file.tick_divider)))
                 self.original_sequence.append(SkoreMidiEvent(False, msg.note))
 
@@ -1849,11 +1302,11 @@ FILTERED MIDI SEQUENCE LENGTH:
             for index_tracker, event in enumerate(self.original_sequence[i:]):
 
                 if event.event_type is None:
-                    if event.data >= CHORD_TICK_TOLERANCE:
+                    if event.data >= globals.CHORD_TICK_TOLERANCE:
                         final_index += index_tracker - 1
                         break
                     else:
-                        if chord_delta_time + event.data >= CHORD_SUM_TOLERANCE:
+                        if chord_delta_time + event.data >= globals.CHORD_SUM_TOLERANCE:
                             final_index += index_tracker - 1
                             break
                         else:
@@ -1867,12 +1320,32 @@ FILTERED MIDI SEQUENCE LENGTH:
 
         return None
 
+    def midi_report(self):
+
+        print("""
+---------------------------Tutor Midi Setup-----------------------------
+MIDI FILE LOCATION:
+{0}
+
+STAGED TRACK:
+{1}
+
+ORIGINAL MIDI SEQUENCE LENGTH:
+{2}
+
+FILTERED MIDI SEQUENCE LENGTH:
+{3}
+
+        """.format(self.midi_file_path, self.staged_track, len(self.original_sequence), len(self.filtered_sequence)))#.format(self.midi_file_path, len(self.original_sequence), len(self.filtered_sequence)))
+
+        return None
+
     def set_tick_per_frame(self):
 
         # 60 fps = 16ms, 1fps = a number of ticks
-        frame_per_sec = 1000/(CLOCK_DELAY)
+        frame_per_sec = 1000/(globals.CLOCK_DELAY)
 
-        sec_per_tick = tick2second(1, self.midi_file.ticks_per_beat, self.tempo)
+        sec_per_tick = tick2second(1, self.midi_file.ticks_per_beat, self.tempo) / (self.midi_file.tick_divider * 2)
         sec_per_tick = sec_per_tick * 100/self.live_settings['speed']
 
         self.tick_per_frame = (1/sec_per_tick) * (1/frame_per_sec)
@@ -1888,6 +1361,9 @@ FILTERED MIDI SEQUENCE LENGTH:
             for msg in self.midi_file.play():
                 print(msg)
                 self.midi_out.send_message(msg.bytes())
+
+                #if msg.type == 'note_on' or msg.type == 'note_off':
+                    #self.arduino_comm(msg.note, 'toggle')
 
             print("Finished")
 
@@ -1935,10 +1411,11 @@ FILTERED MIDI SEQUENCE LENGTH:
         # Graphics
         self.drawn_notes_group = []
 
-        #self.midi_setup()
         self.track_selection()
+        self.calculate_tick_divider()
         self.stage_track_to_sequence()
         self.sequence_filtering()
+        self.midi_report()
 
         # Setting default tempo
         self.tempo = 500000
@@ -1996,12 +1473,6 @@ FILTERED MIDI SEQUENCE LENGTH:
 
     def open_settings_dialog(self):
 
-        """
-        self.settings_dialog = SettingsDialog()
-        self.settings_dialog.finish_apply_signal.connect(self.settings_dialog_change)
-        self.settings_dialog.setModal(True)
-        self.settings_dialog.show()
-        """
         self.config_dialog = ConfigDialog()
         self.config_dialog.finish_apply_signal.connect(self.settings_dialog_change)
         self.config_dialog.setModal(True)
@@ -2013,6 +1484,7 @@ FILTERED MIDI SEQUENCE LENGTH:
 
         print("SETTINGS UPDATE: CHANGES APPLIED")
         self.setup_comm()
+        self.restart()
 
         return None
 
@@ -2037,11 +1509,13 @@ FILTERED MIDI SEQUENCE LENGTH:
     def end_skore_recorder(self):
 
         try:
-            self.midi_in.set_callback(TutorMidiHandler(self))
+            self.midi_in.set_callback(self.tutor_midi_handler)
+            #self.midi_in.set_callback(TutorMidiHandler(self))
         except AttributeError:
             print("Returning TutorMidiHandler to midi_in.set_callback failed!")
 
         print("Return from recorder_dialog")
+        del self.recorder_dialog
 
         return None
 

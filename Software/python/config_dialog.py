@@ -396,9 +396,15 @@ class ConfigDialog(QtWidgets.QDialog):
         self.color_button_group.addButton(self.immediate_pushButton)
         self.color_button_group.buttonClicked.connect(self.color_picker)
 
+        """
         self.color_button_dict = {self.black_key_pushButton: ['','black'], self.white_key_pushButton: ['','white'],
                                   self.right_pushButton: ['','right'], self.wrong_pushButton: ['','wrong'], self.upcoming_pushButton: ['','upcoming'],
                                   self.upcoming_pushButton_page3: ['','upcoming'], self.immediate_pushButton: ['','immediate']}
+        """
+
+        self.color_button_dict = {self.black_key_pushButton: ['','black'], self.white_key_pushButton: ['','white'],
+                                  self.right_pushButton: ['','right'], self.wrong_pushButton: ['','wrong'], self.upcoming_pushButton: ['','upcoming'],
+                                  self.upcoming_pushButton_page3: ['','upcoming']}
 
         self.apply_cancel_buttonBox.button(QDialogButtonBox.Apply).clicked.connect(self.apply_changes)
 
@@ -496,6 +502,7 @@ class ConfigDialog(QtWidgets.QDialog):
         for key in self.port_dict.keys():
             self.port_dict[key][0] = cfg['port'][self.port_dict[key][1]]
 
+
         # Lighting Settings
         for key in self.lighting_combobox_dict.keys():
             self.lighting_combobox_dict[key][0] = cfg['lighting scheme'][self.lighting_combobox_dict[key][1]]
@@ -563,6 +570,15 @@ class ConfigDialog(QtWidgets.QDialog):
         for key in self.color_button_dict.keys():
             rgb = self.color_button_dict[key][0]
             cfg['color'][self.color_button_dict[key][1]] = rgb
+
+        # Ligthing Scheme Settings
+        for key in self.lighting_combobox_dict.keys():
+            if key.currentText() == 'Black and White Key Distinction':
+                cfg['lighting scheme'][self.lighting_combobox_dict[key][1]] = 'BW'
+            elif key.currentText() == 'Right, Wrong, and Upcoming Note Distinction':
+                cfg['lighting scheme'][self.lighting_combobox_dict[key][1]] = 'RWU'
+            elif key.currentText() == 'Upcoming and Immediate Note Distinction':
+                cfg['lighting scheme'][self.lighting_combobox_dict[key][1]] = 'UI'
 
         # Port Settings
         for key in self.port_dict.keys():

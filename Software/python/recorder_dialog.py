@@ -6,7 +6,8 @@ from PyQt5.QtCore import *
 import mido
 from mido import MidiFile, Message, MidiTrack, second2tick, bpm2tempo, MetaMessage
 
-CLOCK_DELAY = 16
+import globals
+#CLOCK_DELAY = 16
 
 #-------------------------------------------------------------------------------
 
@@ -54,7 +55,7 @@ class GraphicsRecorderText(QGraphicsItem):
                 self.flicker = 20
 
         elif self.operation_mode == "timer":
-            print("seconds: ", self.sec_count)
+            #print("seconds: ", self.sec_count)
             m, s = divmod(self.sec_count, 60)
             painter.drawText(round(self.x - self.width), round(self.y - self.height), self.width, self.height, Qt.AlignCenter, "%02d:%02d" % (m, s))
 
@@ -113,9 +114,17 @@ class RecorderMidiHandler(object):
 
     def __call__(self, event, data=None):
 
+        print("------------------------------------------------------------")
+        #print("Recieved MSG")
+
         if self.active is True:
             message, deltatime = event
             self.timer += deltatime
+
+            if self.first_note is True:
+                self.timer = 0
+                self.graphics_controller.trigger_signal.emit()
+                self.first_note = False
 
             if message[0] != 254:
                 midi_time = int(round(second2tick(self.timer, self.midi_file.ticks_per_beat, bpm2tempo(self.tempo))))
@@ -134,10 +143,6 @@ class RecorderMidiHandler(object):
                     self.track.append(Message('note_off', note = message[1], velocity = message[2], time = midi_time))
                     self.timer = 0
 
-            if self.first_note is True:
-                self.graphics_controller.trigger_signal.emit()
-                self.first_note = False
-
             print("Track: ", self.track)
 
         return None
@@ -154,6 +159,8 @@ class RecorderMidiHandler(object):
 
         # Smoothing the start of the recording
         #self.track.append(Message('note_off', note = 60, velocity = 0, time = int(round(second2tick(0.5, self.midi_file.ticks_per_beat, bpm2tempo(self.tempo))))))
+
+        print("Finished Start")
 
         return None
 
@@ -190,7 +197,9 @@ class RecorderDialog(QtWidgets.QDialog):
         print("Recorder Initializing")
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.recorder_clock)
-        self.timer.start(CLOCK_DELAY)
+        self.timer.start(globals.CLOCK_DELAY)
+
+        #self.skore_gui.recorder_handler([254, 0])
 
         return None
 
@@ -308,9 +317,19 @@ class RecorderDialog(QtWidgets.QDialog):
         self.skore_gui.recorder_handler.graphics_controller.trigger_signal.disconnect(self.displayed_text.set_timer)
         self.displayed_text.stop_timer()
 
+        return None
+
     def play(self):
 
         print("Play")
+
+        print("Track: ", self.skore_gui.recorder_handler.track)
+
+        """
+        for msg in self.skore_gui.recorder_handler.track:
+            print(msg)
+        """
+
         for msg in self.skore_gui.recorder_handler.midi_file.play():
             print(msg.bytes())
             self.skore_gui.midi_out.send_message(msg.bytes()) # rtmidi Midi In Object

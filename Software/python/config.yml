@@ -5,17 +5,20 @@ app_path:
   muse_score: C:\Program Files\MuseScore 3\bin\MuseScore3.exe
   open_close_source: close_source
 color:
-  black: 0,0,255
-  immediate: 255,0,0
-  right: 0,0,255
-  upcoming: 0,255,0
-  white: 255,0,0
-  wrong: 255,0,0
+  black: 0,20,0
+  right: 0,0,20
+  upcoming: 20,20,20
+  white: 0,0,20
+  wrong: 20,0,0
 lighting scheme:
-  beginner: RWU
+  beginner: BW
   expert: BW
   intermediate: UI
+options:
+  normalize ppqn: true
+  right/wrong notification: true
+  timing notification: true
 port:
-  arduino: COM6
+  arduino: COM3
   piano: CASIO USB-MIDI 1
   piano_size: '76'

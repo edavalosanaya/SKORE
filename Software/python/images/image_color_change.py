@@ -14,16 +14,16 @@ for i in range(0,height):
             continue
         else:
             #green
-            #img[i,j][1] = 70
+            #img[i,j][1] = 255
             # yellow
-            img[i,j][1] = 70
-            img[i,j][2] = 70
+            img[i,j][1] = 255
+            img[i,j][2] = 255
             # violet
             #img[i,j][0] = 255
             #img[i,j][2] = 130
             # cyan
-            #img[i,j][0] = 70
-            #img[i,j][1] = 70
+            #img[i,j][0] = 255
+            #img[i,j][1] = 255
             pass
 
 
