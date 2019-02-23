@@ -1,32 +1,29 @@
-# General Utility
+# General Utility Libraries
 import time
 import sys
-from time import sleep
 import os
-import difflib
-import webbrowser
-import ast
 
-# PYQT5, GUI Library
+# PyQt5, GUI Library
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
-from PyQt5.QtWebEngineWidgets import *
 
+# SKORE Modules
 import globals
 
-class GraphicsSystemMessage(QGraphicsItem):
+#-------------------------------------------------------------------------------
+# Classes
+
+class GraphicsSystemMessage(QtWidgets.QGraphicsItem):
 
     def __init__(self):
-        super(GraphicsSystemMessage, self).__init__()
+
+        super(QtWidgets.QGraphicsItem, self).__init__()
 
         self.width = 400
         self.height = 50
         self.x = -900
         self.y = -500
 
-        self.font = QFont()
+        self.font = QtGui.QFont()
         self.font.setPixelSize(25)
 
         self.text = ""
@@ -34,25 +31,28 @@ class GraphicsSystemMessage(QGraphicsItem):
         return None
 
     def set_text(self, text):
+
         self.text = text
+
         return None
 
     def paint(self, painter, option, widget):
 
-        painter.setPen(Qt.green)
+        painter.setPen(QtCore.Qt.green)
         painter.setFont(self.font)
-        painter.drawText(self.x, self.y, self.width, self.height, Qt.AlignLeft, self.text)
+        painter.drawText(self.x, self.y, self.width, self.height, QtCore.Qt.AlignLeft, self.text)
 
         return None
 
     def boundingRect(self):
 
-        return QRectF(self.x + self.width, self.y, self.width, self.height)
+        return QtCore.QRectF(self.x + self.width, self.y, self.width, self.height)
 
-class GraphicsPlayedLabel(QGraphicsItem):
+class GraphicsPlayedLabel(QtWidgets.QGraphicsItem):
 
     def __init__(self, note, correct = None):
-        super(GraphicsPlayedLabel, self).__init__()
+
+        super(QtWidgets.QGraphicsItem, self).__init__()
 
         self.x = -510
         self.width = 20
@@ -80,23 +80,25 @@ class GraphicsPlayedLabel(QGraphicsItem):
     def paint(self, painter, option, widget):
 
         if self.correct is True:
-            painter.setBrush(QColor(0,255,255))
+            painter.setBrush(QtGui.QColor(0,255,255))
         elif self.correct is None:
-            painter.setBrush(QColor(255,255,0))
+            painter.setBrush(QtGui.QColor(255,255,0))
         else:
-            painter.setBrush(QColor(255,0,0))
+            painter.setBrush(QtGui.QColor(255,0,0))
 
         painter.drawRect(round(self.x - self.width/2), round(self.y - self.height/2), self.width, self.height)
 
         return None
 
     def boundingRect(self):
-        return QRectF(self.x, self.y, self.width, self.height)
 
-class GraphicsPlayedNameLabel(QGraphicsItem):
+        return QtCore.QRectF(self.x, self.y, self.width, self.height)
+
+class GraphicsPlayedNameLabel(QtWidgets.QGraphicsItem):
 
     def __init__(self, note):
-        super(GraphicsPlayedNameLabel, self).__init__()
+
+        super(QtWidgets.QGraphicsItem, self).__init__()
 
         self.x = -530
         self.width = 20
@@ -122,23 +124,29 @@ class GraphicsPlayedNameLabel(QGraphicsItem):
 
     def paint(self, painter, option, widget):
 
-        painter.setPen(Qt.white)
+        painter.setPen(QtCore.Qt.white)
         painter.drawText(round(self.x - self.width/2), round(self.y - self.height/2), self.width, self.height, 0, self.note_name)
+
         return None
 
     def boundingRect(self):
-        return QRectF(self.x, self.y, self.width, self.height)
 
-class GraphicsController(QGraphicsObject):
+        return QtCore.QRectF(self.x, self.y, self.width, self.height)
+
+class GraphicsController(QtWidgets.QGraphicsObject):
 
     stop_signal = QtCore.pyqtSignal()
 
     def __init__(self):
-        super(GraphicsController, self).__init__()
 
-class GraphicsNote(QGraphicsItem):
+        super(QtWidgets.QGraphicsObject, self).__init__()
+
+        return None
+
+class GraphicsNote(QtWidgets.QGraphicsItem):
 
     def __init__(self, note, x, gui):
+
         super(GraphicsNote, self).__init__()
 
         self.gui = gui
@@ -148,6 +156,7 @@ class GraphicsNote(QGraphicsItem):
         self.h_speed = 0
         self.played = False
         self.should_be_played_now = False
+        self.is_late = False
         self.top_note = False
         self.shaded = False
 
@@ -160,8 +169,11 @@ class GraphicsNote(QGraphicsItem):
         return str(self.note_name)
 
     def set_speed(self, h_speed = None):
+
         if h_speed is not None:
             self.h_speed = h_speed
+
+        return None
 
     def set_note_pitch(self, note):
 
@@ -177,34 +189,23 @@ class GraphicsNote(QGraphicsItem):
             if ',' in note_name: # Flat/Sharp Detected
 
                 if note_name[0] == 'A': #A/B (select B flat)
-                    #print('A')
                     self.sharp_flat = 'flat'
                 elif note_name[0] == 'C': #C/D (select D flat)
-                    #print('C')
                     self.sharp_flat = 'flat'
                 elif note_name[0] == 'D': #D/E (select E flat)
-                    #print('D')
                     self.sharp_flat = 'flat'
                 elif note_name[0] == 'F': #F/G (select F sharp)
-                    #print('F')
                     self.sharp_flat = 'sharp'
                 elif note_name[0] == 'G': #G/A (select A flat)
-                    #print('G')
                     self.sharp_flat = 'flat'
 
                 if self.sharp_flat == 'sharp':
-                    #print('sharp')
                     note_name = note_name[:2]
-
                 elif self.sharp_flat == 'flat':
-                    #print('flat')
                     note_name = note_name[3:]
 
-                #print("After flat/sharp selection: ",note_name)
             else:
                 self.sharp_flat = None
-
-            #print("")
 
             self.note_name = note_name
             self.y = globals.NOTE_NAME_TO_Y_LOCATION[note_name]
@@ -219,23 +220,32 @@ class GraphicsNote(QGraphicsItem):
         return None
 
     def stop(self):
+
         self.h_speed = 0
+
+        return None
 
     def paint(self, painter, option, widget):
 
+        # Determing if the note is late
+        if globals.LATE_NOTE_BOX.contains(QtCore.QPointF(self.x, self.y)):
+            self.is_late = True
+        else:
+            self.is_late = False
+
         # Beginner Mode Halting
-        if self.gui.live_settings['mode'] == 'Beginner' and globals.TIMING_NOTE_LINE_CATCH.contains(QPointF(self.x, self.y)) and self.h_speed != 0 and self.played is False:
+        if self.gui.live_settings['mode'] == 'Beginner' and self.is_late is True and self.h_speed != 0 and self.played is False:
             #print("Stop signal emit")
             globals.GRAPHICS_CONTROLLER.stop_signal.emit()
 
         #-----------------------------------------------------------------------
         # Hiding the note if not withing the visible notes box and Hand Skill Effect
 
-        if globals.VISIBLE_NOTE_BOX.contains(QPointF(self.x, self.y)) is True:
+        if globals.VISIBLE_NOTE_BOX.contains(QtCore.QPointF(self.x, self.y)) is True:
             if self.shaded is True:
                 self.setOpacity(0.4)
             else:
-                self.setOpacity(1)
+                self.setOpacity(globals.VISIBLE)
                 self.visible = True
         else:
             self.setOpacity(globals.HIDDEN)
@@ -244,20 +254,20 @@ class GraphicsNote(QGraphicsItem):
         #-----------------------------------------------------------------------
         # Changing color the notes if within the timing notes box
 
-        should_change_color = globals.TIMING_NOTE_BOX.contains(QPointF(self.x, self.y))
+        should_change_color = globals.TIMING_NOTE_BOX.contains(QtCore.QPointF(self.x, self.y))
 
         if self.played is True:
             color = 'CYAN'
-            ledger_pen_color = QColor(0,255,255)
+            ledger_pen_color = QtGui.QColor(0,255,255)
 
         elif should_change_color is True:
             color = 'YELLOW'
             self.should_be_played_now = True
-            ledger_pen_color = Qt.yellow
+            ledger_pen_color = QtCore.Qt.yellow
         else:
             color = 'GREEN'
             self.should_be_played_now = False
-            ledger_pen_color = Qt.green
+            ledger_pen_color = QtCore.Qt.green
 
         # Move
         self.x = round(self.x - self.h_speed)
@@ -299,7 +309,7 @@ class GraphicsNote(QGraphicsItem):
         # Note label
 
         if self.top_note is True:
-            painter.setPen(Qt.white)
+            painter.setPen(QtCore.Qt.white)
             w = 20
             h = 20
             painter.drawText(self.x - 5, self.y - 25, w, h, 0, self.note_name)
@@ -307,4 +317,5 @@ class GraphicsNote(QGraphicsItem):
         return None
 
     def boundingRect(self):
-        return QRectF(-self.xr, -self.xr, 2*self.xr, 2*self.xr)
+
+        return QtCore.QRectF(-self.xr, -self.xr, 2*self.xr, 2*self.xr)

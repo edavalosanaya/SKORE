@@ -2,7 +2,7 @@
 import sys
 import time
 import os
-from statistics import mode
+import statistics
 
 # File, Folder, and Directory Manipulation Library
 import ntpath
@@ -19,17 +19,10 @@ import numpy as np
 import pyautogui
 
 # Music Library
-from music21 import converter
-from pydub import AudioSegment
+#import pydub
 
 # GUI Automation Library
 import pywinauto
-
-# PyQt5, GUI Library
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
-from PyQt5.QtCore import *
 
 #-------------------------------------------------------------------------------
 # Class Definitions
@@ -53,8 +46,8 @@ class FileContainer:
 
         skore_index = self.complete_path.find('SKORE') + len('SKORE')
         self.skore_path = self.complete_path[0: skore_index + 1]
-        self.temp_folder_path = self.skore_path + r"Software\python\temp"
-        self.amazing_midi_tune_path = self.skore_path + r"Software\python\misc\piano0.wav"
+        self.temp_folder_path = self.skore_path + r".\Software\python\temp"
+        self.amazing_midi_tune_path = self.skore_path + r".\Software\python\misc\piano0.wav"
 
         return None
 
@@ -82,9 +75,7 @@ class FileContainer:
         exist_path = pathlib.Path(input_address)
         file_path = exist_path.parent
 
-        #input_address_new_extension = str(file_path) + '\\' + filename + end_file_extension
         output_address = self.temp_folder_path + '\\' + filename + file_extension
-        #return end_address, filename
         return output_address
 
     def clean_temp_folder(self):
@@ -98,6 +89,8 @@ class FileContainer:
                 self.remove_file_type(file)
             except KeyError:
                 print("Excess File Removed that was not in the file container")
+
+        return None
 
     def temp_to_folder(self, destination_folder, filename):
         # This functions transfer all the files found within temp folder into
@@ -121,46 +114,6 @@ class FileContainer:
 
         for key, value in self.file_path.items():
             print("{0} : {1}".format(key, value))
-
-        return None
-
-    def red_dot_address_conversion(self, address_string, filename_string):
-
-        address = address_string.split(';')
-        filename = filename_string.split(';')
-
-        complete_path_list = self.complete_path.split('\\')
-        print(complete_path_list)
-        this_pc_address = complete_path_list[0] + '\\' + complete_path_list[1] + '\\' + complete_path_list[2] + '\\'
-        print(this_pc_address)
-
-        root_path = str(address[0])
-        root_filename = str(filename[0])
-        root_path = root_path.split(' ')[1]
-        root_path = root_path.replace(" ", "")
-
-        print("Root Data")
-        print(root_path)
-        print(root_filename)
-
-        if root_filename.find('.mid') == -1:
-            root_filename = root_filename + '.mid'
-
-        if root_path[0] != 'C':
-            print("This PC address detected")
-            root_path = this_pc_address + root_path
-
-        complete_address = root_path + '\\' + root_filename
-        print("Complete Address: ", end = '')
-        print(complete_address)
-
-        output_file = Path(complete_address)
-
-        if output_file.is_file():
-            self.original_file = complete_address
-            self.add_file_type(complete_address)
-        else:
-            print("red dot midi file not found")
 
         return None
 
@@ -213,7 +166,8 @@ class FileContainer:
 
         mp3_file = self.file_path['.mp3']
         wav_file = self.output_file_path_generator(mp3_file, '.wav')
-        score = AudioSegment.from_mp3(mp3_file)
+
+        score = pydub.AudioSegment.from_mp3(mp3_file)
         score.export(wav_file, format = "wav")
         self.add_file_type(wav_file)
 
@@ -230,6 +184,7 @@ class FileContainer:
         return None
 
     def wav_to_mid(self):
+
         # AmazingMIDI
         cfg = read_config()
 
@@ -238,7 +193,6 @@ class FileContainer:
         mid_file = self.output_file_path_generator(wav_file, '.mid')
 
         ama_app = pywinauto.application.Application()
-        #ama_app_exe_path = setting_read('ama_app_exe_path')
         ama_app_exe_path = cfg['app_path']['amazing_midi']
         ama_app.start(ama_app_exe_path)
         print("Initialized AmazingMIDI")
@@ -306,10 +260,10 @@ class FileContainer:
         return None
 
     def pdf_to_mxl(self):
+
         cfg = read_config()
 
         pdf_file = self.file_path['.pdf']
-        #aud_app_exe_path = setting_read('aud_app_exe_path')
         aud_app_exe_path = cfg['app_path']['audiveris']
         os.system('cd {0} && gradle run -PcmdLineArgs="-batch,-export,-output,{1},--,{2}"'.format(aud_app_exe_path, self.temp_folder_path,pdf_file))
 
@@ -319,8 +273,6 @@ class FileContainer:
         embed_mxl_dir = self.temp_folder_path + '\\' + filename
         embed_mxl_file = embed_mxl_dir + '\\' + filename + '.mxl'
         mxl_file = self.temp_folder_path + '\\' + filename + '.mxl'
-
-        #print('mxl_file: {0}'.format(mxl_file))
 
         output_file = Path(embed_mxl_file)
 
@@ -339,31 +291,44 @@ class FileContainer:
 
     def mxl_to_mid(self):
 
+        cfg = read_config()
+
         mxl_file = self.file_path['.mxl']
         mid_file = self.output_file_path_generator(mxl_file, '.mid')
-        score = converter.parse(mxl_file)
 
-        try:
-            score.write('midi',mid_file)
-            self.add_file_type(mid_file)
-        except ZeroDivisionError:
-            print("mxl -> midi file conversion failed, due to ZeroDivisionError")
+        mus_app_exe_path = cfg['app_path']['muse_score']
+        mus_app_exe_directory = os.path.dirname(mus_app_exe_path)
+        mus_app_exe_filename = os.path.basename(mus_app_exe_path)
+
+        os.system('cd {0} && {1} "{2}" -o "{3}"'.format(mus_app_exe_directory, mus_app_exe_filename, mxl_file, mid_file))
+        self.add_file_type(mid_file)
+        output_file = Path(mid_file)
+
+        while True:
+            if output_file.is_file() is True:
+                time.sleep(0.1)
+                break
+            else:
+                time.sleep(0.5)
+
+        print("Overall .mxl -> .mid complete")
 
         return None
 
     def mid_to_pdf(self):
+
         cfg = read_config()
 
-        #self.clean_temp_folder()
         mid_file = self.file_path['.mid']
         pdf_file =self.output_file_path_generator(mid_file, '.pdf')
+
         mus_app_exe_path = cfg['app_path']['muse_score']
-        #mus_app_exe_path = setting_read('mus_app_exe_path')
         mus_app_exe_directory = os.path.dirname(mus_app_exe_path)
         mus_app_exe_filename = os.path.basename(mus_app_exe_path)
+
         os.system('cd {0} && {1} "{2}" -o "{3}"'.format(mus_app_exe_directory, mus_app_exe_filename, mid_file, pdf_file))
         self.add_file_type(pdf_file)
-        output_file = Path(mid_file)
+        output_file = Path(pdf_file)
 
         while True:
             if output_file.is_file() is True:
@@ -377,25 +342,21 @@ class FileContainer:
         return None
 
     def mp3_to_mid_anthemscore(self):
+
         cfg = read_config()
 
         print("Using Anthemscore mp3 -> midi")
-        #self.progress_bar.current_action_label.setText("Initializing AnthemScore headless")
-        #self.progress_bar.progress.setValue(0)
 
         mp3_file = self.file_path['.mp3']
         mid_file = self.output_file_path_generator(mp3_file, '.mid')
+
         ant_app_exe_path = cfg['app_path']['anthemscore']
-        #ant_app_exe_path = setting_read("ant_app_exe_path")
         ant_app_exe_directory = os.path.dirname(ant_app_exe_path)
         ant_app_exe_filename = os.path.basename(ant_app_exe_path)
 
         os.system("start \"\" cmd /c \"cd {0} && {1} -a {2} -m {3} \"".format(ant_app_exe_directory, ant_app_exe_filename, mp3_file,mid_file))
 
-        # Waiting for the completion of the file conversion
-        #self.progress_bar.current_action_label.setText("Waiting for output file conversion.")
         output_file = Path(mid_file)
-        #counter = 0
 
         while True :
             if output_file.is_file() is True:
@@ -404,29 +365,27 @@ class FileContainer:
             else:
                 print(".",end = "")
                 time.sleep(0.5)
-                #counter += 0.5
-                #if counter == 100:
-                #    counter = 80
-                #self.progress_bar.progress.setValue(counter)
 
         print("Midi File Generation Complete")
         self.add_file_type(mid_file)
+
+        return None
 
     #---------------------------------------------------------------------------
     # Multi-step FIle Conversion
 
     def mp3_to_pdf(self):
+
         # This function converts a .mp3 to .pdf
         cfg = read_config()
 
-        #mp3_to_midi_converter_setting = setting_read('mp3_to_midi_converter')
         mp3_to_midi_converter_setting = cfg['app_path']['open_close_source']
 
-        #self.clean_temp_folder()
         if mp3_to_midi_converter_setting == 'open_source':
             self.mp3_to_wav()
             self.wav_to_mid()
             self.mid_to_pdf()
+
         elif mp3_to_midi_converter_setting == 'close_source':
             self.mp3_to_mid_anthemscore()
             self.mid_to_pdf()
@@ -436,16 +395,17 @@ class FileContainer:
         return None
 
     def mp3_to_mid(self):
+
         # This function converts a .mp3 to .mid
         cfg = read_config()
 
-        #mp3_to_midi_converter_setting = setting_read('mp3_to_midi_converter')
         mp3_to_midi_converter_setting = cfg['app_path']['open_close_source']
 
         #self.clean_temp_folder()
         if mp3_to_midi_converter_setting == 'open_source':
             self.mp3_to_wav()
             self.wav_to_mid()
+
         elif mp3_to_midi_converter_setting == 'close_source':
             self.mp3_to_mid_anthemscore()
 
@@ -454,6 +414,7 @@ class FileContainer:
         return None
 
     def pdf_to_mid(self):
+
         # This function converts a .pdf to .mid
 
         self.pdf_to_mxl()
@@ -467,13 +428,11 @@ class FileContainer:
     # Input to Output File Conversion
 
     def input_to_pdf(self):
-        # This function converts any file into a .pdf
 
-        #self.progress_bar = progress_bar
+        # This function converts any file into a .pdf
 
         print("Before file conversion")
         self.stringify_container()
-
 
         if self.has_pdf_file() is True:
             print("Pre-existing pdf file found. File Conversion Cancelled")
@@ -493,8 +452,6 @@ class FileContainer:
     def input_to_mid(self):
         # This function converts any file into a .mid.
 
-        #self.progress_bar = progress_bar
-
         print("Before file conversion")
         self.stringify_container()
 
@@ -512,7 +469,6 @@ class FileContainer:
         self.stringify_container()
 
         return None
-
 
 class GuiManipulator:
 
@@ -532,33 +488,6 @@ class GuiManipulator:
         # This function utilizes screen shoots and determines the location of certain
         # buttons within the screenshot. The screenshot will then be cropped to only
         # include the application that is being clicked
-
-        """
-        image = pyautogui.screenshot(region=dimensions)
-
-        image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-        cv2.imwrite('gui_screenshot.png', image)
-        img = cv2.imread('gui_screenshot.png', 0)
-        #location = find_image_path(button)
-        template = cv2.imread(templates_folder_path + '\\' + button + '.png', 0)
-
-        w, h = template.shape[::-1]
-
-        method = eval('cv2.TM_CCOEFF')
-        res = cv2.matchTemplate(img, template, method)
-        min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
-
-        top_left = max_loc
-        bottom_right = (top_left[0] + w, top_left[1] + h)
-
-        top_left = [top_left[0] + dimensions[0], top_left[1] + dimensions[1]]
-        bottom_right = (top_left[0] + w, top_left[1] + h)
-
-        file_button_center_coords = [ int((top_left[0]+bottom_right[0])/2) , int((top_left[1]+bottom_right[1])/2) ]
-        pywinauto.mouse.click(button="left",coords=(file_button_center_coords[0],file_button_center_coords[1]))
-        os.remove('gui_screenshot.png')
-        time.sleep(0.1)
-        """
 
         image = pyautogui.screenshot(region=dimensions)
         x_coord_list = []
@@ -589,18 +518,16 @@ class GuiManipulator:
 
             file_button_center_coords = [ int((top_left[0]+bottom_right[0])/2) , int((top_left[1]+bottom_right[1])/2) ]
 
-            #print(file_button_center_coords)
             x_coord_list.append(file_button_center_coords[0])
             y_coord_list.append(file_button_center_coords[1])
 
         try:
-            x_coord_mode = mode(x_coord_list)
-            y_coord_mode = mode(y_coord_list)
+            x_coord_mode = statistics.mode(x_coord_list)
+            y_coord_mode = statistics.mode(y_coord_list)
         except:
             x_coord_mode = x_coord_list[0]
             y_coord_mode = y_coord_list[0]
 
-        #pywinauto.mouse.click(button="left",coords=(file_button_center_coords[0],file_button_center_coords[1]))
         pywinauto.mouse.click(button="left",coords=(x_coord_mode,y_coord_mode))
         os.remove('gui_screenshot.png')
         time.sleep(0.1)
@@ -618,7 +545,8 @@ class GuiManipulator:
             except AttributeError:
                 #print('.', end='')
                 time.sleep(0.5)
-        return
+
+        return None
 
 #-------------------------------------------------------------------------------
 # Utility Functions
@@ -640,12 +568,15 @@ def rect_to_int(rect_object):
     return int_dimensions
 
 def read_config():
+
     with open("config.yml", 'r') as ymlfile:
         return yaml.load(ymlfile)
 
 def update_config(cfg):
+
     with open('config.yml', 'w') as outfile:
         yaml.dump(cfg, outfile, default_flow_style=False)
+
     return None
 
 def is_mid(file_path):
@@ -653,9 +584,6 @@ def is_mid(file_path):
 
     file_name = os.path.basename(file_path)
     file_type = os.path.splitext(file_name)[1]
-
-    #print('name: {0}\ttype: {1}'.format(file_name, file_type))
-    #print(file_type.find('.mid'))
 
     if file_type.endswith('mid') is True:
         return True

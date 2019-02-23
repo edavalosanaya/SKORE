@@ -1,19 +1,50 @@
+#-------------------------------------------------------------------------------
+# Delays
 TUTOR_THREAD_DELAY = 0.1
-
-KEYBOARD_SHIFT = 27 # 48, 36
-COMM_TIMEOUT = 2
 HANDSHAKE_DELAY = 0.001
-COUNT_TIMEOUT = 300
-
-PPQN_STANDARD = 96
-CHORD_TICK_TOLERANCE = 10
-#CHORD_TICK_TOLERANCE = 1
-CHORD_SUM_TOLERANCE = 25
-
+ARDUINO_STARTUP_DELAY = 2
 CLOCK_DELAY = 16
 
+#-------------------------------------------------------------------------------
+# Shifts and Standards
+KEYBOARD_SHIFT = 0
+PPQN_STANDARD = 96
 MIDDLE_C = 60
+LEFT_TICK_SHIFT = -400
 
+HIDDEN = 0.01
+VISIBLE = 1
+
+NOTE = 0
+SHARP = 1
+FLAT = 2
+NATURAL = 3
+
+MAX_SPEED = 1000
+MIN_SPEED = 5
+
+ARDUINO_BAUD_RATE = 115200 # Config
+
+#-------------------------------------------------------------------------------
+# Timeouts
+COMM_TIMEOUT = 2
+COUNT_TIMEOUT = 300 # Config
+
+#-------------------------------------------------------------------------------
+# Tolerances
+CHORD_TICK_TOLERANCE = 1 # Config
+CHORD_SUM_TOLERANCE = 25 # Config
+RECORD_CHORD_TOLERANCE = 5 # Config
+
+#-------------------------------------------------------------------------------
+# Main Share Data
+TOTAL_EVENTS = 0
+HANDLER_ENABLE = True
+KEYBOARD_STATE = {'NEUTRAL':[],'RIGHT':[],'WRONG':[],'TARGET':[],'ARDUINO':{'TARGET':[],'RW':[]} }
+NOTES_MOVING = False
+
+#-------------------------------------------------------------------------------
+# Dictionaries and List
 NOTE_NAME_TO_Y_LOCATION = {
     # Bass Clef
     "A0":330, "B0":320, "C1":310, "D1":300, "E1":290, "F1":280, "G1":270,
@@ -51,7 +82,8 @@ NOTE_PITCH_BLACK_KEYS = [
     82,85,87,90,92,94,97,99,102,104,106
 ]
 
-LEFT_TICK_SHIFT = -400
+#-------------------------------------------------------------------------------
+# Graphics Elements
 TIMING_NOTE_BOX = None
 TIMING_NOTE_LINE = None
 TIMING_NOTE_LINE_CATCH = None
@@ -61,22 +93,4 @@ GRAPHICS_CONTROLLER = None
 BOTTOM_STAFF_LINE_Y_LOCATION = NOTE_NAME_TO_Y_LOCATION["G2"]
 TOP_STAFF_LINE_Y_LOCATION = NOTE_NAME_TO_Y_LOCATION["F5"]
 
-HIDDEN = 0.01
-VISIBLE = 1
-
 PIXMAPS = {'GREEN':[],'YELLOW':[],'CYAN':[]}
-
-NOTE = 0
-SHARP = 1
-FLAT = 2
-NATURAL = 3
-
-KEYBOARD_STATE = {'NEUTRAL':[],'RIGHT':[],'WRONG':[],'TARGET':[],'ARDUINO':{'TARGET':[],'RW':[]},'PREV_TARGET':[]}
-
-WRONG_NOTE_READY = True
-HANDLER_ENABLE = True
-
-MAX_SPEED = 1000
-MIN_SPEED = 5
-
-ARDUINO_BAUD_RATE = 115200
