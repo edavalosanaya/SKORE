@@ -1,3 +1,9 @@
+
+"""
+This module is a way to connect data between the multiple module files of the
+SKORE application.
+"""
+
 #-------------------------------------------------------------------------------
 # Delays
 TUTOR_THREAD_DELAY = 0.1
@@ -22,8 +28,12 @@ NATURAL = 3
 
 MAX_SPEED = 1000
 MIN_SPEED = 5
+MAX_TICK_PER_FRAME = 4
 
 ARDUINO_BAUD_RATE = 115200 # Config
+
+D_S_W = 1920
+D_S_H = 1080
 
 #-------------------------------------------------------------------------------
 # Timeouts
@@ -38,10 +48,24 @@ RECORD_CHORD_TOLERANCE = 5 # Config
 
 #-------------------------------------------------------------------------------
 # Main Share Data
+
+OUTPUT_FILE_PATH = None
+OUTPUT_FILE_DIR = None
+OUTPUT_FILENAME = None
 TOTAL_EVENTS = 0
 HANDLER_ENABLE = True
 KEYBOARD_STATE = {'NEUTRAL':[],'RIGHT':[],'WRONG':[],'TARGET':[],'ARDUINO':{'TARGET':[],'RW':[]} }
 NOTES_MOVING = False
+
+LIVE_SETTINGS = {
+    'play': False, 'restart': False, 'mode': 'Beginner', 'speed': 100, 'transpose': 0,
+    'interval_loop': False, 'interval_final': None, 'interval_initial': None
+}
+
+A_S_W = None # Actual Screen Width
+A_S_H = None # Actual Screen Height
+S_W_R = 1 # Screen Width Ratio
+S_H_R = 1 # Screen Height Ratio
 
 #-------------------------------------------------------------------------------
 # Dictionaries and List

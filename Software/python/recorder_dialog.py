@@ -14,19 +14,29 @@ import globals
 
 class GraphicsRecorderText(QtWidgets.QGraphicsItem):
 
+    """
+    This class is the graphics item for the timer text of the SKORE recorder
+    dialog.
+    """
+
     def __init__(self, recorder_gui):
+
+        """
+        This function sets the location, size, font size, and additional
+        variables to prepare the class.
+        """
 
         super(QtWidgets.QGraphicsItem, self).__init__()
 
-        self.width = 270
-        self.height = 130
+        self.width = 270 * globals.S_W_R
+        self.height = 130 * globals.S_H_R
         self.x = 0
         self.y = 0
 
         self.recorder_gui = recorder_gui
 
         self.font = QtGui.QFont()
-        self.font.setPixelSize(30)
+        self.font.setPixelSize(30 * globals.S_W_R)
 
         self.operation_mode = "in-active"
         self.flicker = 20
@@ -39,6 +49,8 @@ class GraphicsRecorderText(QtWidgets.QGraphicsItem):
         return None
 
     def paint(self, painter, option, widget):
+
+        """ This function draws the flickering timer text. """
 
         painter.setPen(QtCore.Qt.green)
         painter.setFont(self.font)
@@ -70,6 +82,8 @@ class GraphicsRecorderText(QtWidgets.QGraphicsItem):
 
     def set_timer(self):
 
+        """ This function starts the timer. """
+
         self.empty_midi = False
         self.displayed_timer.start(1000)
         self.operation_mode = "timer"
@@ -77,6 +91,8 @@ class GraphicsRecorderText(QtWidgets.QGraphicsItem):
         return None
 
     def stop_timer(self):
+
+        """ This function stops the timer. """
 
         if self.empty_midi == True:
             self.operation_mode = "complete-no-midi"
@@ -89,19 +105,30 @@ class GraphicsRecorderText(QtWidgets.QGraphicsItem):
 
     def increase_second_count(self):
 
+        """ This function increases the second count of the timer. """
+
         self.sec_count += 1
 
         return None
 
     def boundingRect(self):
 
+        """ This is a necessary function that returns the bounding dimensions. """
+
         return QtCore.QRectF(self.x - self.width, self.y - self.height, self.width, self.height)
 
 class HandlerToGraphicsController(QtCore.QObject):
 
+    """
+    This graphics controller is simply utlizes to implement a signal/slot
+    attribute to the RecorderMidiHandler.
+    """
+
     trigger_signal = QtCore.pyqtSignal()
 
     def __init__(self):
+
+        """ Inheriting the QObject attributes. """
 
         super(QtCore.QObject, self).__init__()
 
@@ -109,7 +136,18 @@ class HandlerToGraphicsController(QtCore.QObject):
 
 class RecorderMidiHandler:
 
+    """
+    This class is the communication handler used to recorder the MIDI input into
+    a MIDI file.
+    """
+
     def __init__(self, skore_gui, tempo=120):
+
+        """
+        This function initializes the RecorderMidiHandler by connecting the
+        handler to the SKORE application, connecting it to the
+        HandlerToGraphicsController, and other important setting up.
+        """
 
         self.gui = skore_gui
         self.tempo = tempo
@@ -121,6 +159,10 @@ class RecorderMidiHandler:
         return None
 
     def __call__(self, event, data=None):
+
+        """
+        This function is the callback from receiving information from the piano.
+        """
 
         print("------------------------------------------------------------")
 
@@ -167,6 +209,11 @@ class RecorderMidiHandler:
 
     def start(self):
 
+        """
+        This begins the 'start' process of recording from the handler's
+        perspective.
+        """
+
         self.midi_file = mido.MidiFile(ticks_per_beat = 96)
         self.track = mido.MidiTrack()
         self.midi_file.tracks.append(self.track)
@@ -182,6 +229,8 @@ class RecorderMidiHandler:
 
     def stop(self):
 
+        """ This stops recording from the handler's perspective. """
+
         self.active = False
         self.track.append(mido.MetaMessage("end_of_track"))
 
@@ -189,13 +238,25 @@ class RecorderMidiHandler:
 
     def save(self, save_file_location):
 
+        """ This is helper function to save the generated midi file. """
+
         self.midi_file.save(save_file_location)
 
         return None
 
 class RecorderDialog(QtWidgets.QDialog):
 
+    """
+    The RecorderDialog is the dialog that the user utlizes to record their own
+    midi files.
+    """
+
     def __init__(self, skore_gui, parent=None):
+
+        """
+        This function initlizes the RecorderDialog by connect it to the main
+        SKORE GUI and sets up the main attributes of the dialog.
+        """
 
         QtWidgets.QDialog.__init__(self, parent)
         self.setObjectName("SKORE Recorder")
@@ -217,6 +278,10 @@ class RecorderDialog(QtWidgets.QDialog):
         return None
 
     def setup_ui(self):
+
+        """
+        This function setups up the widgets within the recorder dialog.
+        """
 
         self.verticalLayoutWidget = QtWidgets.QWidget(self)
         self.verticalLayoutWidget.setGeometry(QtCore.QRect(30, 20, 311, 181))
@@ -257,6 +322,10 @@ class RecorderDialog(QtWidgets.QDialog):
 
     def setup_func(self):
 
+        """
+        This function setup the signal/slot of the widgets of the dialog.
+        """
+
         self.toolButton_record.clicked.connect(self.start_record)
         self.toolButton_play.clicked.connect(self.play)
         self.toolButton_save.clicked.connect(self.save)
@@ -267,6 +336,11 @@ class RecorderDialog(QtWidgets.QDialog):
         return None
 
     def setup_graphics(self):
+
+        """
+        This function setups up the graphical elements of the record dialog.
+        This includes the displayed text and ficklering timer text.
+        """
 
         self.graphicsView.setBackgroundBrush(QtGui.QBrush(QtCore.Qt.black))
 
@@ -279,6 +353,8 @@ class RecorderDialog(QtWidgets.QDialog):
     # Button Functions
 
     def start_record(self):
+
+        """ This function starts the recording process. """
 
         print("Start Recording")
         self.toolButton_play.setEnabled(False)
@@ -297,6 +373,8 @@ class RecorderDialog(QtWidgets.QDialog):
 
     def stop_record(self):
 
+        """ This function stops the recording process. """
+
         print("Stop Recording")
         self.skore_gui.recorder_handler.stop()
 
@@ -314,6 +392,8 @@ class RecorderDialog(QtWidgets.QDialog):
 
     def play(self):
 
+        """ This function plays the recording made by the user. """
+
         print("Play")
         print("Track: ", self.skore_gui.recorder_handler.track)
 
@@ -324,6 +404,11 @@ class RecorderDialog(QtWidgets.QDialog):
         return None
 
     def save(self):
+
+        """
+        This function saves the recorder file into the destination directory
+        selected by the user.
+        """
 
         save_file_location = self.open_filename_dialog_user_input("Save MIDI file", "MIDI files (*.mid)")
 
@@ -343,11 +428,17 @@ class RecorderDialog(QtWidgets.QDialog):
 
     def recorder_clock(self):
 
+        """ This function is performed by the clock to update the graphics. """
+
         self.scene.update()
 
         return None
 
     def retranslate_ui(self):
+
+        """
+        This function places all the text content into the widgets of the dialog.
+        """
 
         _translate = QtCore.QCoreApplication.translate
         self.toolButton_record.setText(_translate("Dialog", "Rec"))
@@ -360,8 +451,10 @@ class RecorderDialog(QtWidgets.QDialog):
     # File Handling
 
     def open_filename_dialog_user_input(self, title, supported_files):
-        # This file dialog is used to obtain the file location of the .mid, .mp3,
-        # and .pdf file.
+
+        """
+        This file dialog is used to obtain the destination path of the midi file.
+        """
 
         options = QtWidgets.QFileDialog.Options()
         options |= QtWidgets.QFileDialog.DontUseNativeDialog

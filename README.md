@@ -1,55 +1,43 @@
-<img src="https://user-images.githubusercontent.com/40870026/52389912-6e27bf80-2a5b-11e9-8bc6-0109e2915dbd.png" width="30%" height="30%" align="middle" />
+<p align="center">
+  <img src="https://user-images.githubusercontent.com/40870026/52389912-6e27bf80-2a5b-11e9-8bc6-0109e2915dbd.png" width="20%" height="20%">
+</p>
 
 ---
+<div class="left">
+<iframe width="560" height="315" src="https://www.youtube.com/embed/AYdyRPIo4ZA" frameborder="0" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+</div>
 
-(Source code, mechanical design, circuit design, and documentation are not complete yet: expected fully-completed by April 2019)
+(Development is still on-going, project is expected to be complete by April 2019)
 
-This repository contains the source files for SKORE, Smart Keyboard Operated By Robotic Educator. The goal in the project is to provide an easy method to learn any song in the piano. The project utilizes both Python3 and an Arduino to direct an modular LED bar, that goes above the piano keys, to indicate the user the upcoming notes. The project requires an Arduino, Windows 10 (highly recommended with an Intel Processor), access to a 3D printer, and (for now) access to a PBC printer.
+This repository contains the source files for SKORE, Smart Keyboard Operated By Robotic Educator. The goal in the project is to provide an easy method to learn any song in the piano. The project utilizes both Python 3.6.6 and an Arduino to direct an modular LED bar, that goes above the piano keys, to indicate the user of the upcoming notes. The project requires an Arduino, Windows 10 (highly recommended with an Intel Processor), access to a 3D printer, and (for now) access to a PBC printer.
 
-<img src="https://user-images.githubusercontent.com/40870026/51092443-f49ef900-175c-11e9-855c-2f1d3c66700f.PNG" width="500" align='middle' />
+### Current Working Prototype
 
-Concept Design of the SKORE Project
+Here is a .gif displaying the project. It is still in development, but the project is coming together and working well.
 
-### How it Works
+<p align="center">
+  <img src="https://user-images.githubusercontent.com/40870026/53314624-065bdc00-3885-11e9-80bb-1b8787e5b48d.gif" width="1000">
+</p>
 
-The project utilizes a LED bar to assist the user in learning a song. The LED bar is controlled by an Arduino. Then through serial communication, Python coordinates the Arduino to follow the ON/OFF note events contained within the MIDI file. Through multiple file conversions, an mp3 and pdf can be converted to a MIDI file that can be interpreted to realize the tutoring feature of SKORE. Ultimately, the quality of the file conversion depends on the original quality and simplicity of the input file. Here's an simplified view of the SKORE system.
+Here is how the SKORE GUI looks like:
 
-<img src="https://user-images.githubusercontent.com/40870026/51095438-5c177180-177a-11e9-9340-fca3899df69e.png" width=500 align='middle' >
+<p align="center">
+  <img src="https://user-images.githubusercontent.com/40870026/53346936-a80f1780-38dd-11e9-83c2-e49c639eac90.png" width="1000">
+</p>
 
-### Tutoring Modes
+And here is how the SKORE hardware looks like:
 
- - Beginner Mode
-    - Complete song assistance
- - Intermediate Mode
-    - Play-along with upcoming note information
- - Expert Mode
-    - Play-along
+<p align="center">
+  <img src="https://user-images.githubusercontent.com/40870026/53346900-962d7480-38dd-11e9-9e50-750a85609bdb.jpg" width="1000">
+</p>
 
-### Installation
-Within the setup folder, there is a setup.exe that will install all the majority of the additional applications. You will still need to install Audiveris and optionally Anthemscore.
+### How It Works
 
-#### Beware!
-The pdf to midi file conversion is only functional with an Intel Processor Windows 10 computer. Other features of the application theoretically work in Linux and Mac as well, but they have not been tested in those OS yet.
-
-For this application to function, please install the following programs:
- - [Audiveris] (Require 64-bit OS and Intel Processor) [v5.1.0:0bf682689]
-Preferably follow the installation instructions in Audiveris' wiki. You will need the following programs to run Audiveris.
-     - [Java JDK version 8]
-     - [Gradle]
-     - [Tesseract OCR]
- - [AmazingMIDI] (v1.70)
- - [AnthemScore] (Optional, not free)
-
-### TODO:
----
-
- - [ ] Improve simplicity in LED octave fabrication
+The project utilizes a LED bar to assist the user in learning a song. The LED bar is controlled by an Arduino. Then through serial communication, Python coordinates the Arduino to follow the ON/OFF note events contained within the MIDI file. Through multiple file conversions, an mp3 and pdf can be converted to a MIDI file that can be interpreted to realize the tutoring feature of SKORE. Ultimately, the quality of the file conversion depends on the original quality and simplicity of the input file. Here's an general view of the SKORE system.
 
 
+<p align="center">
+  <img src="https://user-images.githubusercontent.com/40870026/53306561-38a11580-3854-11e9-8917-dcc01f097d9b.PNG" width="700">
+</p>
 
-[Audiveris]: <https://github.com/audiveris>
-[Java JDK version 8]: <http://www.oracle.com/technetwork/java/javase/downloads/index.html>
-[Gradle]: <https://gradle.org/>
-[Tesseract OCR]: <https://github.com/tesseract-ocr/tesseract>
-[AmazingMIDI]: <http://www.pluto.dti.ne.jp/~araki/amazingmidi/>
-[AnthemScore]: <https://www.lunaverus.com/>
+For further information of the project, look into the Wiki of this project.

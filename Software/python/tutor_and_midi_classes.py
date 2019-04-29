@@ -17,7 +17,13 @@ from lib_skore import read_config
 
 class SkoreMidiEvent:
 
+    """
+    This class is a helpful function for midi events, made specially for SKORE.
+    """
+
     def __init__(self, event_type, event_data):
+
+        """ Initilization for main class variables. """
 
         self.event_type = event_type
         self.data = event_data
@@ -25,12 +31,20 @@ class SkoreMidiEvent:
         return None
 
     def __repr__(self):
+
+        """ String representation of the class. """
 
         return "({0}, {1})".format(self.event_type, self.data)
 
 class SkoreMetaEvent:
 
+    """
+    This class is a helpful function for midi meta events, made specially for SKORE.
+    """
+
     def __init__(self, event_type, event_data):
+
+        """ Initilization for main class variables. """
 
         self.event_type = event_type
         self.data = event_data
@@ -39,11 +53,20 @@ class SkoreMetaEvent:
 
     def __repr__(self):
 
+        """ String representation of the class. """
+
         return "(Meta: {0}, {1})".format(self.event_type, self.data)
 
 class TutorMidiHandler:
 
+    """
+    This class is the callback handler of the Piano port. This handler is design
+    to assist the tutoring thread.
+    """
+
     def __init__(self, gui):
+
+        """ Initilization for main class variables. """
 
         self.gui = gui
         self.notes_drawn = {}
@@ -51,6 +74,8 @@ class TutorMidiHandler:
         return None
 
     def __call__(self, event, data=None):
+
+        """ Handling of the incoming piano message. """
 
         message, delta_time = event
         note_pitch = message[1]
@@ -117,10 +142,16 @@ class TutorMidiHandler:
 
     def wrong_note_arduino_comm(self, right_wrong, pitch, on_off):
 
+        """
+        This function request for the wrong note to be indicated in the LED Bar.
+        Communication with the arduino is utlizes.
+        """
+
         if self.gui.tutor.options['right/wrong notification'] is False:
             return None
 
         while globals.HANDLER_ENABLE is False:
+            print("$", end = "")
             time.sleep(globals.TUTOR_THREAD_DELAY)
 
         self.gui.arduino_comm(pitch, 'incorrect-{0}'.format(on_off)) # wrong
@@ -129,7 +160,17 @@ class TutorMidiHandler:
 
 class Tutor(QtCore.QThread):
 
+    """
+    This class is the thread that performs the tutoring of the SKORE application.
+    It recieves commands from the main SKORE GUI, recieves information from the
+    TutorMidiHanlder, and performs the necessary logic to teach ther user the song.
+    """
+
     def __init__(self, gui):
+
+        """
+        This function initlizes the major configuration for the tutor thread.
+        """
 
         QtCore.QThread.__init__(self)
         self.gui = gui
@@ -141,10 +182,24 @@ class Tutor(QtCore.QThread):
 
         return None
 
+    def interval_looping(self):
+
+        if globals.LIVE_SETTINGS['interval_loop'] is True:
+            print("{0} - {1} - {2}".format(globals.LIVE_SETTINGS['interval_initial'], self.sequence_pointer, globals.LIVE_SETTINGS['interval_final']))
+            if globals.LIVE_SETTINGS['interval_initial'] > self.sequence_pointer or self.sequence_pointer > globals.LIVE_SETTINGS['interval_final'] - 1:
+                print("Shift song")
+                self.gui.shift_song(globals.LIVE_SETTINGS['interval_initial'])
+
+        return None
+
     def keyboard_valid(self):
-        # This functions follows the confirmation system of PianoBooster
-        # which determines if the keys pressed are acceptable compared to the
-        # target keyboard configuration
+
+        """
+        This function return the validity of the current keyboard compared to
+        the target keyboard. The user mostly play all the notes in the target
+        keyboard and can only have one wrong for the current keyboard to be
+        consider valid.
+        """
 
         if globals.KEYBOARD_STATE['TARGET'] == []:
             return True
@@ -159,6 +214,13 @@ class Tutor(QtCore.QThread):
         return True
 
     def keyboard_change(self):
+
+        """
+        This function determines if the user's keystrokes are unique, meaning that
+        the user pressed the target keyboard once it was indicated, not before.
+        This prevents the tutoring to continue if the user simply sustains the
+        target keyboard, they must actually pressed it when indicated.
+        """
 
         if self.keyboard_change_value is True:
             return None
@@ -176,6 +238,8 @@ class Tutor(QtCore.QThread):
 
     def target_in_timing_box(self, event_graphic_notes):
 
+        """ This function returns true if the target is within the timing box. """
+
         should_be_played_now_list = [note.should_be_played_now for note in event_graphic_notes]
         if True in should_be_played_now_list:
             return True
@@ -184,6 +248,10 @@ class Tutor(QtCore.QThread):
 
     def target_in_late_timing_box(self, event_graphic_notes):
 
+        """
+        This function returns true if the target is within the late timing box.
+        """
+
         late_list = [note.is_late for note in event_graphic_notes]
         if True in late_list:
             return True
@@ -191,7 +259,14 @@ class Tutor(QtCore.QThread):
         return False
 
     def beginner(self):
-        #print("Entering beginner mode")
+
+        """
+        This function is the beginner mode tutoring logic that accounts for the
+        specific process need to be done soley for the beginner mode. These
+        including informing the user of the upcoming, stopping the notes once
+        they reach the timing box, and waiting for the entire target keyboard
+        to be pressed.
+        """
 
         run_once = True
         upcoming_once = True
@@ -200,13 +275,14 @@ class Tutor(QtCore.QThread):
         self.keyboard_change_value = False
 
         while True:
-            if self.gui.live_settings['mode'] != 'Beginner':
+            if globals.LIVE_SETTINGS['mode'] != 'Beginner':
                 return False
 
+            self.interval_looping()
             self.keyboard_change()
 
             event_graphic_notes = self.gui.drawn_notes_group[self.sequence_pointer]
-            if self.target_in_timing_box(event_graphic_notes) and self.gui.live_settings['play'] is True:
+            if self.target_in_timing_box(event_graphic_notes) and globals.LIVE_SETTINGS['play'] is True:
 
                 # Change color to inform timing
                 if self.options['timing notification'] is True and run_once is True:
@@ -234,7 +310,13 @@ class Tutor(QtCore.QThread):
         return None
 
     def intermediate(self):
-        #print("Entering Intermediate mode")
+
+        """
+        This function is the intermediate mode tutoring logic that accounts for
+        the specific process need to be done soley for the intermediat mode.
+        These including informing the user of the upcoming, and continuing with
+        the song regardless of user input.
+        """
 
         run_once = True
         upcoming_once = True
@@ -242,17 +324,18 @@ class Tutor(QtCore.QThread):
         self.post_lighting_notes_pressed = globals.KEYBOARD_STATE['RIGHT'] + globals.KEYBOARD_STATE['WRONG']
         self.keyboard_change_value = False
 
-        if self.gui.live_settings['play'] is True:
+        if globals.LIVE_SETTINGS['play'] is True:
             self.gui.move_all_notes()
 
         while True:
-            if self.gui.live_settings['mode'] != 'Intermediate':
+            if globals.LIVE_SETTINGS['mode'] != 'Intermediate':
                 return False
 
+            self.interval_looping()
             self.keyboard_change()
 
             event_graphic_notes = self.gui.drawn_notes_group[self.sequence_pointer]
-            if self.target_in_timing_box(event_graphic_notes) and self.gui.live_settings['play'] is True:
+            if self.target_in_timing_box(event_graphic_notes) and globals.LIVE_SETTINGS['play'] is True:
 
                 # Change color to inform timing
                 if self.options['timing notification'] is True and run_once is True:
@@ -279,20 +362,28 @@ class Tutor(QtCore.QThread):
 
     def expert(self):
 
+        """
+        This function is the expert mode tutoring logic that accounts for
+        the specific process need to be done soley for the expert mode.
+        These including continuing with the song regardless of user input.
+        """
+
         run_once = True
 
         self.post_lighting_notes_pressed = globals.KEYBOARD_STATE['RIGHT'] + globals.KEYBOARD_STATE['WRONG']
         self.keyboard_change_value = False
 
-        if self.gui.live_settings['play'] is True:
+        if globals.LIVE_SETTINGS['play'] is True:
             self.gui.move_all_notes()
 
         while True:
-            if self.gui.live_settings['mode'] != 'Expert':
+            if globals.LIVE_SETTINGS['mode'] != 'Expert':
                 return False
 
+            self.interval_looping()
+
             event_graphic_notes = self.gui.drawn_notes_group[self.sequence_pointer]
-            if self.target_in_timing_box(event_graphic_notes) and self.gui.live_settings['play'] is True:
+            if self.target_in_timing_box(event_graphic_notes) and globals.LIVE_SETTINGS['play'] is True:
 
                 # Change color to inform timing
                 if self.options['timing notification'] is True and run_once is True:
@@ -314,6 +405,12 @@ class Tutor(QtCore.QThread):
 
     def run(self):
 
+        """
+        This function performs the general tutoring process that is shared by all
+        tutoring modes, such as setup, keeping a sequence pointer, and song
+        conclusion.
+        """
+
         globals.KEYBOARD_STATE['RIGHT'] = []
         globals.KEYBOARD_STATE['WRONG'] = []
         globals.KEYBOARD_STATE['ARDUINO']['TARGET'] = []
@@ -322,6 +419,8 @@ class Tutor(QtCore.QThread):
         self.sequence_pointer = 0
 
         while self.sequence_pointer < len(self.gui.filtered_sequence):
+
+            self.interval_looping()
 
             self.gui.label_current_event_value.setText("{0}/{1}".format(self.sequence_pointer, globals.TOTAL_EVENTS))
 
@@ -350,9 +449,9 @@ class Tutor(QtCore.QThread):
             #-------------------------------------------------------------------
             # Tutoring Mode Change
             while True:
-                if self.gui.live_settings['mode'] == "Beginner":
+                if globals.LIVE_SETTINGS['mode'] == "Beginner":
                     go_to_next_note = self.beginner()
-                elif self.gui.live_settings['mode'] == "Intermediate":
+                elif globals.LIVE_SETTINGS['mode'] == "Intermediate":
                     go_to_next_note = self.intermediate()
                 else:
                     go_to_next_note =  self.expert()
@@ -378,10 +477,5 @@ class Tutor(QtCore.QThread):
         while True in visible_notes:
             time.sleep(globals.TUTOR_THREAD_DELAY)
             visible_notes = [note.visible for note in drawn_notes]
-
-        print("End of Song")
-        globals.KEYBOARD_STATE['TARGET'] = []
-        self.gui.stop_all_notes()
-        self.gui.arduino_comm('!')
 
         return None

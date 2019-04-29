@@ -17,11 +17,22 @@ import globals
 
 class DeviceDetector(QtCore.QThread):
 
+    """
+    This class is a thread that detects any USB/MIDI device insertion/removal
+    events and informs the user about the event. Additionally, if the USB/MIDI
+    is inserted, the DeviceDetector attempts to re-establish the communication
+    line with the inserted device.
+    """
+
     arduino_change_signal = QtCore.pyqtSignal('QString')
 
     piano_change_signal = QtCore.pyqtSignal('QString')
 
     def __init__(self, gui = None):
+
+        """
+        This function simply connects the DeviceDetector to the SKORE gui.
+        """
 
         QtCore.QThread.__init__(self)
         self.gui = gui
@@ -30,17 +41,31 @@ class DeviceDetector(QtCore.QThread):
 
     def enumerate_serial_devices(self):
 
+        """
+        This helper function simply obtains the serial ports.
+        """
+
         ports = list(list_ports.comports())
 
         return ports
 
     def enumerate_midi_devices(self):
 
+        """
+        This helper function simply obtains the MIDI ports.
+        """
+
         ports = self.midiout.get_ports()
 
         return ports
 
     def check_device_changes(self):
+
+        """
+        This function does the comparison of current and past USB/MIDI ports.
+        If the thread detects a change, it determines if it is a removal/insertion.
+        If removal, inform the user. Else if insertion, restablish communication.
+        """
 
         #---------------------------------------------------------------------------
         # USB ports

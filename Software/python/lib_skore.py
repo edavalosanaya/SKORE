@@ -2,34 +2,49 @@
 import sys
 import time
 import os
-import statistics
+#import statistics
 
 # File, Folder, and Directory Manipulation Library
 import ntpath
 import pathlib
 import glob
-from pathlib import Path
-from shutil import copyfile, move
+#from pathlib import Path
+#from shutil import move
 import shutil
 import yaml
 
 # Image Procressing Library
-import cv2
+#import cv2
 import numpy as np
-import pyautogui
+#import pyautogui
 
 # Music Library
-#import pydub
+import hook_pydub # SKORE MODULE
+import pydub
 
 # GUI Automation Library
 import pywinauto
+
+# SKORE imports
+import globals
 
 #-------------------------------------------------------------------------------
 # Class Definitions
 
 class FileContainer:
 
+    """
+    The FileContainer class is responsible of keeping track of the uploaded files
+    and performing the file conversion in the back-end side of the SKORE
+    application.
+    """
+
     def __init__(self, file_path = None):
+
+        """
+        This function initializes the class, setting up list variables, and
+        determing the location of the SKORE application.
+        """
 
         self.file_path = {}
         self.original_file = ''
@@ -44,14 +59,13 @@ class FileContainer:
         if self.complete_path == '' or self.complete_path.find('SKORE') == -1:
                 self.complete_path = os.path.dirname(sys.argv[0])
 
-        skore_index = self.complete_path.find('SKORE') + len('SKORE')
-        self.skore_path = self.complete_path[0: skore_index + 1]
-        self.temp_folder_path = self.skore_path + r".\Software\python\temp"
-        self.amazing_midi_tune_path = self.skore_path + r".\Software\python\misc\piano0.wav"
+        self.amazing_midi_tune_path = self.complete_path + r"\misc\piano0.wav"
 
         return None
 
     def add_file_type(self, file_path):
+
+        """ This function addes a file type to the file container. """
 
         file_name = os.path.basename(file_path)
         file_type = os.path.splitext(file_name)[1]
@@ -61,6 +75,8 @@ class FileContainer:
 
     def remove_file_type(self, file_path):
 
+        """ This function removes a file type from the file container. """
+
         file_name = os.path.basename(file_path)
         file_type = os.path.splitext(file_name)[1]
         self.file_path.pop(file_type)
@@ -69,48 +85,26 @@ class FileContainer:
 
     def output_file_path_generator(self, input_address, file_extension):
 
+        """
+        This function creates a output file path depending on the file
+        extension and input address of the input file.
+        """
+
         file = ntpath.basename(input_address)
         filename = file.split(".")[0]
 
-        exist_path = pathlib.Path(input_address)
-        file_path = exist_path.parent
-
-        output_address = self.temp_folder_path + '\\' + filename + file_extension
+        #output_address = globals.OUTPUT_FILE_DIR + '\\' + filename + file_extension
+        output_address = globals.OUTPUT_FILE_DIR + '\\' + globals.OUTPUT_FILENAME + file_extension
         return output_address
 
-    def clean_temp_folder(self):
-
-        files = glob.glob(self.temp_folder_path + '\*')
-
-        for file in files:
-            os.remove(file)
-            print("Removing file: {0}".format(file))
-            try:
-                self.remove_file_type(file)
-            except KeyError:
-                print("Excess File Removed that was not in the file container")
-
-        return None
-
-    def temp_to_folder(self, destination_folder, filename):
-        # This functions transfer all the files found within temp folder into
-        # "destination_folder" with the "filename" given.
-
-        print("Transfering files with name: " + filename + "\t To directory: " + destination_folder)
-
-        for file in self.file_path.values():
-            if file.find(self.temp_folder_path) != -1:
-                # File is in temp folder
-                old_file = os.path.basename(file)
-                file_type = os.path.splitext(old_file)[1]
-                new_file_path = destination_folder + '\\' + filename + file_type
-
-                shutil.move(file, new_file_path)
-                self.file_path[file_type] = new_file_path
-
-        return None
-
     def stringify_container(self):
+
+        """
+        This function stringifies the file container, mostly for troubleshooting
+        purposes.
+        """
+        if len(self.file_path) == 0:
+            print("Container is empty")
 
         for key, value in self.file_path.items():
             print("{0} : {1}".format(key, value))
@@ -122,6 +116,8 @@ class FileContainer:
 
     def has_midi_file(self):
 
+        """ Returns true if the file container has a midi file. """
+
         if '.mid' in self.file_path.keys():
             return True
 
@@ -129,6 +125,8 @@ class FileContainer:
             return False
 
     def has_pdf_file(self):
+
+        """ Returns true if the file container has a pdf file. """
 
         if '.pdf' in self.file_path.keys():
             return True
@@ -138,6 +136,8 @@ class FileContainer:
 
     def has_mp3_file(self):
 
+        """ Returns true if the file container has a mp3 file. """
+
         if '.mp3' in self.file_path.keys():
             return True
 
@@ -145,6 +145,13 @@ class FileContainer:
             return False
 
     def is_empty(self):
+
+        #self.stringify_container()
+
+        """ Returns true if the file container is empty. """
+
+        #print("Checking if the file container is empty")
+        #print("self.file_path: ", self.file_path)
 
         if len(self.file_path) == 0:
             return True
@@ -154,6 +161,8 @@ class FileContainer:
 
     def remove_all(self):
 
+        """ Removes all of the track files by the file container. """
+
         self.file_path = {}
         self.original_file = ''
 
@@ -162,7 +171,23 @@ class FileContainer:
     #---------------------------------------------------------------------------
     # Single-Step File Conversion
 
+    def waiting_for_file(self, output_file):
+
+        while True:
+            if output_file.is_file() is True:
+                break
+            else:
+                print(".", end = "")
+                time.sleep(0.5)
+
+        return None
+
     def mp3_to_wav(self):
+
+        """
+        Function converts an input .mp3 file to a output .wav file. This is done
+        with a python library called pydub.
+        """
 
         mp3_file = self.file_path['.mp3']
         wav_file = self.output_file_path_generator(mp3_file, '.wav')
@@ -171,19 +196,18 @@ class FileContainer:
         score.export(wav_file, format = "wav")
         self.add_file_type(wav_file)
 
-        output_file = Path(wav_file)
-
-        while True :
-            if output_file.is_file() is True:
-                time.sleep(0.1)
-                break
-            else:
-                print(".",end = "")
-                time.sleep(0.5)
+        output_file = pathlib.Path(wav_file)
+        self.waiting_for_file(output_file)
 
         return None
 
     def wav_to_mid(self):
+
+        """
+        Function converts an input .wav file to a output .mid file. This file
+        conversion is open-source, done through the GUI of the AmazingMIDI
+        application.
+        """
 
         # AmazingMIDI
         cfg = read_config()
@@ -261,35 +285,52 @@ class FileContainer:
 
     def pdf_to_mxl(self):
 
+        """
+        Function converts an input .pdf file to a output .mxl file. This file
+        conversion is performed through the CLI of the open-source Audiveris
+        software.
+        """
+
+        # Add gradle to PATH if necessary
         cfg = read_config()
 
         pdf_file = self.file_path['.pdf']
+        pdf_filename = os.path.basename(pdf_file)
+        pdf_filename = pdf_filename.split('.')[0]
+
         aud_app_exe_path = cfg['app_path']['audiveris']
-        os.system('cd {0} && gradle run -PcmdLineArgs="-batch,-export,-output,{1},--,{2}"'.format(aud_app_exe_path, self.temp_folder_path,pdf_file))
+        aud_app_exe_directory = os.path.dirname(aud_app_exe_path)
+
+        embed_mxl_dir = globals.OUTPUT_FILE_DIR + '\\' + globals.OUTPUT_FILENAME
+
+        #print('cd {0} && gradle run -PcmdLineArgs="-batch,-export,-output,{1},--,{2}"'.format(aud_app_exe_path, embed_mxl_dir, pdf_file))
+        #os.system('cd {0} && gradle run -PcmdLineArgs="-batch,-export,-output,{1},--,{2}"'.format(aud_app_exe_path, embed_mxl_dir, pdf_file))
+        print('cd {0} && audiveris -batch -export "{1}" -output "{2}"'.format(aud_app_exe_directory, pdf_file, embed_mxl_dir))
+        os.system('cd {0} && audiveris -batch -export "{1}" -output "{2}"'.format(aud_app_exe_directory, pdf_file, embed_mxl_dir))
 
         # Move the pdf file into temp and then remove the rest
         time.sleep(1)
-        filename = os.path.splitext(os.path.basename(pdf_file))[0]
-        embed_mxl_dir = self.temp_folder_path + '\\' + filename
-        embed_mxl_file = embed_mxl_dir + '\\' + filename + '.mxl'
-        mxl_file = self.temp_folder_path + '\\' + filename + '.mxl'
+        embed_mxl_file = embed_mxl_dir + '\\' + pdf_filename + '\\' + pdf_filename + '.mxl'
+        mxl_file = globals.OUTPUT_FILE_DIR + '\\' + globals.OUTPUT_FILENAME + '.mxl'
 
-        output_file = Path(embed_mxl_file)
-
-        while True:
-            if output_file.is_file() is True:
-                break
-            else:
-                print(".", end = "")
-                time.sleep(0.5)
+        output_file = pathlib.Path(embed_mxl_file)
+        self.waiting_for_file(output_file)
 
         shutil.move(embed_mxl_file, mxl_file)
         shutil.rmtree(embed_mxl_dir)
         self.add_file_type(mxl_file)
 
+        output_file = pathlib.Path(mxl_file)
+        self.waiting_for_file(output_file)
+
         return None
 
     def mxl_to_mid(self):
+
+        """
+        Function converts an input .mxl file to a output .mid file. This is done
+        with the CLI of the open-source MuseScore application.
+        """
 
         cfg = read_config()
 
@@ -300,48 +341,58 @@ class FileContainer:
         mus_app_exe_directory = os.path.dirname(mus_app_exe_path)
         mus_app_exe_filename = os.path.basename(mus_app_exe_path)
 
+        print("1")
+        print('cd {0} && {1} "{2}" -o "{3}"'.format(mus_app_exe_directory, mus_app_exe_filename, mxl_file, mid_file))
         os.system('cd {0} && {1} "{2}" -o "{3}"'.format(mus_app_exe_directory, mus_app_exe_filename, mxl_file, mid_file))
+        print("2")
         self.add_file_type(mid_file)
-        output_file = Path(mid_file)
+        output_file = pathlib.Path(mid_file)
+        print("3")
 
-        while True:
-            if output_file.is_file() is True:
-                time.sleep(0.1)
-                break
-            else:
-                time.sleep(0.5)
+        self.waiting_for_file(output_file)
 
+        print("4")
         print("Overall .mxl -> .mid complete")
 
         return None
 
     def mid_to_pdf(self):
 
+        """
+        Function converts an input .mid file to a output .pdf file. This is done
+        with the CLI of the open-source MuseScore application.
+        """
+
         cfg = read_config()
 
         mid_file = self.file_path['.mid']
-        pdf_file =self.output_file_path_generator(mid_file, '.pdf')
+        pdf_file = self.output_file_path_generator(mid_file, '.pdf')
 
         mus_app_exe_path = cfg['app_path']['muse_score']
         mus_app_exe_directory = os.path.dirname(mus_app_exe_path)
         mus_app_exe_filename = os.path.basename(mus_app_exe_path)
 
+        print("1")
+        print('cd {0} && {1} "{2}" -o "{3}"'.format(mus_app_exe_directory, mus_app_exe_filename, mid_file, pdf_file))
         os.system('cd {0} && {1} "{2}" -o "{3}"'.format(mus_app_exe_directory, mus_app_exe_filename, mid_file, pdf_file))
+        print("2")
         self.add_file_type(pdf_file)
-        output_file = Path(pdf_file)
+        output_file = pathlib.Path(pdf_file)
+        print("3")
 
-        while True:
-            if output_file.is_file() is True:
-                time.sleep(0.1)
-                break
-            else:
-                time.sleep(0.5)
+        self.waiting_for_file(output_file)
 
+        print("4")
         print("Overall .mid -> .pdf complete")
 
         return None
 
     def mp3_to_mid_anthemscore(self):
+
+        """
+        Function converts an input .mp3 file to a output .mid file. This is done
+        with the CLI of the close-source AnthemScore application.
+        """
 
         cfg = read_config()
 
@@ -354,17 +405,10 @@ class FileContainer:
         ant_app_exe_directory = os.path.dirname(ant_app_exe_path)
         ant_app_exe_filename = os.path.basename(ant_app_exe_path)
 
-        os.system("start \"\" cmd /c \"cd {0} && {1} -a {2} -m {3} \"".format(ant_app_exe_directory, ant_app_exe_filename, mp3_file,mid_file))
+        os.system("start \"\" cmd /c \"cd {0} && {1} -a {2} -m {3} \"".format(ant_app_exe_directory, ant_app_exe_filename, mp3_file, mid_file))
 
-        output_file = Path(mid_file)
-
-        while True :
-            if output_file.is_file() is True:
-                time.sleep(0.1)
-                break
-            else:
-                print(".",end = "")
-                time.sleep(0.5)
+        output_file = pathlib.Path(mid_file)
+        self.waiting_for_file(output_file)
 
         print("Midi File Generation Complete")
         self.add_file_type(mid_file)
@@ -376,7 +420,10 @@ class FileContainer:
 
     def mp3_to_pdf(self):
 
-        # This function converts a .mp3 to .pdf
+        """
+        This function converts an .mp3 to .pdf .
+        """
+
         cfg = read_config()
 
         mp3_to_midi_converter_setting = cfg['app_path']['open_close_source']
@@ -396,7 +443,10 @@ class FileContainer:
 
     def mp3_to_mid(self):
 
-        # This function converts a .mp3 to .mid
+        """
+        This function converts a .mp3 to .mid .
+        """
+
         cfg = read_config()
 
         mp3_to_midi_converter_setting = cfg['app_path']['open_close_source']
@@ -415,7 +465,9 @@ class FileContainer:
 
     def pdf_to_mid(self):
 
-        # This function converts a .pdf to .mid
+        """
+        This function converts a .pdf to .mid .
+        """
 
         self.pdf_to_mxl()
         self.mxl_to_mid()
@@ -429,10 +481,12 @@ class FileContainer:
 
     def input_to_pdf(self):
 
-        # This function converts any file into a .pdf
+        """
+        This function converts any file into a .pdf .
+        """
 
-        print("Before file conversion")
-        self.stringify_container()
+        #print("Before file conversion")
+        #self.stringify_container()
 
         if self.has_pdf_file() is True:
             print("Pre-existing pdf file found. File Conversion Cancelled")
@@ -444,16 +498,19 @@ class FileContainer:
         elif self.has_mp3_file() is True:
             self.mp3_to_pdf()
 
-        print("After file conversion")
-        self.stringify_container()
+        #print("After file conversion")
+        #self.stringify_container()
 
         return None
 
     def input_to_mid(self):
-        # This function converts any file into a .mid.
 
-        print("Before file conversion")
-        self.stringify_container()
+        """
+        This function converts any file into a .mid .
+        """
+
+        #print("Before file conversion")
+        #self.stringify_container()
 
         if self.has_midi_file() is True:
             print("Pre-existing midi file found. File Conversion Cancelled")
@@ -465,114 +522,24 @@ class FileContainer:
         elif self.has_mp3_file() is True:
             self.mp3_to_mid()
 
-        print("After file conversion")
-        self.stringify_container()
-
-        return None
-
-class GuiManipulator:
-
-    def __init__(self):
-
-        self.complete_path = os.path.dirname(os.path.abspath(__file__))
-        if self.complete_path == '' or self.complete_path.find('SKORE') == -1:
-                self.complete_path = os.path.dirname(sys.argv[0])
-
-        skore_index = self.complete_path.find('SKORE') + len('SKORE')
-        self.skore_path = self.complete_path[0: skore_index + 1]
-        self.templates_path = self.skore_path + r"\Software\python\templates"
-
-        return None
-
-    def click_center(self, button, dimensions):
-        # This function utilizes screen shoots and determines the location of certain
-        # buttons within the screenshot. The screenshot will then be cropped to only
-        # include the application that is being clicked
-
-        image = pyautogui.screenshot(region=dimensions)
-        x_coord_list = []
-        y_coord_list = []
-
-        image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-        cv2.imwrite('gui_screenshot.png', image)
-        img = cv2.imread('gui_screenshot.png', 0)
-        template = cv2.imread(self.templates_path + '\\' + button + '.png', 0)
-
-        w, h = template.shape[::-1]
-
-        methods = ['cv2.TM_CCOEFF', 'cv2.TM_CCOEFF_NORMED', 'cv2.TM_CCORR',
-                'cv2.TM_CCORR_NORMED', 'cv2.TM_SQDIFF', 'cv2.TM_SQDIFF_NORMED']
-
-        desirable_methods = ['cv2.TM_CCOEFF', 'cv2.TM_CCOEFF_NORMED','cv2.TM_CCORR_NORMED']
-
-        for method in desirable_methods:
-            method = eval(method)
-            res = cv2.matchTemplate(img, template, method)
-            min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
-
-            top_left = max_loc
-            bottom_right = (top_left[0] + w, top_left[1] + h)
-
-            top_left = [top_left[0] + dimensions[0], top_left[1] + dimensions[1]]
-            bottom_right = (top_left[0] + w, top_left[1] + h)
-
-            file_button_center_coords = [ int((top_left[0]+bottom_right[0])/2) , int((top_left[1]+bottom_right[1])/2) ]
-
-            x_coord_list.append(file_button_center_coords[0])
-            y_coord_list.append(file_button_center_coords[1])
-
-        try:
-            x_coord_mode = statistics.mode(x_coord_list)
-            y_coord_mode = statistics.mode(y_coord_list)
-        except:
-            x_coord_mode = x_coord_list[0]
-            y_coord_mode = y_coord_list[0]
-
-        pywinauto.mouse.click(button="left",coords=(x_coord_mode,y_coord_mode))
-        os.remove('gui_screenshot.png')
-        time.sleep(0.1)
-
-        return None
-
-    def click_center_try(self, button, dimensions):
-        # This functions does the same as click_center, but allows the function to wait
-        # Until the image is found.
-
-        while(True):
-            try:
-                self.click_center(button, dimensions)
-                break
-            except AttributeError:
-                #print('.', end='')
-                time.sleep(0.5)
+        #print("After file conversion")
+        #self.stringify_container()
 
         return None
 
 #-------------------------------------------------------------------------------
 # Utility Functions
 
-def rect_to_int(rect_object):
-    # This function is catered to help click_center by converting the RECT object
-    # to a list of integers that is compatible with the cropping feature of the
-    # click_center_try function
-
-    int_dimensions = [0,0,0,0]
-
-    tolerance = 10
-
-    int_dimensions[0] = rect_object.left
-    int_dimensions[1] = rect_object.top
-    int_dimensions[2] = rect_object.right - rect_object.left + tolerance
-    int_dimensions[3] = rect_object.bottom - rect_object.top + tolerance
-
-    return int_dimensions
-
 def read_config():
+
+    """ Reads the config file and returns its contents. """
 
     with open("config.yml", 'r') as ymlfile:
         return yaml.load(ymlfile)
 
 def update_config(cfg):
+
+    """ Updates the config file with the given settings. """
 
     with open('config.yml', 'w') as outfile:
         yaml.dump(cfg, outfile, default_flow_style=False)
@@ -580,7 +547,8 @@ def update_config(cfg):
     return None
 
 def is_mid(file_path):
-    # Test if the input file is .mid
+
+    """ Test if the input file is .mid """
 
     file_name = os.path.basename(file_path)
     file_type = os.path.splitext(file_name)[1]
@@ -591,7 +559,8 @@ def is_mid(file_path):
     return False
 
 def is_mp3(file_path):
-    # Test if the input file is .mp3
+
+    """ Test if the input file is .mp3 """
 
     file_name = os.path.basename(file_path)
     file_type = os.path.splitext(file_name)[1]
@@ -602,7 +571,8 @@ def is_mp3(file_path):
     return False
 
 def is_pdf(file_path):
-    # Test if the input file is .pdf
+
+    """ Test if the input file is .pdf """
 
     file_name = os.path.basename(file_path)
     file_type = os.path.splitext(file_name)[1]

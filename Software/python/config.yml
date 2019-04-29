@@ -1,14 +1,15 @@
 app_path:
   amazing_midi: C:\Program Files (x86)\AmazingMIDI\amazingmidi.exe
   anthemscore: C:\Program Files (x86)\AnthemScore\AnthemScore.exe
-  audiveris: C:\Users\daval\audiveris
+  audiveris: C:\Program Files\Audiveris\bin\Audiveris.bat
+  gradle: C:\Gradle\gradle-4.9\bin
   muse_score: C:\Program Files\MuseScore 3\bin\MuseScore3.exe
   open_close_source: open_source
 color:
-  black: 17,0,255
+  black: 0,0,255
   upcoming: 255,255,255
-  white: 0,255,0
-  wrong: 255,0,0
+  white: 25,255,0
+  wrong: 255,0,4
 options:
   normalize ppqn: true
   right/wrong notification: true
@@ -16,10 +17,10 @@ options:
 port:
   arduino: COM4
   arduino baud rate: 115200
-  piano: USB MIDI Interface 0
-  piano_size: '88'
+  piano: CASIO USB-MIDI 0
+  piano_size: '76'
 timing:
-  chord sum tolerance: 25
+  chord sum tolerance: 10
   chord tick tolerance: 1
   count timeout: 300
   record chord tolerance: 5
